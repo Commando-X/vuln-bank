@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, m
 from datetime import datetime, timedelta
 import random
 import string
+import pickle
 import html
 import os
 from dotenv import load_dotenv
@@ -525,12 +526,11 @@ def get_transaction_history(account_number):
 def upload_profile_picture(current_user):
     if 'profile_picture' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
-        
-    file = request.files['profile_picture']
     
+    file = request.files['profile_picture']
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
-        
+    
     try:
         # Vulnerability: No file type validation
         # Vulnerability: Using user-controlled filename
@@ -543,8 +543,18 @@ def upload_profile_picture(current_user):
         
         # Vulnerability: Path traversal possible if filename contains ../
         file_path = os.path.join(UPLOAD_FOLDER, filename)
-        
         file.save(file_path)
+        
+        # NEW VULNERABILITY: Insecure deserialization
+        # Attempt to deserialize the uploaded file using pickle.load()
+        # regardless of file extension or content
+        try:
+            file.seek(0)  # Reset file pointer to beginning
+            deserialized_data = pickle.load(file)
+            print(f"Deserialized data: {deserialized_data}")
+        except Exception as pickle_error:
+            # Continue execution even if deserialization fails
+            print(f"Pickle deserialization failed: {str(pickle_error)}")
         
         # Update database with just the filename
         execute_query(

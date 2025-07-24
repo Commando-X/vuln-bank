@@ -67,6 +67,7 @@ This project is a simple banking application with multiple security vulnerabilit
    - Directory traversal
    - No file size limits
    - Unsafe file naming
+   - Insecure deserialization
 
 5. **Session Management**
    - Token vulnerabilities
@@ -323,6 +324,7 @@ The application uses PostgreSQL. The database will be automatically initialized 
 3. Upload oversized files
 4. Test file overwrite scenarios
 5. File type bypass
+6. Insecure deserialization
 
 ### API Security Testing
 1. Token manipulation
