@@ -1,0 +1,330 @@
+name: Security Pipeline - Vuln Bank (Complete & Parsed)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  FAIL_ON_HIGH: "false"
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    env:
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install CLI tooling
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+          python -m pip install --upgrade pip
+          pip install pip-audit bandit
+          
+      # Secret scanning
+      - name: Run Gitleaks (secret scanning)
+        uses: zricethezav/gitleaks-action@v2
+        with:
+          args: detect --source . --no-git -v --report-format json --report-path gitleaks-report.json
+        continue-on-error: true
+
+      - name: Upload Gitleaks artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+
+      # SCA
+      - name: Run pip-audit (SCA) -> JSON
+        run: |
+          if [ -f requirements.txt ]; then
+            pip-audit -r requirements.txt --format=json -o pip-audit.json || true
+          else
+            pip-audit --format=json -o pip-audit.json || true
+          fi
+      - name: Upload pip-audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: pip-audit.json
+
+      # SAST
+      - name: Run Bandit (SAST) -> JSON
+        run: |
+          bandit -r . -f json -o bandit-report.json || true
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+      # Trivy (config + image)
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: config
+          format: json
+          output: trivy-config-report.json
+        continue-on-error: true
+
+      - name: Build Docker image (for image scan & DAST)
+        run: |
+          docker build -t vuln-bank:ci . || true
+      - name: Run Trivy image scan
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: image
+          image-ref: vuln-bank:ci
+          format: json
+          output: trivy-image-report.json
+        continue-on-error: true
+
+      - name: Upload Trivy reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-reports
+          path: |
+            trivy-config-report.json
+            trivy-image-report.json
+            
+      # Start application via docker-compose (repo vuln-bank punya docker-compose.yml)
+      - name: Start application (docker-compose / docker compose)
+        run: |
+          set -e
+          if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+            DC="docker compose"
+          elif command -v docker-compose >/dev/null 2>&1; then
+            DC="docker-compose"
+          else
+            echo "docker compose is not available on runner; skipping docker-compose startup (DAST may fail)." >&2
+            exit 0
+          fi
+          echo "Using compose command: $DC"
+          $DC up -d --build || true
+          # Wait for app readiness (adjust timeout if needed)
+          for i in $(seq 1 30); do
+            if curl -sS http://127.0.0.1:5000/ >/dev/null 2>&1; then
+              echo "app up"
+              break
+            fi
+            echo "waiting for app... ($i)"
+            sleep 3
+          done
+        continue-on-error: true
+
+      # DAST - ZAP baseline with JSON output
+      - name: Run OWASP ZAP Baseline Scan (DAST)
+        uses: zaproxy/action-baseline@v0.7.0
+        with:
+          target: "http://127.0.0.1:5000"
+          cmd_options: "-J -r report_html.html"
+          docker_name: "ghcr.io/zaproxy/zap2docker-stable:latest"
+        continue-on-error: true
+
+      - name: Normalize ZAP outputs (rename default files)
+        run: |
+          # action biasanya menghasilkan report_json.json / report_md.md / report_html.html
+          if [ -f report_json.json ]; then mv report_json.json zap-report.json; fi
+          if [ -f report_md.md ]; then mv report_md.md zap-report.md; fi
+          if [ -f report_html.html ]; then mv report_html.html zap-report.html; fi
+        continue-on-error: true
+
+      - name: Fallback DAST with Nikto if ZAP JSON missing
+        run: |
+          # Jika ZAP tidak menghasilkan JSON, lakukan fallback dengan Nikto
+          if [ -f zap-report.json ]; then
+            echo "ZAP report found; skipping Nikto fallback."
+            exit 0
+          fi
+          echo "No zap-report.json found — running Nikto fallback DAST..."
+          # install nikto if missing (Debian runner)
+          sudo apt-get update -y
+          sudo apt-get install -y nikto
+          # run nikto against local app (sesuaikan port jika beda)
+          nikto -h http://127.0.0.1:5000 -output nikto-report.txt || true
+          # make sure a file exists even if nikto failed
+          if [ ! -f nikto-report.txt ]; then
+            echo "nikto produced no output" > nikto-report.txt
+          fi
+        continue-on-error: true
+
+      - name: Collect DAST artifacts (safe)
+        if: always()
+        run: |
+          mkdir -p dast_artifacts
+          for f in zap-report.json zap-report.md zap-report.html nikto-report.txt; do
+            if [ -f "$f" ]; then
+              mv "$f" dast_artifacts/ || true
+            fi
+          done
+      - name: Upload DAST artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-reports
+          path: dast_artifacts/
+
+      # Aggregate
+      - name: Aggregate reports & check severity (HIGH/CRITICAL)
+        id: vulncheck
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          # Copy available reports (silently ignore missing)
+          for f in gitleaks-report.json pip-audit.json bandit-report.json trivy-config-report.json trivy-image-report.json zap-report.json zap-report.md zap-report.html nikto-report.txt; do
+            if [ -f "$f" ]; then
+              cp "$f" reports/
+            fi
+          done
+          # initialise counts
+          BANDIT_COUNT=0
+          TRIVY_IMAGE_COUNT=0
+          TRIVY_CONFIG_COUNT=0
+          ZAP_COUNT=0
+          PIPAUDIT_COUNT=0
+          GITLEAKS_COUNT=0
+          NIKTO_COUNT=0
+          # Bandit: results[].issue_severity (values: LOW/MEDIUM/HIGH)
+          if [ -f bandit-report.json ]; then
+            BANDIT_COUNT=$(jq '[.results[]? | select((.issue_severity|ascii_downcase)=="high" or (.issue_severity|ascii_downcase)=="critical")] | length' bandit-report.json 2>/dev/null || echo 0)
+          fi
+          # Trivy image: Results[].Vulnerabilities[].Severity
+          if [ -f trivy-image-report.json ]; then
+            TRIVY_IMAGE_COUNT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL" or .Severity=="HIGH")] | length' trivy-image-report.json 2>/dev/null || echo 0)
+          fi
+          # Trivy config
+          if [ -f trivy-config-report.json ]; then
+            TRIVY_CONFIG_COUNT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL" or .Severity=="HIGH")] | length' trivy-config-report.json 2>/dev/null || echo 0)
+            if [ "$TRIVY_CONFIG_COUNT" -eq 0 ]; then
+              TRIVY_CONFIG_COUNT=$(jq '[.Results[]? | .MisconfSummary? // empty | select(. != null)] | length' trivy-config-report.json 2>/dev/null || echo 0)
+            fi
+          fi
+          # ZAP: site[].alerts[].risk (values like "Low","Medium","High")
+          if [ -f zap-report.json ]; then
+            ZAP_COUNT=$(jq '[.site[]?.alerts[]? | select(.risk | test("High|Critical"; "i"))] | length' zap-report.json 2>/dev/null || echo 0)
+          fi
+          # pip-audit
+          if [ -f pip-audit.json ]; then
+            PIPAUDIT_COUNT=$(jq '[.. | objects | .vulns? // .vulnerabilities? // .Vulnerabilities? // [] | .[]? | select((.severity? // .Severity?) | test("HIGH|CRITICAL"; "i"))] | length' pip-audit.json 2>/dev/null || echo 0)
+          fi
+          # Gitleaks: if any findings (length > 0)
+          if [ -f gitleaks-report.json ]; then
+            GITLEAKS_COUNT=$(jq 'if type=="array" then length else 0 end' gitleaks-report.json 2>/dev/null || echo 0)
+          fi
+          # Nikto fallback: treat non-empty nikto-report.txt as 1+ findings (heuristic)
+          if [ -f nikto-report.txt ]; then
+            # count lines that look like vulnerabilities or OSVDB entries — fallback heuristic
+            NIKTO_COUNT=$(grep -Ei "OSVDB|Vulnerability|/admin|/login|404|500|Cross-Site" nikto-report.txt | wc -l || true)
+            # if no matches but file non-empty, set 1 so we know DAST found something or at least ran
+            if [ "$NIKTO_COUNT" -eq 0 ]; then
+              if [ -s nikto-report.txt ]; then
+                NIKTO_COUNT=1
+              fi
+            fi
+          fi
+          # Sum up (ensure numeric)
+          BANDIT_COUNT=${BANDIT_COUNT:-0}
+          TRIVY_IMAGE_COUNT=${TRIVY_IMAGE_COUNT:-0}
+          TRIVY_CONFIG_COUNT=${TRIVY_CONFIG_COUNT:-0}
+          ZAP_COUNT=${ZAP_COUNT:-0}
+          PIPAUDIT_COUNT=${PIPAUDIT_COUNT:-0}
+          GITLEAKS_COUNT=${GITLEAKS_COUNT:-0}
+          NIKTO_COUNT=${NIKTO_COUNT:-0}
+          # Sanitize: make sure they're digits, otherwise coerce to 0
+          for v in BANDIT_COUNT TRIVY_IMAGE_COUNT TRIVY_CONFIG_COUNT ZAP_COUNT PIPAUDIT_COUNT GITLEAKS_COUNT NIKTO_COUNT; do
+            VAL=$(eval "printf '%s' \"\$$v\"")
+            if ! printf '%s' "$VAL" | grep -Eq '^[0-9]+$'; then
+              eval "$v=0"
+            fi
+          done
+          TOTAL=$((BANDIT_COUNT + TRIVY_IMAGE_COUNT + TRIVY_CONFIG_COUNT + ZAP_COUNT + PIPAUDIT_COUNT + GITLEAKS_COUNT + NIKTO_COUNT))
+          # write summary JSON using jq
+          jq -n \
+            --argjson bandit   "$BANDIT_COUNT" \
+            --argjson trivy_img "$TRIVY_IMAGE_COUNT" \
+            --argjson trivy_cfg "$TRIVY_CONFIG_COUNT" \
+            --argjson zap      "$ZAP_COUNT" \
+            --argjson pip      "$PIPAUDIT_COUNT" \
+            --argjson gitleaks "$GITLEAKS_COUNT" \
+            --argjson nikto    "$NIKTO_COUNT" \
+            --argjson total    "$TOTAL" \
+            '{
+              bandit_high_or_critical: $bandit,
+              trivy_image_high_or_critical: $trivy_img,
+              trivy_config_high_or_critical: $trivy_cfg,
+              zap_high_or_critical: $zap,
+              pip_audit_high_or_critical: $pip,
+              gitleaks_findings: $gitleaks,
+              nikto_findings: $nikto,
+              total_high_or_critical: $total
+            }' > summary.json
+          # Export outputs for later steps
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "high_or_critical_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "high_or_critical_found=false" >> $GITHUB_OUTPUT
+          fi
+          # For debugging: show summary
+          cat summary.json
+        continue-on-error: false
+
+      - name: Upload aggregated artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-reports
+          path: |
+            summary.json
+            reports/
+            
+      # Notify Discord if needed
+      - name: Notify Discord (HIGH/CRITICAL)
+        if: steps.vulncheck.outputs.high_or_critical_found == 'true'
+        run: |
+          if [ -z "${{ secrets.DISCORD_WEBHOOK }}" ]; then
+            echo "No DISCORD_WEBHOOK configured; skipping notification" >&2
+            exit 0
+          fi
+          SUMMARY_STR=$(jq -c . summary.json)
+          PAYLOAD=$(jq -n --arg repo "${{ github.repository }}" --arg url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --arg summary "$SUMMARY_STR" '{"content": ("⚠️ *Security alert*: HIGH/CRITICAL findings in "+$repo+"\nRun: "+$url), "embeds":[{"title":"Summary","description": $summary}] }')
+          curl -s -H "Content-Type: application/json" -d "$PAYLOAD" "${{ secrets.DISCORD_WEBHOOK }}"
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
+      # Optionally fail the job if configured
+      - name: Fail job on HIGH/CRITICAL if configured
+        if: steps.vulncheck.outputs.high_or_critical_found == 'true' && env.FAIL_ON_HIGH == 'true'
+        run: |
+          echo "HIGH/CRITICAL found and FAIL_ON_HIGH=true -> failing job"
+          exit 1
+          
+      # Tear down app
+      - name: Tear down docker-compose
+        if: always()
+        run: |
+          if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+            DC="docker compose"
+          elif command -v docker-compose >/dev/null 2>&1; then
+            DC="docker-compose"
+          else
+            echo "docker compose not available; nothing to tear down"
+            exit 0
+          fi
+          echo "Tearing down with: $DC"
+          $DC down -v || true
+      - name: Pipeline finished
+        run: echo "Security pipeline finished. Check artifacts for reports."
