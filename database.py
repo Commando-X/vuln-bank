@@ -54,6 +54,8 @@ def return_connection(connection):
     if connection_pool:
         connection_pool.putconn(connection)
 
+#check if this is secure
+
 def init_db():
     """
     Initialize database tables

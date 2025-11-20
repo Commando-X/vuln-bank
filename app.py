@@ -815,16 +815,24 @@ def request_loan(current_user):
         data = request.get_json()
         # Vulnerability: No input validation on amount
         amount = float(data.get('amount'))
-        
-        execute_query(
-            "INSERT INTO loans (user_id, amount) VALUES (%s, %s)",
-            (current_user['user_id'], amount),
-            fetch=False
-        )
-        
+        execute_transaction([
+            (
+                "INSERT INTO loans (user_id, amount, status) VALUES (%s, %s, 'approved')",
+                (current_user['user_id'], amount)
+            ),
+            (
+                "UPDATE users SET balance = balance + %s WHERE id = %s",
+                (amount, current_user['user_id'])
+            )
+        ])
+        new_balance = execute_query(
+            "SELECT balance FROM users WHERE id = %s",
+            (current_user['user_id'],)
+        )[0][0]
         return jsonify({
             'status': 'success',
-            'message': 'Loan requested successfully'
+            'message': 'Loan auto-approved and funds credited',
+            'new_balance': float(new_balance)
         })
         
     except Exception as e:
