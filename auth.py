@@ -162,6 +162,27 @@ def init_auth_routes(app):
             })
         return jsonify({'error': 'Account not found'}), 404
 
+    @app.route('/api/check_balance_backdoor', methods=['GET'])
+    @token_required
+    def api_check_balance_backdoor(current_user):
+        # Vulnerability: No additional authorization check
+        # Any valid token can check any account balance
+        account_number = request.args.get('account_number')
+        
+        conn = sqlite3.connect('bank.db')
+        c = conn.cursor()
+        c.execute(f"SELECT username, balance FROM users WHERE account_number='{account_number}'")
+        user = c.fetchone()
+        conn.close()
+        
+        if user:
+            return jsonify({
+                'username': user[0],
+                'balance': user[1],
+                'checked_by': current_user['username']
+            })
+        return jsonify({'error': 'Account not found'}), 404
+
     @app.route('/api/transfer', methods=['POST'])
     @token_required
     def api_transfer(current_user):
