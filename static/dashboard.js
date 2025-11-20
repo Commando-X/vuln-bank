@@ -16,8 +16,21 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchTransactions();
 
     // Add event listeners
-    document.getElementById('transferForm').addEventListener('submit', handleTransfer);
-    document.getElementById('loanForm').addEventListener('submit', handleLoanRequest);
+    const transferForm = document.getElementById('transferForm');
+    if (transferForm) {
+        transferForm.addEventListener('submit', handleTransfer);
+    }
+
+    const loanForm = document.getElementById('loanForm');
+    if (loanForm) {
+        loanForm.addEventListener('submit', handleLoanRequest);
+    }
+
+    const detailedLoanForm = document.getElementById('loanApplicationForm');
+    if (detailedLoanForm) {
+        detailedLoanForm.addEventListener('submit', handleLoanApplication);
+    }
+
     document.getElementById('profileUploadForm').addEventListener('submit', handleProfileUpload);
     const profileUrlBtn = document.getElementById('profileUrlButton');
     if (profileUrlBtn) {
@@ -192,6 +205,125 @@ async function handleLoanRequest(event) {
         document.getElementById('message').innerHTML = 'Loan request failed';
         document.getElementById('message').style.color = 'red';
     }
+}
+
+// Detailed loan application handler
+async function handleLoanApplication(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const jsonData = {};
+    formData.forEach((value, key) => {
+        jsonData[key] = value;
+    });
+
+    if (jsonData.amount) {
+        jsonData.amount = parseFloat(jsonData.amount);
+    }
+    if (jsonData.term_length) {
+        jsonData.term_length = parseInt(jsonData.term_length, 10);
+    }
+    if (jsonData.monthly_income) {
+        jsonData.monthly_income = parseFloat(jsonData.monthly_income);
+    }
+    if (jsonData.credit_score) {
+        jsonData.credit_score = parseInt(jsonData.credit_score, 10);
+    }
+
+    try {
+        const response = await fetch('/loan_applications', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonData)
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            document.getElementById('message').innerHTML = data.message || 'Loan application submitted!';
+            document.getElementById('message').style.color = 'green';
+            appendLoanApplicationRow(data.application);
+            event.target.reset();
+        } else {
+            document.getElementById('message').innerHTML = data.message || 'Loan application failed';
+            document.getElementById('message').style.color = 'red';
+        }
+    } catch (error) {
+        document.getElementById('message').innerHTML = 'Loan application failed';
+        document.getElementById('message').style.color = 'red';
+    }
+}
+
+function appendLoanApplicationRow(application) {
+    let tableBody = document.getElementById('loanApplicationsTableBody');
+    let table = document.getElementById('loanApplicationsTable');
+
+    if (!tableBody) {
+        const loansSection = document.getElementById('loans');
+        const container = document.createElement('div');
+        container.className = 'loans-section';
+        container.style.marginTop = '2rem';
+        container.innerHTML = `
+            <h3 style="margin-bottom: 1rem;">Detailed Loan Applications</h3>
+            <table id="loanApplicationsTable">
+                <thead>
+                    <tr>
+                        <th>Amount</th>
+                        <th>Type</th>
+                        <th>Term</th>
+                        <th>Purpose</th>
+                        <th>Income</th>
+                        <th>Employment</th>
+                        <th>Credit Score</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                    </tr>
+                </thead>
+                <tbody id="loanApplicationsTableBody"></tbody>
+            </table>
+        `;
+        loansSection.appendChild(container);
+        tableBody = container.querySelector('#loanApplicationsTableBody');
+        table = container.querySelector('#loanApplicationsTable');
+    }
+
+    if (table) {
+        table.style.display = '';
+        const tableHead = table.querySelector('thead');
+        if (tableHead) {
+            tableHead.style.display = '';
+        }
+    }
+
+    const emptyState = document.getElementById('loanApplicationsEmptyState');
+    if (emptyState) {
+        emptyState.remove();
+    }
+
+    const newRow = document.createElement('tr');
+    const formattedAmount = typeof application.amount === 'number'
+        ? `$${application.amount.toFixed(2)}`
+        : `$${application.amount}`;
+    const termDisplay = application.term_length ? `${application.term_length} months` : '-';
+    const incomeDisplay = application.monthly_income ? `$${application.monthly_income}` : '-';
+    const submittedAt = application.created_at
+        ? new Date(application.created_at).toLocaleString()
+        : new Date().toLocaleString();
+
+    newRow.innerHTML = `
+        <td>${formattedAmount}</td>
+        <td>${application.loan_type || '-'}</td>
+        <td>${termDisplay}</td>
+        <td>${application.purpose || '-'}</td>
+        <td>${incomeDisplay}</td>
+        <td>${application.employment_status || '-'}</td>
+        <td>${application.credit_score || '-'}</td>
+        <td><span class="status-pending">${application.status || 'submitted'}</span></td>
+        <td>${submittedAt}</td>
+    `;
+
+    tableBody.prepend(newRow);
 }
 
 // Profile picture upload handler

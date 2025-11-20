@@ -4,6 +4,7 @@ import random
 import string
 import html
 import os
+import json
 from dotenv import load_dotenv
 from auth import generate_token, token_required, verify_token, init_auth_routes
 import auth
@@ -54,6 +55,20 @@ AUTHENTICATED_LIMIT = 10   # requests per user per window
 # In-memory rate limiting storage
 # Format: {key: [(timestamp, request_count), ...]}
 rate_limit_storage = defaultdict(list)
+
+# Hardcoded partner registry (CWE-798)
+BANKING_PARTNERS = {
+    'alpha_bank': {
+        'name': 'Alpha Bank',
+        'api_key': os.getenv('ALPHA_BANK_PARTNER_KEY', 'alpha-bank-demo-key'),
+        'contact': 'partners@alpha-bank.test'
+    },
+    'fintech_friends': {
+        'name': 'Fintech Friends',
+        'api_key': os.getenv('FINTECH_FRIENDS_PARTNER_KEY', 'fintech-friends-demo-key'),
+        'contact': 'api@fintechfriends.test'
+    }
+}
 
 def cleanup_rate_limit_storage():
     """Clean up old entries from rate limit storage"""
@@ -169,6 +184,29 @@ def ai_rate_limit(f):
         return f(*args, **kwargs)
     
     return decorated_function
+
+def _extract_partner_credentials():
+    """
+    Pull partner credentials from headers or query params.
+    Vulnerability: Accepts credentials over unencrypted channels.
+    """
+    partner_id = (request.headers.get('X-Partner-ID') or request.args.get('partner_id') or '').lower()
+    api_key = request.headers.get('X-Partner-Key') or request.args.get('api_key')
+    return partner_id, api_key
+
+def _resolve_partner(partner_id, api_key):
+    """
+    Resolve partner info using hardcoded registry.
+    Vulnerability: Static keys stored in memory.
+    """
+    if not partner_id or not api_key:
+        return None
+    partner = BANKING_PARTNERS.get(partner_id)
+    if not partner:
+        return None
+    if partner.get('api_key') != api_key:
+        return None
+    return partner
 
 UPLOAD_FOLDER = 'static/uploads'
 if not os.path.exists(UPLOAD_FOLDER):
@@ -361,6 +399,11 @@ def dashboard(current_user):
         (current_user['user_id'],)
     )
     
+    loan_applications = execute_query(
+        "SELECT * FROM loan_applications WHERE user_id = %s ORDER BY created_at DESC",
+        (current_user['user_id'],)
+    )
+    
     # Create a user dictionary with all fields
     user_data = {
         'id': user[0],
@@ -377,6 +420,7 @@ def dashboard(current_user):
                          balance=float(user[4]),
                          account_number=user[3],
                          loans=loans,
+                         loan_applications=loan_applications,
                          is_admin=current_user.get('is_admin', False))
 
 # Check balance endpoint
@@ -788,6 +832,147 @@ def request_loan(current_user):
         return jsonify({
             'status': 'error',
             'message': str(e)
+        }), 500
+
+@app.route('/loan_applications', methods=['POST'])
+@token_required
+def create_loan_application(current_user):
+    try:
+        data = request.get_json() or {}
+        amount = float(data.get('amount', 0))
+        loan_type = data.get('loan_type')
+        term_length = data.get('term_length')
+        purpose = data.get('purpose')
+        monthly_income = data.get('monthly_income')
+        employment_status = data.get('employment_status')
+        credit_score = data.get('credit_score')
+        notes = data.get('notes')
+        
+        inserted = execute_query(
+            """
+            INSERT INTO loan_applications (
+                user_id, amount, loan_type, term_length, purpose,
+                monthly_income, employment_status, credit_score, notes
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, amount, loan_type, term_length, purpose,
+                      monthly_income, employment_status, credit_score,
+                      notes, status, created_at
+            """,
+            (
+                current_user['user_id'],
+                amount,
+                loan_type,
+                term_length,
+                purpose,
+                monthly_income,
+                employment_status,
+                credit_score,
+                notes
+            )
+        )
+        
+        record = inserted[0] if inserted else None
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Loan application submitted',
+            'application': {
+                'id': record[0],
+                'amount': float(record[1]),
+                'loan_type': record[2],
+                'term_length': record[3],
+                'purpose': record[4],
+                'monthly_income': float(record[5]) if record[5] is not None else None,
+                'employment_status': record[6],
+                'credit_score': record[7],
+                'notes': record[8],
+                'status': record[9],
+                'created_at': record[10].isoformat() if record[10] else None
+            }
+        })
+    except Exception as e:
+        print(f"Loan application error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/partners/loan-applications', methods=['POST'])
+def partner_loan_application():
+    partner_id, api_key = _extract_partner_credentials()
+    partner = _resolve_partner(partner_id, api_key)
+    
+    if not partner:
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid partner credentials'
+        }), 401
+    
+    payload = request.get_json(silent=True) or {}
+    applicant_name = payload.get('applicant_name') or payload.get('customer_name')
+    applicant_email = payload.get('applicant_email') or payload.get('customer_email')
+    applicant_phone = payload.get('applicant_phone') or payload.get('customer_phone')
+    purpose = payload.get('purpose') or payload.get('loan_purpose')
+    partner_reference = payload.get('reference_id') or payload.get('partner_reference')
+    
+    try:
+        amount = float(payload.get('amount', 0))
+    except (TypeError, ValueError):
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid amount'
+        }), 400
+    
+    currency = payload.get('currency', 'USD')
+    
+    try:
+        inserted = execute_query(
+            """
+            INSERT INTO partner_loan_applications (
+                partner_id, partner_name, partner_reference,
+                applicant_name, applicant_email, applicant_phone,
+                amount, currency, purpose, metadata
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, status, created_at
+            """,
+            (
+                partner_id,
+                partner.get('name'),
+                partner_reference,
+                applicant_name,
+                applicant_email,
+                applicant_phone,
+                amount,
+                currency,
+                purpose,
+                json.dumps(payload)
+            )
+        )
+        
+        record = inserted[0]
+        
+        response_payload = {
+            'status': 'success',
+            'message': 'Loan application received',
+            'application_id': record[0],
+            'partner': partner.get('name'),
+            'tracking_status': record[1],
+            'received_at': str(record[2]),
+            'reference_id': partner_reference,
+            'echo': payload
+        }
+        
+        # Vulnerability: No signature or webhook validation
+        return jsonify(response_payload), 201
+    
+    except Exception as e:
+        print(f"Partner loan application error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to record application',
+            'debug': str(e)
         }), 500
 
 # Hidden admin endpoint (security through obscurity)

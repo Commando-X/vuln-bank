@@ -156,18 +156,141 @@
             <div class="section-header">
                 <h2 class="section-title">Request a Loan</h2>
             </div>
-            <!-- Vulnerability: No loan amount validation -->
-            <form id="loanForm" class="form-section">
+            <!-- Vulnerability: No validation on any of these inputs -->
+            <form id="loanApplicationForm" class="form-section">
                 <div class="form-group">
                     <label for="loan_amount">Loan Amount</label>
                     <input type="number" id="loan_amount" name="amount" placeholder="Enter the amount you need" step="0.01" required>
                 </div>
-                <button type="submit">Submit Loan Request</button>
+                <div class="form-group">
+                    <label for="loan_type">Loan Type</label>
+                    <select id="loan_type" name="loan_type" required>
+                        <option value="">Select type</option>
+                        <option value="personal">Personal Loan</option>
+                        <option value="auto">Auto Loan</option>
+                        <option value="mortgage">Mortgage</option>
+                        <option value="education">Education Loan</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="term_length">Term Length (months)</label>
+                    <select id="term_length" name="term_length" required>
+                        <option value="">Select term</option>
+                        <option value="12">12 months</option>
+                        <option value="24">24 months</option>
+                        <option value="36">36 months</option>
+                        <option value="60">60 months</option>
+                        <option value="120">120 months</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="purpose">Purpose</label>
+                    <input type="text" id="purpose" name="purpose" placeholder="Describe how you will use this loan" required>
+                </div>
+                <div class="form-group">
+                    <label for="monthly_income">Monthly Income</label>
+                    <input type="number" id="monthly_income" name="monthly_income" placeholder="Enter your monthly income" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="employment_status">Employment Status</label>
+                    <select id="employment_status" name="employment_status" required>
+                        <option value="">Choose status</option>
+                        <option value="employed">Employed</option>
+                        <option value="self_employed">Self-employed</option>
+                        <option value="student">Student</option>
+                        <option value="unemployed">Unemployed</option>
+                        <option value="retired">Retired</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="credit_score">Credit Score</label>
+                    <input type="number" id="credit_score" name="credit_score" placeholder="Enter your best guess" min="300" max="850">
+                </div>
+                <div class="form-group">
+                    <label for="loan_notes">Additional Notes</label>
+                    <textarea id="loan_notes" name="notes" rows="3" placeholder="Anything else we should know?"></textarea>
+                </div>
+                <button type="submit">Submit Loan Application</button>
             </form>
+            
+            {% if loan_applications %}
+            <div class="loans-section" style="margin-top: 2rem;">
+                <h3 style="margin-bottom: 1rem;">Detailed Loan Applications</h3>
+                <table id="loanApplicationsTable">
+                    <thead>
+                        <tr>
+                            <th>Amount</th>
+                            <th>Type</th>
+                            <th>Term</th>
+                            <th>Purpose</th>
+                            <th>Income</th>
+                            <th>Employment</th>
+                            <th>Credit Score</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody id="loanApplicationsTableBody">
+                        {% for application in loan_applications %}
+                        <tr>
+                            <td>${{ application[2] }}</td>
+                            <td>{{ application[3] or '-' }}</td>
+                            <td>
+                                {% if application[4] %}
+                                {{ application[4] }} months
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ application[5] }}</td>
+                            <td>
+                                {% if application[6] %}
+                                ${{ application[6] }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ application[7] or '-' }}</td>
+                            <td>{{ application[8] or '-' }}</td>
+                            <td>
+                                {% if application[10] == 'submitted' %}
+                                <span class="status-pending">{{ application[10] }}</span>
+                                {% else %}
+                                <span class="status-approved">{{ application[10] }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ application[11] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="loans-section" style="margin-top: 2rem;">
+                <h3 style="margin-bottom: 1rem;">Detailed Loan Applications</h3>
+                <p id="loanApplicationsEmptyState">No detailed applications submitted yet. Use the form above to get started.</p>
+                <table id="loanApplicationsTable" style="display:none;">
+                    <thead style="display:none;">
+                        <tr>
+                            <th>Amount</th>
+                            <th>Type</th>
+                            <th>Term</th>
+                            <th>Purpose</th>
+                            <th>Income</th>
+                            <th>Employment</th>
+                            <th>Credit Score</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody id="loanApplicationsTableBody"></tbody>
+                </table>
+            </div>
+            {% endif %}
             
             {% if loans %}
             <div class="loans-section" style="margin-top: 2rem;">
-                <h3 style="margin-bottom: 1rem;">Your Loan Applications</h3>
+                <h3 style="margin-bottom: 1rem;">Quick Loan Requests</h3>
                 <table>
                     <thead>
                         <tr>

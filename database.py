@@ -86,6 +86,43 @@ def init_db():
                 )
             ''')
             
+            # Create detailed loan applications table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS loan_applications (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    amount DECIMAL(15, 2) NOT NULL,
+                    loan_type TEXT,
+                    term_length INTEGER,
+                    purpose TEXT,
+                    monthly_income DECIMAL(15, 2),
+                    employment_status TEXT,
+                    credit_score INTEGER,
+                    notes TEXT,
+                    status TEXT DEFAULT 'submitted',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Create partner loan applications table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS partner_loan_applications (
+                    id SERIAL PRIMARY KEY,
+                    partner_id TEXT,
+                    partner_name TEXT,
+                    partner_reference TEXT,
+                    applicant_name TEXT,
+                    applicant_email TEXT,
+                    applicant_phone TEXT,
+                    amount DECIMAL(15, 2),
+                    currency TEXT,
+                    purpose TEXT,
+                    metadata TEXT,
+                    status TEXT DEFAULT 'received',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
             # Create transactions table
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS transactions (
