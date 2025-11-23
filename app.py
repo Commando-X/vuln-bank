@@ -796,11 +796,46 @@ def request_loan(current_user):
 def admin_panel(current_user):
     if not current_user['is_admin']:
         return "Access Denied", 403
-        
-    users = execute_query("SELECT * FROM users")
-    pending_loans = execute_query("SELECT * FROM loans WHERE status='pending'")
+
+    # Basic pagination to avoid rendering every user at once
+    page = max(request.args.get('page', default=1, type=int), 1)
+    per_page = 10
+
+    total_users = execute_query("SELECT COUNT(*) FROM users")[0][0]
+    total_pages = max((total_users + per_page - 1) // per_page, 1)
+    page = min(page, total_pages)
+    offset = (page - 1) * per_page
+
+    users = execute_query(
+        "SELECT * FROM users ORDER BY id LIMIT %s OFFSET %s",
+        (per_page, offset)
+    )
+
+    loan_page = max(request.args.get('loan_page', default=1, type=int), 1)
+    loan_per_page = 10
+    total_pending_loans = execute_query("SELECT COUNT(*) FROM loans WHERE status='pending'")[0][0]
+    loan_total_pages = max((total_pending_loans + loan_per_page - 1) // loan_per_page, 1)
+    loan_page = min(loan_page, loan_total_pages)
+    loan_offset = (loan_page - 1) * loan_per_page
+
+    pending_loans = execute_query(
+        "SELECT * FROM loans WHERE status='pending' ORDER BY id LIMIT %s OFFSET %s",
+        (loan_per_page, loan_offset)
+    )
     
-    return render_template('admin.html', users=users, pending_loans=pending_loans)
+    return render_template(
+        'admin.html',
+        users=users,
+        pending_loans=pending_loans,
+        page=page,
+        total_pages=total_pages,
+        total_users=total_users,
+        per_page=per_page,
+        loan_page=loan_page,
+        loan_total_pages=loan_total_pages,
+        total_pending_loans=total_pending_loans,
+        loan_per_page=loan_per_page
+    )
 
 @app.route('/admin/approve_loan/<int:loan_id>', methods=['POST'])
 @token_required
@@ -1131,6 +1166,53 @@ def api_v2_forgot_password():
             'message': str(e)
         }), 500
 
+# V3 API - Uses 4-digit PIN, otherwise similar vulnerabilities
+@app.route('/api/v3/forgot-password', methods=['POST'])
+def api_v3_forgot_password():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        
+        # Vulnerability: SQL Injection still possible
+        user = execute_query(
+            f"SELECT id FROM users WHERE username='{username}'"
+        )
+        
+        if user:
+            # Weak reset pin logic (CWE-330) - now 4 digits but still guessable
+            reset_pin = str(random.randint(1000, 9999))
+            
+            # Store the reset PIN in database (in plaintext - CWE-319)
+            execute_query(
+                "UPDATE users SET reset_pin = %s WHERE username = %s",
+                (reset_pin, username),
+                fetch=False
+            )
+            
+            # Fixed: No PIN exposure in response
+            return jsonify({
+                'status': 'success',
+                'message': 'Reset PIN has been sent to your email.',
+                'debug_info': {  # Still minor data exposure
+                    'timestamp': str(datetime.now()),
+                    'username': username
+                }
+            })
+        else:
+            # Vulnerability: Username enumeration still possible
+            return jsonify({
+                'status': 'error',
+                'message': 'User not found'
+            }), 404
+                
+    except Exception as e:
+        # Vulnerability: Detailed error exposure still exists
+        print(f"Forgot password error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 # V1 API for reset password
 @app.route('/api/v1/reset-password', methods=['POST'])
 def api_v1_reset_password():
@@ -1234,6 +1316,46 @@ def api_v2_reset_password():
             'status': 'error',
             'message': 'Password reset failed'
             # Detailed error removed in v2
+        }), 500
+
+# V3 API for reset password - expects 4-digit PIN
+@app.route('/api/v3/reset-password', methods=['POST'])
+def api_v3_reset_password():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        reset_pin = data.get('reset_pin')
+        new_password = data.get('new_password')
+        
+        # Vulnerability: No rate limiting on PIN attempts
+        # Vulnerability: Timing attack possible in PIN verification
+        user = execute_query(
+            "SELECT id FROM users WHERE username = %s AND reset_pin = %s",
+            (username, reset_pin)
+        )
+        
+        if user:
+            execute_query(
+                "UPDATE users SET password = %s, reset_pin = NULL WHERE username = %s",
+                (new_password, username),
+                fetch=False
+            )
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Password has been reset successfully'
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid reset PIN'
+            }), 400
+                
+    except Exception as e:
+        print(f"Reset password error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Password reset failed'
         }), 500
 
 @app.route('/api/transactions', methods=['GET'])
