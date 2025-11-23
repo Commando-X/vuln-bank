@@ -153,17 +153,17 @@
       "post": {
         "tags": ["authentication"],
         "summary": "Request password reset (versioned)",
-        "description": "Generate 3-digit reset PIN. Different versions have different levels of data exposure.",
+        "description": "Generate reset PIN. v1/v2 issue 3-digit PINs (v1 exposes PIN, v2 hides it); v3 issues 4-digit PINs without exposing the PIN.",
         "parameters": [
           {
             "name": "version",
             "in": "path",
             "required": true,
-            "description": "API version (1: old endpoint, 2: new endpoint with bug fixes)",
+            "description": "API version (1: old endpoint, 2: reduced exposure, 3: 4-digit PIN default)",
             "schema": {
               "type": "integer",
-              "enum": [1, 2],
-              "default": 2
+              "enum": [1, 2, 3],
+              "default": 3
             }
           }
         ],
@@ -215,17 +215,17 @@
       "post": {
         "tags": ["authentication"],
         "summary": "Reset password using PIN (versioned)",
-        "description": "Reset password with 3-digit PIN. Different versions have different levels of data exposure.",
+        "description": "Reset password with PIN. v1/v2 expect 3-digit PINs, v3 expects 4-digit PINs by default.",
         "parameters": [
           {
             "name": "version",
             "in": "path",
             "required": true,
-            "description": "API version (1: full data exposure, 2: reduced data exposure)",
+            "description": "API version (1: full data exposure, 2: reduced data exposure, 3: 4-digit PIN default)",
             "schema": {
               "type": "integer",
-              "enum": [1, 2],
-              "default": 2
+              "enum": [1, 2, 3],
+              "default": 3
             }
           }
         ],
@@ -241,7 +241,8 @@
                   },
                   "reset_pin": {
                     "type": "string",
-                    "pattern": "^\\d{3}$"
+                    "pattern": "^\\d{3,4}$",
+                    "description": "3 digits for v1/v2, 4 digits for v3 (default)"
                   },
                   "new_password": {
                     "type": "string"
