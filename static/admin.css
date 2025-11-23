@@ -115,6 +115,48 @@ tr:hover {
     background-color: #f0f4f9;
 }
 
+/* Pagination */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}
+
+.page-summary {
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.page-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.page-link {
+    padding: 0.5rem 0.9rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: #f5f7fa;
+    color: var(--text-dark);
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.page-link:hover {
+    background-color: white;
+    transform: translateY(-1px);
+}
+
+.page-info {
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
 /* Forms */
 form {
     max-width: 600px;

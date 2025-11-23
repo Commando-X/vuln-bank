@@ -56,6 +56,27 @@
                     {% endfor %}
                 </tbody>
             </table>
+
+            <div class="pagination">
+                <div class="page-summary">
+                    {% if total_users > 0 %}
+                        {% set start_user = ((page - 1) * per_page) + 1 %}
+                        {% set end_user = [page * per_page, total_users] | min %}
+                        Showing {{ start_user }}-{{ end_user }} of {{ total_users }} users
+                    {% else %}
+                        No users found
+                    {% endif %}
+                </div>
+                <div class="page-controls">
+                    {% if page > 1 %}
+                        <a class="page-link" href="{{ url_for('admin_panel', page=page-1) }}">&larr; Previous</a>
+                    {% endif %}
+                    <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+                    {% if page < total_pages %}
+                        <a class="page-link" href="{{ url_for('admin_panel', page=page+1) }}">Next &rarr;</a>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
         <div class="section">
