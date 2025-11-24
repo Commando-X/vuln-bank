@@ -430,11 +430,11 @@ Contributions are welcome! Feel free to:
 A detailed walkthrough about this lab and my findings here:  
 👇 Read the Blog By [DghostNinja](https://github.com/DghostNinja)
 
-(https://dghostninja.github.io/posts/Vulnerable-Bank-API/)
+[Vulnerable Bank Api](https://dghostninja.github.io/posts/Vulnerable-Bank-API/)
 
 👇 Detailed Walkthrough by [CyberPreacher](https://www.linkedin.com/in/cyber-preacher/)
 
-(https://medium.com/@cyberpreacher_/hacking-vulnerable-bank-api-extensive-d2a0d3bb209e)
+[Hacking Vulnerable Bank Api](https://medium.com/@cyberpreacher_/hacking-vulnerable-bank-api-extensive-d2a0d3bb209e)
 
 > Ethical hacking only. Scope respected. Coffee consumed. ☕
 
