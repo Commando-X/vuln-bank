@@ -48,8 +48,8 @@ app.secret_key = "secret123"
 
 # Rate limiting configuration
 RATE_LIMIT_WINDOW = 3 * 60 * 60  # 3 hours in seconds
-UNAUTHENTICATED_LIMIT = 5  # requests per IP per window
-AUTHENTICATED_LIMIT = 10   # requests per user per window
+UNAUTHENTICATED_LIMIT = 10  # requests per IP per window
+AUTHENTICATED_LIMIT = 20  # requests per user per window
 
 # In-memory rate limiting storage
 # Format: {key: [(timestamp, request_count), ...]}
