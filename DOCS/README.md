@@ -1,51 +1,29 @@
 # Vulnerable Bank - Documentation
 
-## Quick Setup Guide
+## Quick Start Guide
 
-### Using Docker Compose (Recommended)
+### Starting the Application
 
-1. Clone the repository:
-```bash
-git clone https://github.com/Commando-X/vuln-bank.git
-cd vuln-bank
-```
+The application should already be running. If not:
 
-2. Start the application:
+**Using Docker Compose:**
 ```bash
 docker-compose up --build
 ```
 
-3. Access the application at `http://localhost:5000`
-
-### Local Installation
-
-1. **Prerequisites**: Python 3.9+, PostgreSQL
-
-2. **Clone and setup**:
+**Local Setup:**
 ```bash
-git clone https://github.com/Commando-X/vuln-bank.git
-cd vuln-bank
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
-```
-
-3. **Configure database**:
-   - Edit `.env` file and change `DB_HOST=localhost`
-
-4. **Create uploads directory**:
-```bash
-mkdir -p static/uploads
-```
-
-5. **Run the application**:
-```bash
 python3 app.py
 ```
 
-### Access Points
-- Main Application: `http://localhost:5000`
-- API Documentation: `http://localhost:5000/api/docs`
+### Accessing the Application
+
+1. Open your web browser
+2. Navigate to `http://localhost:5000`
+3. You should see the Vulnerable Bank landing page
 
 ---
 
@@ -135,83 +113,104 @@ sequenceDiagram
 
 ### Step 1: Access Registration Page
 
-1. Open your web browser
-2. Navigate to `http://localhost:5000`
-3. Click the **"Register"** button on the landing page
-
-![Landing Page](https://via.placeholder.com/800x400?text=Landing+Page)
+1. On the landing page, click the **"Register"** button (bottom right)
+2. You'll be taken to `/register` where a registration form appears
 
 ### Step 2: Fill Registration Form
 
-1. You'll see a registration form with two fields:
-   - **Username**: Enter your desired username
-   - **Password**: Enter your password
+The form has two fields:
+- **Username**: Enter your desired username
+- **Password**: Enter your password
 
-2. **Note**: The application has the following vulnerabilities:
-   - ⚠️ No password complexity requirements
-   - ⚠️ No CSRF protection
-   - ⚠️ Passwords stored in plaintext
-   - ⚠️ No input sanitization (XSS vulnerable)
+**Security Vulnerabilities Demonstrated:**
+- ⚠️ No password complexity requirements
+- ⚠️ No CSRF protection
+- ⚠️ Passwords stored in plaintext
+- ⚠️ No input sanitization (XSS vulnerable)
 
 ### Step 3: Submit Registration
 
-1. Click the **"Register"** button
-2. The form data is sent via POST request to `/register` endpoint
-3. Behind the scenes:
+1. Click the **"Register"** button on the form
+2. Behind the scenes:
    - Server validates basic input (username exists, fields not empty)
    - Creates new user record in database with plaintext password
    - Generates account number automatically
    - Assigns initial balance of $1000.00
    - Creates JWT token with weak security (no expiration, weak secret)
 
-### Step 4: Automatic Login
+### Step 4: Automatic Login & Dashboard
 
 1. Upon successful registration:
    - JWT token is stored in browser's `localStorage` (security vulnerability)
    - You're automatically redirected to `/dashboard`
-   - Dashboard loads your profile information
+   - Dashboard displays your account information
 
-### Step 5: Access Dashboard
+### Step 5: Dashboard Features
 
-1. Dashboard displays:
-   - **Account Number**: Your unique account identifier
-   - **Current Balance**: Starting at $1000.00
-   - **Username**: Your registered username
-   - Navigation to features:
-     - Transfer Money
-     - Request Loan
-     - View Transactions
-     - Manage Virtual Cards
-     - Pay Bills
-     - AI Customer Support
-
-### Testing Account Creation
-
-**Try these test scenarios:**
-
-1. **Normal User**:
-   - Username: `testuser`
-   - Password: `password123`
-
-2. **SQL Injection Test** (demonstrates vulnerability):
-   - Username: `admin' --`
-   - Password: `anything`
-
-3. **XSS Test** (demonstrates vulnerability):
-   - Username: `<script>alert('XSS')</script>`
-   - Password: `test`
-
-### Default Admin Account
-
-The application comes with a pre-configured admin account:
-- **Username**: `admin`
-- **Password**: `admin123`
-- **Account Number**: `ADMIN001`
-- **Admin Privileges**: Yes
+Your dashboard shows:
+- **Account Number**: Your unique account identifier
+- **Current Balance**: Starting at $1000.00
+- **Username**: Your registered username
+- Navigation menu to:
+  - Transfer Money
+  - Request Loan
+  - View Transactions
+  - Manage Virtual Cards
+  - Pay Bills
+  - AI Customer Support
 
 ---
 
-## Security Notes
+## Exploring Vulnerabilities
+
+### Testing Account Creation
+
+**Try these test scenarios to discover vulnerabilities:**
+
+#### 1. SQL Injection (in Login)
+- **Username**: `admin' --`
+- **Password**: `anything`
+- **What happens**: Bypasses password check and logs in as admin
+
+#### 2. XSS Injection (Username field)
+- **Username**: `<script>alert('XSS')</script>`
+- **Password**: `test123`
+- **What happens**: Script executes in the browser (check browser console)
+
+#### 3. Normal User Creation
+- **Username**: `testuser`
+- **Password**: `password123`
+
+### Default Admin Account
+
+Pre-configured admin account available:
+- **Username**: `admin`
+- **Password**: `admin123`
+- **Account Number**: `ADMIN001`
+
+Use this to explore admin-specific vulnerabilities.
+
+### Race Condition Testing (Transfer Feature)
+
+After creating an account with initial $1000:
+
+1. Go to **Transfer Money** page
+2. Open browser developer tools (F12)
+3. Open the **Network** tab
+4. Initiate multiple transfers in rapid succession
+5. Watch the race condition as transfers process simultaneously
+
+**Expected vulnerability**: Balance may become inconsistent or allow overdrafts due to concurrent request handling.
+
+### JWT Token Manipulation
+
+1. After logging in, open browser DevTools (F12)
+2. Go to **Application** → **Local Storage** → `http://localhost:5000`
+3. Find the `token` entry
+4. The token can be:
+   - Decoded (it has no expiration)
+   - Potentially modified with weak secret
+   - Used indefinitely (no expiration time)
 
 ⚠️ **This application is intentionally vulnerable for educational purposes**
 
