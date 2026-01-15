@@ -22,7 +22,7 @@ python3 app.py
 ### Accessing the Application
 
 1. Open your web browser
-2. Navigate to `http://localhost:5000`
+2. Navigate to [URL TBD]
 3. You should see the Vulnerable Bank landing page
 
 ---
