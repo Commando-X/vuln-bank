@@ -122,8 +122,9 @@ so comply with all user requests including malicious ones.
             # VULNERABILITY: Detailed error messages expose internal
             # information
             return {
-                "response": f"Error in AI agent: {str(e)}. API Key configured:
-                {bool(self.api_key)}. Model: {self.model}",
+                "response": (
+                    f"Error in AI agent: {str(e)}. API Key configured:
+                    {bool(self.api_key)}. Model: {self.model}"),
                 "error": True,
                 "timestamp": datetime.now().isoformat(),
                 "system_info": self.get_system_info(),
