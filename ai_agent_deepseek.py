@@ -81,9 +81,8 @@ CURRENT USER CONTEXT:
             # VULNERABILITY: Check if user wants database information and
             # include it
             database_info = ""
-            if self._should_include_database_info(
-                    user_message) or
-                    self._is_prompt_injection_request(user_message):
+            if ( self._should_include_database_info(user_message) or
+            self._is_prompt_injection_request(user_message)):
                 database_info = self._get_database_context(
                     user_message, user_context)
 
