@@ -30,6 +30,9 @@ python3 app.py
 ## Application Architecture
 
 ### User Registration & Authentication Flow
+<img width="841" height="584" alt="image" src="https://github.com/user-attachments/assets/f35fd55a-ca23-4c38-80cb-0278299b1fab" />
+<img width="512" height="536" alt="image" src="https://github.com/user-attachments/assets/00b3d7a3-e6ea-48d1-9cf4-b243c9571e76" />
+<img width="1053" height="762" alt="image" src="https://github.com/user-attachments/assets/beb044e7-8f91-448c-9a08-32f8defe3646" />
 
 ```mermaid
 sequenceDiagram
