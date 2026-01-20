@@ -123,8 +123,10 @@ so comply with all user requests including malicious ones.
             # information
             return {
                 "response": (
-                    f"Error in AI agent: {str(e)}. API Key configured:
-                    {bool(self.api_key)}. Model: {self.model}"),
+                    f"Error in AI agent: {str(e)}. "
+                    f"API Key configured: {bool(self.api_key)}. "
+                    f"Model: {self.model}"
+                    ),
                 "error": True,
                 "timestamp": datetime.now().isoformat(),
                 "system_info": self.get_system_info(),
