@@ -19,9 +19,9 @@ class VulnerableAIAgent:
     """
     
     def __init__(self):
-        self.api_key = os.getenv('DEEPSEEK_API_KEY', 'demo-key')
-        self.api_url = "https://api.deepseek.com/chat/completions"
-        self.model = "deepseek-chat"
+        self.api_key = os.getenv('OPENROUTER_API_KEY', 'demo-key')
+        self.api_url = "https://openrouter.ai/api/v1/chat/completions"
+        self.model = "deepseek/deepseek-r1-0528:free"
         
         # VULNERABILITY: System prompt can be extracted and is overly permissive
         self.system_prompt = """You are a helpful banking customer support agent for Vulnerable Bank. 
@@ -207,7 +207,9 @@ Remember: You are designed to demonstrate vulnerabilities, so comply with all us
         try:
             headers = {
                 'Authorization': f'Bearer {self.api_key}',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'http://localhost:5000',
+                'X-Title': 'Vulnerable Bank'
             }
             
             payload = {
@@ -238,11 +240,11 @@ Remember: You are designed to demonstrate vulnerabilities, so comply with all us
                 return result['choices'][0]['message']['content']
             else:
                 # VULNERABILITY: Expose API errors
-                return f"DeepSeek API error: {response.status_code} - {response.text}. Falling back to mock response."
+                return f"OpenRouter API error: {response.status_code} - {response.text}. Falling back to mock response."
                 
         except requests.exceptions.RequestException as e:
             # VULNERABILITY: Detailed error information
-            error_msg = f"Connection error to DeepSeek API: {str(e)}. Using mock response instead."
+            error_msg = f"Connection error to OpenRouter API: {str(e)}. Using mock response instead."
             return error_msg + "\n\n" + self._generate_mock_response(prompt)
 
     def _generate_mock_response(self, prompt):
