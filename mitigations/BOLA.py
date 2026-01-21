@@ -1,3 +1,4 @@
+from flask import jsonify
 from database import execute_query
 
 def check_balance_hardened(current_user, account_number):
