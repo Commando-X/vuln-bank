@@ -18,6 +18,7 @@ from collections import defaultdict
 import requests
 from urllib.parse import urlparse
 import platform
+from mitigations import BOLA
 
 # Load environment variables
 load_dotenv()
@@ -45,6 +46,9 @@ app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 # Hardcoded secret key (CWE-798)
 app.secret_key = "secret123"
+
+# Hardening feature flag
+harden = False
 
 # Rate limiting configuration
 RATE_LIMIT_WINDOW = 3 * 60 * 60  # 3 hours in seconds
@@ -381,7 +385,12 @@ def dashboard(current_user):
 
 # Check balance endpoint
 @app.route('/check_balance/<account_number>')
-def check_balance(account_number):
+@token_required
+def check_balance(current_user, account_number):
+    # User param passed in for use in hardened variant, should it trigger.
+    if harden:
+        return BOLA.check_balance_hardened(current_user, account_number)
+
     # Broken Object Level Authorization (BOLA) vulnerability
     # No authentication check, anyone can check any account balance
     try:
@@ -967,6 +976,17 @@ def create_admin(current_user):
             'message': str(e)
         }), 500
 
+@app.route('/api/toggle/harden', methods=['POST'])
+def harden():
+    data = request.get_json() or {}
+    enabled = bool(data.get('enabled', True))
+    global harden
+    harden = enabled
+
+    return jsonify({
+        'status': 'success',
+        'hardened': enabled
+    })
 
 # Forgot password endpoint
 @app.route('/forgot-password', methods=['GET', 'POST'])
