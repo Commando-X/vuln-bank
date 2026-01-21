@@ -1,13 +1,13 @@
 from flask import jsonify
 from database import execute_query
 
+
 def check_balance_hardened(current_user, account_number):
-    """
-    Hardened against BOLA. Checks current logged in user.
+    """Hardened against BOLA.
+
+    Checks current logged in user.
     Otherwise just a copy of the original check_balance() logic.
     """
-
-
     try:
         # Vulnerability: SQL Injection possible
         user = execute_query(
