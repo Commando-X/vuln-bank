@@ -16,6 +16,9 @@
     <div class="side-panel">
         <div class="bank-logo">
             <h1>Vulnerable Bank</h1>
+            <div style="font-size: 0.7rem; margin-top: 0.5rem; padding: 0.3rem 0.5rem; border-radius: 4px; {% if xss_protection_enabled %}background: #28a745; color: white;{% else %}background: #dc3545; color: white;{% endif %}">
+                {% if xss_protection_enabled %}XSS Protected{% else %}XSS Vulnerable{% endif %}
+            </div>
         </div>
         <nav>
             <a href="#profile" class="nav-link" onclick="setActiveLink(this)">
@@ -60,8 +63,7 @@
         <!-- Greeting section with balance card -->
         <div class="greeting-section">
             <div class="greeting-text">
-                <!-- Vulnerability: XSS possible in username -->
-                <h1>Welcome back, {{ username | safe }}</h1>
+                <h1>Welcome back, {% if xss_protection_enabled %}{{ username }}{% else %}{{ username | safe }}{% endif %}</h1>
                 <p id="current-date"></p>
             </div>
             <div class="account-card">

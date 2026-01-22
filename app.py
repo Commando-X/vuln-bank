@@ -46,6 +46,9 @@ app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 # Hardcoded secret key (CWE-798)
 app.secret_key = "secret123"
 
+# Security toggle configuration
+XSS_PROTECTION_ENABLED = os.getenv('XSS_PROTECTION_ENABLED', 'false').lower() == 'true'
+
 # Rate limiting configuration
 RATE_LIMIT_WINDOW = 3 * 60 * 60  # 3 hours in seconds
 UNAUTHENTICATED_LIMIT = 5  # requests per IP per window
@@ -377,7 +380,8 @@ def dashboard(current_user):
                          balance=float(user[4]),
                          account_number=user[3],
                          loans=loans,
-                         is_admin=current_user.get('is_admin', False))
+                         is_admin=current_user.get('is_admin', False),
+                         xss_protection_enabled=XSS_PROTECTION_ENABLED)
 
 # Check balance endpoint
 @app.route('/check_balance/<account_number>')
@@ -2057,6 +2061,12 @@ def ai_rate_limit_status():
             'status': 'error',
             'message': str(e)
         }), 500
+
+@app.route('/api/security-config')
+def security_config():
+    return jsonify({
+        'xss_protection_enabled': XSS_PROTECTION_ENABLED
+    })
 
 if __name__ == '__main__':
     init_db()

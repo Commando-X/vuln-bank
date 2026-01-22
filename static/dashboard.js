@@ -1,3 +1,35 @@
+// Global security configuration
+let XSS_PROTECTION_ENABLED = false;
+
+// Fetch security configuration
+async function loadSecurityConfig() {
+    try {
+        const response = await fetch('/api/security-config');
+        const data = await response.json();
+        XSS_PROTECTION_ENABLED = data.xss_protection_enabled;
+    } catch (error) {
+        console.error('Failed to load security config:', error);
+    }
+}
+
+// Safe HTML rendering helper
+function safeSetContent(element, content, allowHTML = false) {
+    if (XSS_PROTECTION_ENABLED || !allowHTML) {
+        element.textContent = content;
+    } else {
+        element.innerHTML = content;
+    }
+}
+
+function safeCreateHTML(htmlString) {
+    if (XSS_PROTECTION_ENABLED) {
+        const div = document.createElement('div');
+        div.textContent = htmlString;
+        return div.innerHTML;
+    }
+    return htmlString;
+}
+
 // Set current date
 document.addEventListener('DOMContentLoaded', function() {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -6,7 +38,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Vulnerability: Token stored in localStorage
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadSecurityConfig();
     const token = localStorage.getItem('jwt_token');
     if (!token) {
         window.location.href = '/login';
@@ -109,7 +142,7 @@ async function handleTransfer(event) {
         const data = await response.json();
         if (data.status === 'success') {
             // Update message and balance
-            document.getElementById('message').innerHTML = data.message;
+            safeSetContent(document.getElementById('message'), data.message);
             document.getElementById('message').style.color = 'green';
             document.getElementById('balance').textContent = data.new_balance;
             
@@ -119,11 +152,11 @@ async function handleTransfer(event) {
             // Clear form
             event.target.reset();
         } else {
-            document.getElementById('message').innerHTML = data.message;
+            safeSetContent(document.getElementById('message'), data.message);
             document.getElementById('message').style.color = 'red';
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Transfer failed';
+        safeSetContent(document.getElementById('message'), 'Transfer failed');
         document.getElementById('message').style.color = 'red';
     }
 }
@@ -147,7 +180,7 @@ async function handleLoanRequest(event) {
 
         const data = await response.json();
         if (data.status === 'success') {
-            document.getElementById('message').innerHTML = 'Loan requested successfully, our staff will review and approve!';
+            safeSetContent(document.getElementById('message'), 'Loan requested successfully, our staff will review and approve!');
             document.getElementById('message').style.color = 'green';
             
             // Check if loans section exists, if not create it
@@ -185,11 +218,11 @@ async function handleLoanRequest(event) {
             // Clear form
             event.target.reset();
         } else {
-            document.getElementById('message').innerHTML = data.message;
+            safeSetContent(document.getElementById('message'), data.message);
             document.getElementById('message').style.color = 'red';
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Loan request failed';
+        safeSetContent(document.getElementById('message'), 'Loan request failed');
         document.getElementById('message').style.color = 'red';
     }
 }
@@ -259,7 +292,6 @@ async function handleProfileUrlImport() {
 
 
 // Fetch transactions
-// Vulnerability: No rate limiting on transaction fetches
 async function fetchTransactions() {
     try {
         const accountNumber = document.getElementById('account-number').textContent;
@@ -270,36 +302,76 @@ async function fetchTransactions() {
         });
 
         const data = await response.json();
+        const transactionList = document.getElementById('transaction-list');
+
         if (data.status === 'success') {
             if (data.transactions.length === 0) {
-                document.getElementById('transaction-list').innerHTML = '<p style="text-align: center; padding: 2rem;">No transactions found</p>';
+                transactionList.innerHTML = '<p style="text-align: center; padding: 2rem;">No transactions found</p>';
                 return;
             }
-            
-            // Vulnerability: innerHTML used with unsanitized data
-            const transactionHtml = data.transactions.map(t => {
-                const isOutgoing = t.from_account === accountNumber;
-                const transactionType = isOutgoing ? 'sent' : 'received';
-                
-                return `
-                    <div class="transaction-item ${transactionType}">
-                        <div class="transaction-details">
-                            <div class="transaction-account">
-                                ${isOutgoing ? 'To: ' + t.to_account : 'From: ' + t.from_account}
+
+            if (XSS_PROTECTION_ENABLED) {
+                transactionList.innerHTML = '';
+                data.transactions.forEach(t => {
+                    const isOutgoing = t.from_account === accountNumber;
+                    const transactionType = isOutgoing ? 'sent' : 'received';
+
+                    const transactionItem = document.createElement('div');
+                    transactionItem.className = `transaction-item ${transactionType}`;
+
+                    const detailsDiv = document.createElement('div');
+                    detailsDiv.className = 'transaction-details';
+
+                    const accountDiv = document.createElement('div');
+                    accountDiv.className = 'transaction-account';
+                    accountDiv.textContent = isOutgoing ? 'To: ' + t.to_account : 'From: ' + t.from_account;
+                    detailsDiv.appendChild(accountDiv);
+
+                    const dateDiv = document.createElement('div');
+                    dateDiv.className = 'transaction-date';
+                    dateDiv.textContent = t.timestamp;
+                    detailsDiv.appendChild(dateDiv);
+
+                    if (t.description) {
+                        const descDiv = document.createElement('div');
+                        descDiv.className = 'transaction-description';
+                        descDiv.textContent = t.description;
+                        detailsDiv.appendChild(descDiv);
+                    }
+
+                    const amountDiv = document.createElement('div');
+                    amountDiv.className = `transaction-amount ${transactionType}`;
+                    amountDiv.textContent = `${isOutgoing ? '-' : '+'}$${Math.abs(t.amount)}`;
+
+                    transactionItem.appendChild(detailsDiv);
+                    transactionItem.appendChild(amountDiv);
+                    transactionList.appendChild(transactionItem);
+                });
+            } else {
+                const transactionHtml = data.transactions.map(t => {
+                    const isOutgoing = t.from_account === accountNumber;
+                    const transactionType = isOutgoing ? 'sent' : 'received';
+
+                    return `
+                        <div class="transaction-item ${transactionType}">
+                            <div class="transaction-details">
+                                <div class="transaction-account">
+                                    ${isOutgoing ? 'To: ' + t.to_account : 'From: ' + t.from_account}
+                                </div>
+                                <div class="transaction-date">${t.timestamp}</div>
+                                ${t.description ? `<div class="transaction-description">${t.description}</div>` : ''}
                             </div>
-                            <div class="transaction-date">${t.timestamp}</div>
-                            ${t.description ? `<div class="transaction-description">${t.description}</div>` : ''}
+                            <div class="transaction-amount ${transactionType}">
+                                ${isOutgoing ? '-' : '+'}$${Math.abs(t.amount)}
+                            </div>
                         </div>
-                        <div class="transaction-amount ${transactionType}">
-                            ${isOutgoing ? '-' : '+'}$${Math.abs(t.amount)}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            document.getElementById('transaction-list').innerHTML = transactionHtml;
+                    `;
+                }).join('');
+
+                transactionList.innerHTML = transactionHtml;
+            }
         } else {
-            document.getElementById('transaction-list').innerHTML = '<p style="text-align: center; padding: 2rem;">Error loading transactions</p>';
+            transactionList.innerHTML = '<p style="text-align: center; padding: 2rem;">Error loading transactions</p>';
         }
     } catch (error) {
         document.getElementById('transaction-list').innerHTML = '<p style="text-align: center; padding: 2rem;">Error loading transactions</p>';
@@ -335,26 +407,90 @@ function renderVirtualCards() {
         container.innerHTML = '<p style="text-align: center;">No virtual cards found. Create one to get started.</p>';
         return;
     }
-    
-    // Vulnerability: XSS possible in card rendering
-    container.innerHTML = virtualCards.map(card => `
-        <div class="virtual-card ${card.is_frozen ? 'frozen' : ''}" id="card-${card.id}">
-            <div class="card-type">${card.card_type.toUpperCase()}</div>
-            <div class="card-number">${formatCardNumber(card.card_number)}</div>
-            <div class="card-details">
-                <div>Exp: ${card.expiry_date}</div>
-                <div>CVV: ${card.cvv}</div>
+
+    if (XSS_PROTECTION_ENABLED) {
+        container.innerHTML = '';
+        virtualCards.forEach(card => {
+            const cardDiv = document.createElement('div');
+            cardDiv.className = `virtual-card ${card.is_frozen ? 'frozen' : ''}`;
+            cardDiv.id = `card-${card.id}`;
+
+            const cardType = document.createElement('div');
+            cardType.className = 'card-type';
+            cardType.textContent = card.card_type.toUpperCase();
+            cardDiv.appendChild(cardType);
+
+            const cardNumber = document.createElement('div');
+            cardNumber.className = 'card-number';
+            cardNumber.textContent = formatCardNumber(card.card_number);
+            cardDiv.appendChild(cardNumber);
+
+            const cardDetails = document.createElement('div');
+            cardDetails.className = 'card-details';
+
+            const expDiv = document.createElement('div');
+            expDiv.textContent = `Exp: ${card.expiry_date}`;
+            cardDetails.appendChild(expDiv);
+
+            const cvvDiv = document.createElement('div');
+            cvvDiv.textContent = `CVV: ${card.cvv}`;
+            cardDetails.appendChild(cvvDiv);
+            cardDiv.appendChild(cardDetails);
+
+            const limitDiv = document.createElement('div');
+            limitDiv.textContent = `Limit: $${card.limit}`;
+            cardDiv.appendChild(limitDiv);
+
+            const balanceDiv = document.createElement('div');
+            balanceDiv.textContent = `Balance: $${card.balance}`;
+            cardDiv.appendChild(balanceDiv);
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'card-actions';
+
+            const freezeBtn = document.createElement('button');
+            freezeBtn.textContent = card.is_frozen ? 'Unfreeze' : 'Freeze';
+            freezeBtn.onclick = () => toggleCardFreeze(card.id);
+            actionsDiv.appendChild(freezeBtn);
+
+            const detailsBtn = document.createElement('button');
+            detailsBtn.textContent = 'Details';
+            detailsBtn.onclick = () => showCardDetails(card.id);
+            actionsDiv.appendChild(detailsBtn);
+
+            const historyBtn = document.createElement('button');
+            historyBtn.textContent = 'History';
+            historyBtn.onclick = () => showTransactionHistory(card.id);
+            actionsDiv.appendChild(historyBtn);
+
+            const limitBtn = document.createElement('button');
+            limitBtn.textContent = 'Update Limit';
+            limitBtn.onclick = () => showUpdateLimit(card.id);
+            actionsDiv.appendChild(limitBtn);
+
+            cardDiv.appendChild(actionsDiv);
+            container.appendChild(cardDiv);
+        });
+    } else {
+        container.innerHTML = virtualCards.map(card => `
+            <div class="virtual-card ${card.is_frozen ? 'frozen' : ''}" id="card-${card.id}">
+                <div class="card-type">${card.card_type.toUpperCase()}</div>
+                <div class="card-number">${formatCardNumber(card.card_number)}</div>
+                <div class="card-details">
+                    <div>Exp: ${card.expiry_date}</div>
+                    <div>CVV: ${card.cvv}</div>
+                </div>
+                <div>Limit: $${card.limit}</div>
+                <div>Balance: $${card.balance}</div>
+                <div class="card-actions">
+                    <button onclick="toggleCardFreeze(${card.id})">${card.is_frozen ? 'Unfreeze' : 'Freeze'}</button>
+                    <button onclick="showCardDetails(${card.id})">Details</button>
+                    <button onclick="showTransactionHistory(${card.id})">History</button>
+                    <button onclick="showUpdateLimit(${card.id})">Update Limit</button>
+                </div>
             </div>
-            <div>Limit: $${card.limit}</div>
-            <div>Balance: $${card.balance}</div>
-            <div class="card-actions">
-                <button onclick="toggleCardFreeze(${card.id})">${card.is_frozen ? 'Unfreeze' : 'Freeze'}</button>
-                <button onclick="showCardDetails(${card.id})">Details</button>
-                <button onclick="showTransactionHistory(${card.id})">History</button>
-                <button onclick="showUpdateLimit(${card.id})">Update Limit</button>
-            </div>
-        </div>
-    `).join('');
+        `).join('');
+    }
 }
 
 function formatCardNumber(number) {
@@ -440,14 +576,14 @@ async function handleCreateCard(event) {
             hideCreateCardModal();
             await fetchVirtualCards();
             
-            document.getElementById('message').innerHTML = 'Virtual card created successfully!';
+            safeSetContent(document.getElementById('message'), 'Virtual card created successfully!');
             document.getElementById('message').style.color = 'green';
         } else {
-            document.getElementById('message').innerHTML = data.message;
+            safeSetContent(document.getElementById('message'), data.message);
             document.getElementById('message').style.color = 'red';
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Failed to create virtual card';
+        safeSetContent(document.getElementById('message'), 'Failed to create virtual card');
         document.getElementById('message').style.color = 'red';
     }
 }
@@ -465,11 +601,11 @@ async function toggleCardFreeze(cardId) {
         if (data.status === 'success') {
             await fetchVirtualCards();
         } else {
-            document.getElementById('message').innerHTML = data.message;
+            safeSetContent(document.getElementById('message'), data.message);
             document.getElementById('message').style.color = 'red';
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Failed to freeze/unfreeze card';
+        safeSetContent(document.getElementById('message'), 'Failed to freeze/unfreeze card');
         document.getElementById('message').style.color = 'red';
     }
 }
@@ -510,11 +646,11 @@ async function showTransactionHistory(cardId) {
             
             modal.style.display = 'flex';
         } else {
-            document.getElementById('message').innerHTML = data.message;
+            safeSetContent(document.getElementById('message'), data.message);
             document.getElementById('message').style.color = 'red';
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Failed to load transaction history';
+        safeSetContent(document.getElementById('message'), 'Failed to load transaction history');
         document.getElementById('message').style.color = 'red';
     }
 }
@@ -569,14 +705,14 @@ async function handleCardUpdate(event, cardId) {
         if (data.status === 'success') {
             await fetchVirtualCards();
             hideCardDetailsModal();
-            document.getElementById('message').innerHTML = 'Card limit updated successfully';
+            safeSetContent(document.getElementById('message'), 'Card limit updated successfully');
             document.getElementById('message').style.color = 'green';
         } else {
-            document.getElementById('message').innerHTML = data.message;
+            safeSetContent(document.getElementById('message'), data.message);
             document.getElementById('message').style.color = 'red';
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Error updating card limit';
+        safeSetContent(document.getElementById('message'), 'Error updating card limit');
         document.getElementById('message').style.color = 'red';
     }
     
@@ -600,16 +736,31 @@ async function loadBillCategories() {
     try {
         const response = await fetch('/api/bill-categories');
         const data = await response.json();
-        
+
         if (data.status === 'success') {
             const select = document.getElementById('billCategory');
-            // Vulnerability: XSS possible in category name and description
-            select.innerHTML = `
-                <option value="">Select Category</option>
-                ${data.categories.map(cat => `
-                    <option value="${cat.id}">${cat.name}</option>
-                `).join('')}
-            `;
+
+            if (XSS_PROTECTION_ENABLED) {
+                select.innerHTML = '';
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Select Category';
+                select.appendChild(defaultOption);
+
+                data.categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.name;
+                    select.appendChild(option);
+                });
+            } else {
+                select.innerHTML = `
+                    <option value="">Select Category</option>
+                    ${data.categories.map(cat => `
+                        <option value="${cat.id}">${cat.name}</option>
+                    `).join('')}
+                `;
+            }
         }
     } catch (error) {
         console.error('Error loading bill categories:', error);
@@ -618,53 +769,75 @@ async function loadBillCategories() {
 
 // Load billers for selected category
 async function loadBillers(categoryId) {
+    const select = document.getElementById('biller');
+
     if (!categoryId) {
-        const select = document.getElementById('biller');
-        select.innerHTML = '<option value="">Select Biller</option>';
+        select.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'Select Biller';
+        select.appendChild(option);
         select.disabled = true;
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/billers/by-category/${categoryId}`);
         const data = await response.json();
-        
-        const select = document.getElementById('biller');
+
         if (data.status === 'success') {
-            // Create a Map to store unique billers by name
             const billerMap = new Map();
-            
-            // Only keep the first occurrence of each biller name
             data.billers.forEach(biller => {
                 if (!billerMap.has(biller.name)) {
                     billerMap.set(biller.name, biller);
                 }
             });
 
-            // Convert Map values back to array
             const uniqueBillers = Array.from(billerMap.values());
-
-            // Sort billers by name for consistency
             uniqueBillers.sort((a, b) => a.name.localeCompare(b.name));
 
-            select.innerHTML = `
-                <option value="">Select Biller</option>
-                ${uniqueBillers.map(biller => `
-                    <option value="${biller.id}" 
-                            data-min="${biller.minimum_amount}"
-                            data-max="${biller.maximum_amount || ''}"
-                    >${biller.name}</option>
-                `).join('')}
-            `;
+            if (XSS_PROTECTION_ENABLED) {
+                select.innerHTML = '';
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Select Biller';
+                select.appendChild(defaultOption);
+
+                uniqueBillers.forEach(biller => {
+                    const option = document.createElement('option');
+                    option.value = biller.id;
+                    option.setAttribute('data-min', biller.minimum_amount);
+                    option.setAttribute('data-max', biller.maximum_amount || '');
+                    option.textContent = biller.name;
+                    select.appendChild(option);
+                });
+            } else {
+                select.innerHTML = `
+                    <option value="">Select Biller</option>
+                    ${uniqueBillers.map(biller => `
+                        <option value="${biller.id}"
+                                data-min="${biller.minimum_amount}"
+                                data-max="${biller.maximum_amount || ''}"
+                        >${biller.name}</option>
+                    `).join('')}
+                `;
+            }
             select.disabled = false;
         } else {
-            select.innerHTML = '<option value="">No billers available</option>';
+            select.innerHTML = '';
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No billers available';
+            select.appendChild(option);
             select.disabled = true;
         }
     } catch (error) {
         console.error('Error loading billers:', error);
-        const select = document.getElementById('biller');
-        select.innerHTML = '<option value="">Error loading billers</option>';
+        select.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'Error loading billers';
+        select.appendChild(option);
         select.disabled = true;
     }
 }
@@ -736,7 +909,7 @@ async function handleBillPayment(event) {
         const data = await response.json();
         if (data.status === 'success') {
             hidePayBillModal();
-            document.getElementById('message').innerHTML = 'Bill payment successful!';
+            safeSetContent(document.getElementById('message'), 'Bill payment successful!');
             document.getElementById('message').style.color = 'green';
             await loadPaymentHistory();
             
@@ -750,11 +923,11 @@ async function handleBillPayment(event) {
                 balanceElement.textContent = (currentBalance - jsonData.amount).toFixed(2);
             }
         } else {
-            document.getElementById('message').innerHTML = data.message;
+            safeSetContent(document.getElementById('message'), data.message);
             document.getElementById('message').style.color = 'red';
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Payment failed';
+        safeSetContent(document.getElementById('message'), 'Payment failed');
         document.getElementById('message').style.color = 'red';
     }
 }
