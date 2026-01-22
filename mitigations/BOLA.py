@@ -2,6 +2,7 @@ from flask import jsonify
 from database import execute_query
 from datetime import datetime
 
+
 def check_balance_hardened(current_user, account_number):
     """Hardened against BOLA.
 
@@ -34,8 +35,13 @@ def check_balance_hardened(current_user, account_number):
             'message': str(e)
         }), 500
 
+
 def get_transaction_history_hardened(current_user, account_number):
-    # Vulnerability: SQL Injection possible
+    """Hardened against BOLA.
+
+    Checks current logged in user.
+    Otherwise just a copy of the original get_transaction_history() logic.
+    """
     try:
         # Modified psql query verifies currently logged-in user by account number.
         query = """
@@ -53,11 +59,11 @@ def get_transaction_history_hardened(current_user, account_number):
                  OR to_account IN (SELECT account_number FROM users WHERE id = %s))
             ORDER BY timestamp DESC
             """
-            
+
         params = (account_number, account_number, current_user['user_id'], current_user['user_id'])
-        
+
         transactions = execute_query(query, params)
-        
+
         # Vulnerability: Information disclosure
         transaction_list = [{
             'id': t[0],
@@ -69,14 +75,14 @@ def get_transaction_history_hardened(current_user, account_number):
             'description': t[6]
             #'query_used': query  # Vulnerability: Exposing SQL query
         } for t in transactions]
-        
+
         return jsonify({
             'status': 'success',
             'account_number': account_number,
             'transactions': transaction_list,
             'server_time': str(datetime.now())  # Vulnerability: Server information disclosure
         })
-        
+
     except Exception as e:
         return jsonify({
             'status': 'error',
