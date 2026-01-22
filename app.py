@@ -486,7 +486,10 @@ def transfer(current_user):
 
 # Get transaction history endpoint
 @app.route('/transactions/<account_number>')
-def get_transaction_history(account_number):
+@token_required
+def get_transaction_history(current_user, account_number):
+    if harden:
+        return BOLA.get_transaction_history_hardened(current_user, account_number)
     # Vulnerability: No authentication required (BOLA)
     # Vulnerability: SQL Injection possible
     try:

@@ -1,6 +1,6 @@
 from flask import jsonify
 from database import execute_query
-
+from datetime import datetime
 
 def check_balance_hardened(current_user, account_number):
     """Hardened against BOLA.
@@ -32,4 +32,55 @@ def check_balance_hardened(current_user, account_number):
         return jsonify({
             'status': 'error',
             'message': str(e)
+        }), 500
+
+def get_transaction_history_hardened(current_user, account_number):
+    # Vulnerability: SQL Injection possible
+    try:
+        # Modified psql query verifies currently logged-in user by account number.
+        query = """
+            SELECT 
+                id,
+                from_account,
+                to_account,
+                amount,
+                timestamp,
+                transaction_type,
+                description
+            FROM transactions 
+            WHERE (from_account = %s OR to_account = %s)
+            AND (from_account IN (SELECT account_number FROM users WHERE id = %s)
+                 OR to_account IN (SELECT account_number FROM users WHERE id = %s))
+            ORDER BY timestamp DESC
+            """
+            
+        params = (account_number, account_number, current_user['user_id'], current_user['user_id'])
+        
+        transactions = execute_query(query, params)
+        
+        # Vulnerability: Information disclosure
+        transaction_list = [{
+            'id': t[0],
+            'from_account': t[1],
+            'to_account': t[2],
+            'amount': float(t[3]),
+            'timestamp': str(t[4]),
+            'type': t[5],
+            'description': t[6]
+            #'query_used': query  # Vulnerability: Exposing SQL query
+        } for t in transactions]
+        
+        return jsonify({
+            'status': 'success',
+            'account_number': account_number,
+            'transactions': transaction_list,
+            'server_time': str(datetime.now())  # Vulnerability: Server information disclosure
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'query': query,  # Vulnerability: Query exposure
+            'account_number': account_number
         }), 500
