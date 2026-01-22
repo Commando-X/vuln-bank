@@ -45,7 +45,7 @@ def get_transaction_history_hardened(current_user, account_number):
     try:
         # Modified psql query verifies currently logged-in user by account number.
         query = """
-            SELECT 
+            SELECT
                 id,
                 from_account,
                 to_account,
@@ -53,7 +53,7 @@ def get_transaction_history_hardened(current_user, account_number):
                 timestamp,
                 transaction_type,
                 description
-            FROM transactions 
+            FROM transactions
             WHERE (from_account = %s OR to_account = %s)
             AND (from_account IN (SELECT account_number FROM users WHERE id = %s)
                  OR to_account IN (SELECT account_number FROM users WHERE id = %s))
@@ -73,7 +73,7 @@ def get_transaction_history_hardened(current_user, account_number):
             'timestamp': str(t[4]),
             'type': t[5],
             'description': t[6]
-            #'query_used': query  # Vulnerability: Exposing SQL query
+            # 'query_used': query  # Vulnerability: Exposing SQL query
         } for t in transactions]
 
         return jsonify({
