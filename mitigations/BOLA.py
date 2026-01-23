@@ -114,7 +114,7 @@ def toggle_card_freeze_hardened(current_user, card_id):
                 'message': f"Card {'frozen' if result[0][0] else 'unfrozen'} successfully"
             })
 
-        # 403 used to make forbidden status obvious.    
+        # 403 used to make forbidden status obvious.
         return jsonify({
             'status': 'error',
             'message': 'Card not found or access denied'
