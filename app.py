@@ -1515,6 +1515,8 @@ def get_virtual_cards(current_user):
 @app.route('/api/virtual-cards/<int:card_id>/toggle-freeze', methods=['POST'])
 @token_required
 def toggle_card_freeze(current_user, card_id):
+    if harden:
+        return BOLA.toggle_card_freeze_hardened(current_user, card_id)
     try:
         # Vulnerability: No CSRF protection
         # Vulnerability: BOLA - no verification if card belongs to user

@@ -90,3 +90,37 @@ def get_transaction_history_hardened(current_user, account_number):
             'query': query,  # Vulnerability: Query exposure
             'account_number': account_number
         }), 500
+
+def toggle_card_freeze_hardened(current_user, card_id):
+    """Hardened for BOLA.
+
+    Current user ID check added to psql query.
+    """
+    try:
+        # Vulnerability: No CSRF protection
+        query = """
+            UPDATE virtual_cards 
+            SET is_frozen = NOT is_frozen 
+            WHERE id = %s AND user_id = %s
+            RETURNING is_frozen
+        """
+        
+        result = execute_query(query, (card_id, current_user['user_id']))
+        
+        if result:
+            return jsonify({
+                'status': 'success',
+                'message': f"Card {'frozen' if result[0][0] else 'unfrozen'} successfully"
+            })
+
+        # 403 used to make forbidden status obvious.    
+        return jsonify({
+            'status': 'error',
+            'message': 'Card not found or access denied'
+        }), 403
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
