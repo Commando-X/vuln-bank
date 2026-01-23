@@ -977,15 +977,13 @@ def create_admin(current_user):
         }), 500
 
 @app.route('/api/toggle/harden', methods=['POST'])
-def harden():
-    data = request.get_json() or {}
-    enabled = bool(data.get('enabled', True))
+def harden_toggle():
     global harden
-    harden = enabled
+    harden = not harden
 
     return jsonify({
         'status': 'success',
-        'hardened': enabled
+        'hardened': harden
     })
 
 # Forgot password endpoint
