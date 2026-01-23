@@ -1,13 +1,13 @@
-from flask import jsonify
+# from flask import jsonify
 from database import execute_query
 from datetime import datetime
+
 
 def check_balance_hardened():
     """Harden for BOLA.
     Parameterize the query.
     """
     return "SELECT username, balance FROM users WHERE account_number = %s AND id = %s"
-
 
 # def check_balance_hardened(current_user, account_number):
 #     """Hardened against BOLA.
@@ -40,7 +40,6 @@ def check_balance_hardened():
 #             'status': 'error',
 #             'message': str(e)
 #         }), 500
-
 
 
 def get_transaction_history_hardened():
@@ -94,7 +93,8 @@ def get_transaction_history_hardened():
 #         transactions = execute_query(query, params)
 
 #         if not transactions:
-#             return jsonify({'status': 'error', 'message': 'Account not found or access denied'}), 403
+# return jsonify({'status': 'error', 'message': 'Account not found or
+# access denied'}), 403
 
 #         # Vulnerability: Information disclosure
 #         transaction_list = [{
