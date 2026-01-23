@@ -1147,7 +1147,7 @@
 
     <script>
         // Toggle logic for button
-        let hardened = false;
+        let hardened = null;
 
         async function toggleVulnerabilities(e) {
             e.preventDefault();
@@ -1157,8 +1157,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ enabled: !hardened })
+                    }
+
                 });
                 const data = await res.json();
                 if (data.status === 'success') {

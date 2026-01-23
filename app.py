@@ -19,6 +19,7 @@ import requests
 from urllib.parse import urlparse
 import platform
 from mitigations import BOLA
+from mitigations import sql_injections
 
 # Load environment variables
 load_dotenv()
@@ -284,13 +285,16 @@ def login():
             password = data.get('password')
             
             print(f"Login attempt - Username: {username}")  # Debug print
-            
-            # SQL Injection vulnerability (intentionally vulnerable)
-            query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
-            print(f"Debug - Login query: {query}")  # Debug print
-            
-            user = execute_query(query)
-            print(f"Debug - Query result: {user}")  # Debug print
+
+            if harden:
+                query = sql_injections.login_hardened()
+                user = execute_query(query, (username, password))
+            else:
+                # SQL Injection vulnerability (intentionally vulnerable)
+                query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
+                print(f"Debug - Login query: {query}")  # Debug print
+                user = execute_query(query)
+                print(f"Debug - Query result: {user}")  # Debug print
             
             if user and len(user) > 0:
                 user = user[0]  # Get first row
@@ -977,15 +981,13 @@ def create_admin(current_user):
         }), 500
 
 @app.route('/api/toggle/harden', methods=['POST'])
-def harden():
-    data = request.get_json() or {}
-    enabled = bool(data.get('enabled', True))
+def harden_toggle():
     global harden
-    harden = enabled
+    harden = not harden
 
     return jsonify({
         'status': 'success',
-        'hardened': enabled
+        'hardened': harden
     })
 
 # Forgot password endpoint
