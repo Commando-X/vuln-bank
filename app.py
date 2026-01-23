@@ -1544,7 +1544,6 @@ def toggle_card_freeze(current_user, card_id):
                 WHERE id = {card_id}
                 RETURNING is_frozen
             """
-            
             result = execute_query(query)
         
         if result:
@@ -1573,17 +1572,21 @@ def toggle_card_freeze(current_user, card_id):
 @token_required
 def get_card_transactions(current_user, card_id):
     try:
-        # Vulnerability: BOLA - no verification if card belongs to user
-        # Vulnerability: SQL Injection possible
-        query = f"""
-            SELECT ct.*, vc.card_number 
-            FROM card_transactions ct
-            JOIN virtual_cards vc ON ct.card_id = vc.id
-            WHERE ct.card_id = {card_id}
-            ORDER BY ct.timestamp DESC
-        """
-        
-        transactions = execute_query(query)
+        if harden:
+            query = BOLA.get_card_transactions_hardened()
+            transactions = execute_query(query, (card_id, current_user['user_id']))
+        else:
+            # Vulnerability: BOLA - no verification if card belongs to user
+            # Vulnerability: SQL Injection possible
+            query = f"""
+                SELECT ct.*, vc.card_number 
+                FROM card_transactions ct
+                JOIN virtual_cards vc ON ct.card_id = vc.id
+                WHERE ct.card_id = {card_id}
+                ORDER BY ct.timestamp DESC
+            """
+            
+            transactions = execute_query(query)
         
         # Vulnerability: Information disclosure
         return jsonify({
@@ -1631,15 +1634,19 @@ def update_card_limit(current_user, card_id):
             update_fields.append(f"{key} = %s")
             update_values.append(value)
             updated_fields_list.append(key)  # Add to list instead of dict_keys
+
+        if harden:
+            query = BOLA.update_card_limit_hardened(update_fields)
+            update_values.extend([card_id, current_user['user_id']])
+        else:
+            # Vulnerability: BOLA - no verification if card belongs to user
+            query = f"""
+                UPDATE virtual_cards
+                SET {', '.join(update_fields)}
+                WHERE id = {card_id}
+                RETURNING *
+            """
             
-        # Vulnerability: BOLA - no verification if card belongs to user
-        query = f"""
-            UPDATE virtual_cards 
-            SET {', '.join(update_fields)}
-            WHERE id = {card_id}
-            RETURNING *
-        """
-        
         result = execute_query(query, tuple(update_values))
         
         if result:
@@ -1662,8 +1669,8 @@ def update_card_limit(current_user, card_id):
             
         return jsonify({
             'status': 'error',
-            'message': 'Card not found'
-        }), 404
+            'message': 'Card not found or access denied'
+        }), 403
             
     except Exception as e:
         # Vulnerability: Detailed error exposure
@@ -1739,14 +1746,24 @@ def create_bill_payment(current_user):
         # Vulnerability: No payment method validation
         
         if payment_method == 'virtual_card' and card_id:
-            # Vulnerability: BOLA - no verification if card belongs to user
-            # Vulnerability: SQL injection possible
-            card_query = f"""
-                SELECT current_balance, card_limit, is_frozen 
-                FROM virtual_cards 
-                WHERE id = {card_id}
-            """
-            card = execute_query(card_query)[0]
+            if harden:
+                card_query = BOLA.create_bill_payment_hardened()
+                card = execute_query(card_query, (card_id, current_user['user_id']))
+            else:
+                # Vulnerability: BOLA - no verification if card belongs to user
+                # Vulnerability: SQL injection possible
+                card_query = f"""
+                    SELECT current_balance, card_limit, is_frozen 
+                    FROM virtual_cards 
+                    WHERE id = {card_id}
+                """
+                card = execute_query(card_query)[0]
+            
+            if not card:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Card not found or access denied'
+                }), 403
             
             if card[2]:  # is_frozen
                 return jsonify({
