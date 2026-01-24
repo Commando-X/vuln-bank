@@ -173,13 +173,14 @@ def toggle_card_freeze_hardened():
 
 def get_card_transactions_hardened():
     query = """
-            SELECT ct.*, vc.card_number 
+            SELECT ct.*, vc.card_number
             FROM card_transactions ct
             JOIN virtual_cards vc ON ct.card_id = vc.id
             WHERE ct.card_id = %s AND user_id = %s
             ORDER BY ct.timestamp DESC
         """
     return query
+
 
 def update_card_limit_hardened(update_fields):
     """Hardened for BOLA.
@@ -193,10 +194,11 @@ def update_card_limit_hardened(update_fields):
         """
     return query
 
+
 def create_bill_payment_hardened():
     card_query = """
-                SELECT current_balance, card_limit, is_frozen 
-                FROM virtual_cards 
+                SELECT current_balance, card_limit, is_frozen
+                FROM virtual_cards
                 WHERE id = %s AND user_id = %s
             """
     return card_query
