@@ -287,6 +287,7 @@ def login():
             print(f"Login attempt - Username: {username}")  # Debug print
 
             if harden:
+                # Fixes SQL injection vulnerability
                 query = sql_injections.login_hardened()
                 user = execute_query(query, (username, password))
             else:
@@ -959,14 +960,21 @@ def create_admin(current_user):
         username = data.get('username')
         password = data.get('password')
         account_number = generate_account_number()
-        
+
+        if harden:
+            # Fixes SQL injection
+            query = sql_injections.create_admin_hardened()
+            execute_query(query, (username, password, account_number, True),
+                          fetch=False
+            )
+        else:
         # Vulnerability: SQL injection possible
         # Vulnerability: No password complexity requirements
         # Vulnerability: No account number uniqueness check
-        execute_query(
-            f"INSERT INTO users (username, password, account_number, is_admin) VALUES ('{username}', '{password}', '{account_number}', true)",
-            fetch=False
-        )
+            execute_query(
+                f"INSERT INTO users (username, password, account_number, is_admin) VALUES ('{username}', '{password}', '{account_number}', true)",
+                fetch=False
+            )
         
         return jsonify({
             'status': 'success',
