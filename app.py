@@ -968,9 +968,9 @@ def create_admin(current_user):
                           fetch=False
             )
         else:
-        # Vulnerability: SQL injection possible
-        # Vulnerability: No password complexity requirements
-        # Vulnerability: No account number uniqueness check
+            # Vulnerability: SQL injection possible
+            # Vulnerability: No password complexity requirements
+            # Vulnerability: No account number uniqueness check
             execute_query(
                 f"INSERT INTO users (username, password, account_number, is_admin) VALUES ('{username}', '{password}', '{account_number}', true)",
                 fetch=False
