@@ -11,29 +11,44 @@ This vulnerability is present in six different functions within app.py. Steps fo
 
 ### check_balance_hardened()
 #### Exploit
-Log in as any user and note their <account_number> (visible directly below their account balance). From here, this may be exploited in one of two ways:
-##### As User (Internal)
-1. Log out, then log in as any other user.
-2. Append /check_balance/<account_number> to the root URL. If the root is localhost:5000, the full URL should read localhost:5000/check_balance/<account_number>
-3. Press enter, then observe outcome in browser window.
-##### As Interloper (External)
-1. Log in as any user and open the browser console/terminal.
-2. Issue the following fetch request as a command, replacing `<ACCOUNT_NUMBER>` with the previously noted account number:
+1. Log in as any user and note their <account_number> (visible directly below their account balance).
+![alt text](./screenshots/image-2.png)
+2. Log out, then log in as any other user.
+From here, this may be exploited in one of two ways:
+##### via URL
+3. Append /check_balance/<account_number> to the root URL. If the root is localhost:5000, the full URL should read localhost:5000/check_balance/<account_number>
+4. Press enter, then observe outcome in browser window.
+![alt text](./screenshots/image-3.png)
+##### via CLI
+3. Open the browser console/terminal.
+4. Issue the following fetch request as a command, replacing `<ACCOUNT_NUMBER>` with the previously noted account number:
     `const attackerToken = localStorage.getItem('jwt_token');
     fetch('/check_balance/' + '<ACCOUNT_NUMBER>', {
     headers: { Authorization: 'Bearer ' + attackerToken }
     }).then(r => r.json()).then(console.log);`
-
-3. Observe outcome.
+5. Observe outcome.
 ![alt text](./screenshots/image.png)
 
 #### Mitigate
-Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat either attack (steps above) and observe outcome:
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack (either sequence of steps above) and observe outcome:
 ![alt text](./screenshots/image-1.png)
 
 ### get_transaction_history()
 #### Exploit
+Initial steps are identical to those above: log in, note account number, log out, then log in as another user. Specific API endpoint used is the only difference. Similarly, this can follow two paths:
+##### via URL
+1. Append /transactions/<account_number> to the root URL. If the root is localhost:5000, the full URL should read localhost:5000/transactions/<account_number>
+2. Press enter, then observe outcome in browser window.
+##### via CLI
+1. Open the browser console/terminal.
+2. Issue the following fetch request as a command, replacing `<ACCOUNT_NUMBER>` with the previously noted account number:
+    `const attackerToken = localStorage.getItem('jwt_token');
+    fetch('/transactions/' + '<ACCOUNT_NUMBER>', {
+    headers: { Authorization: 'Bearer ' + attackerToken }
+    }).then(r => r.json()).then(console.log);`
 #### Mitigate
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack (either sequence of steps above) and observe outcome:
+![alt text](./screenshots/image.png)
 
 ### toggle_card_freeze()
 #### Exploit
