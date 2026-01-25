@@ -4,10 +4,11 @@ import random
 import string
 import html
 import os
+import flask
 from dotenv import load_dotenv
 from auth import generate_token, token_required, verify_token, init_auth_routes
 import auth
-from werkzeug.utils import secure_filename 
+from werkzeug.utils import secure_filename
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 from database import init_connection_pool, init_db, execute_query, execute_transaction
@@ -24,7 +25,6 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)
 
 # Initialize database connection pool
 init_connection_pool()
@@ -43,11 +43,114 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
-# Hardcoded secret key (CWE-798)
-app.secret_key = "secret123"
-
 # Security toggle configuration
 XSS_PROTECTION_ENABLED = os.getenv('XSS_PROTECTION_ENABLED', 'false').lower() == 'true'
+
+# Security Misconfiguration toggle configuration
+SECURITY_HARDENING_ENABLED = os.getenv('SECURITY_HARDENING_ENABLED', 'false').lower() == 'true'
+FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'secret123')
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'secret123')
+ALLOWED_CORS_ORIGINS = os.getenv('ALLOWED_CORS_ORIGINS', '').split(',') if os.getenv('ALLOWED_CORS_ORIGINS') else []
+
+# Flask secret key configuration (CWE-798)
+if SECURITY_HARDENING_ENABLED:
+    # Hardened: Use strong secret from environment
+    app.secret_key = FLASK_SECRET_KEY
+    # Validate secret strength
+    if len(FLASK_SECRET_KEY) < 32:
+        print("WARNING: Flask secret key should be at least 32 characters long")
+    if FLASK_SECRET_KEY == 'secret123' or 'please-generate' in FLASK_SECRET_KEY:
+        print("WARNING: Using default/placeholder Flask secret key. Generate a strong key!")
+else:
+    # Vulnerable: Hardcoded weak secret
+    app.secret_key = "secret123"
+
+# CORS configuration
+if SECURITY_HARDENING_ENABLED and ALLOWED_CORS_ORIGINS:
+    # Hardened: Restrict CORS to specific origins
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": ALLOWED_CORS_ORIGINS,
+            "methods": ["GET", "POST", "PUT", "DELETE"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "expose_headers": ["Content-Type"],
+            "supports_credentials": True,
+            "max_age": 600
+        }
+    })
+else:
+    # Vulnerable: Allow all origins
+    CORS(app)
+
+# Security headers middleware
+@app.after_request
+def set_security_headers(response):
+    """
+    Apply security headers based on configuration.
+    When hardening is enabled, adds comprehensive security headers.
+    When disabled (vulnerable), exposes debug information.
+    """
+    if SECURITY_HARDENING_ENABLED:
+        # Hardened: Add security headers
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none';"
+        )
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
+        # Remove debug headers if present
+        response.headers.pop('X-Debug-Info', None)
+        response.headers.pop('X-User-Info', None)
+        response.headers.pop('Server', None)
+    else:
+        # Vulnerable: No security headers, expose server info
+        try:
+            flask_version = flask.__version__
+        except AttributeError:
+            flask_version = '2.0.1'  # Fallback version
+        response.headers['Server'] = f'Flask/{flask_version} Python/{platform.python_version()}'
+
+    return response
+
+def format_error_response(error, status_code=500, include_debug=None):
+    """
+    Format error responses based on security configuration.
+
+    Args:
+        error: The exception or error message
+        status_code: HTTP status code
+        include_debug: Dict of debug info (only shown when vulnerable)
+
+    Returns:
+        JSON response tuple (dict, status_code)
+    """
+    if SECURITY_HARDENING_ENABLED:
+        # Hardened: Generic error message
+        return jsonify({
+            'status': 'error',
+            'message': 'An error occurred processing your request. Please contact support if this persists.',
+            'error_code': f'ERR_{status_code}'
+        }), status_code
+    else:
+        # Vulnerable: Detailed error information
+        error_response = {
+            'status': 'error',
+            'message': str(error),
+            'error_type': type(error).__name__,
+            'timestamp': str(datetime.now())
+        }
+        if include_debug:
+            error_response['debug_info'] = include_debug
+        return jsonify(error_response), status_code
 
 # Rate limiting configuration
 RATE_LIMIT_WINDOW = 3 * 60 * 60  # 3 hours in seconds
@@ -240,37 +343,51 @@ def register():
                 raise Exception("Failed to create user")
                 
             user = result[0]
-            
+
             # Excessive Data Exposure in Response
-            sensitive_data = {
-                'status': 'success',
-                'message': 'Registration successful! Proceed to login',
-                'debug_data': {  # Sensitive data exposed
-                    'user_id': user[0],
-                    'username': user[1],
-                    'account_number': user[2],
-                    'balance': float(user[3]) if user[3] else 1000.0,
-                    'is_admin': user[4],
-                    'registration_time': str(datetime.now()),
-                    'server_info': request.headers.get('User-Agent'),
-                    'raw_data': user_data,  # Exposing raw input data
-                    'fields_registered': fields  # Show what fields were registered
+            if SECURITY_HARDENING_ENABLED:
+                # Hardened: Minimal response data
+                sensitive_data = {
+                    'status': 'success',
+                    'message': 'Registration successful! Proceed to login'
                 }
-            }
-            
+            else:
+                # Vulnerable: Excessive data exposure
+                sensitive_data = {
+                    'status': 'success',
+                    'message': 'Registration successful! Proceed to login',
+                    'debug_data': {  # Sensitive data exposed
+                        'user_id': user[0],
+                        'username': user[1],
+                        'account_number': user[2],
+                        'balance': float(user[3]) if user[3] else 1000.0,
+                        'is_admin': user[4],
+                        'registration_time': str(datetime.now()),
+                        'server_info': request.headers.get('User-Agent'),
+                        'raw_data': user_data,  # Exposing raw input data
+                        'fields_registered': fields  # Show what fields were registered
+                    }
+                }
+
             response = jsonify(sensitive_data)
-            response.headers['X-Debug-Info'] = str(sensitive_data['debug_data'])
-            response.headers['X-User-Info'] = f"id={user[0]};admin={user[4]};balance={user[3]}"
-            
+
+            if not SECURITY_HARDENING_ENABLED:
+                # Vulnerable: Expose sensitive data in headers
+                response.headers['X-Debug-Info'] = str(sensitive_data['debug_data'])
+                response.headers['X-User-Info'] = f"id={user[0]};admin={user[4]};balance={user[3]}"
+
             return response
                 
         except Exception as e:
             print(f"Registration error: {str(e)}")
-            return jsonify({
-                'status': 'error',
-                'message': 'Registration failed',
-                'error': str(e)
-            }), 500
+            return format_error_response(
+                e,
+                500,
+                include_debug={
+                    'endpoint': 'register',
+                    'error_details': str(e)
+                }
+            )
         
     return render_template('register.html')
 
@@ -313,8 +430,22 @@ def login():
                         'login_time': str(datetime.now())
                     }
                 }))
-                # Vulnerability: Cookie without secure flag
-                response.set_cookie('token', token, httponly=True)
+
+                # Session cookie security configuration (CWE-614)
+                if SECURITY_HARDENING_ENABLED:
+                    # Hardened: Secure cookie configuration
+                    response.set_cookie(
+                        'token',
+                        token,
+                        httponly=True,
+                        secure=True,  # Requires HTTPS in production
+                        samesite='Lax',  # Prevent CSRF attacks
+                        max_age=3600  # 1 hour expiration
+                    )
+                else:
+                    # Vulnerable: Cookie without secure flag
+                    response.set_cookie('token', token, httponly=True)
+
                 return response
             
             # Vulnerability: Username enumeration
@@ -381,7 +512,8 @@ def dashboard(current_user):
                          account_number=user[3],
                          loans=loans,
                          is_admin=current_user.get('is_admin', False),
-                         xss_protection_enabled=XSS_PROTECTION_ENABLED)
+                         xss_protection_enabled=XSS_PROTECTION_ENABLED,
+                         security_hardening_enabled=SECURITY_HARDENING_ENABLED)
 
 # Check balance endpoint
 @app.route('/check_balance/<account_number>')
@@ -407,10 +539,15 @@ def check_balance(account_number):
             'message': 'Account not found'
         }), 404
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+        return format_error_response(
+            e,
+            500,
+            include_debug={
+                'endpoint': 'check_balance',
+                'account_number': account_number,
+                'query': f"SELECT username, balance FROM users WHERE account_number='{account_number}'"
+            }
+        )
 
 # Transfer endpoint
 @app.route('/transfer', methods=['POST'])
@@ -472,12 +609,18 @@ def transfer(current_user):
                 'status': 'error',
                 'message': 'Insufficient funds'
             }), 400
-            
+
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+        return format_error_response(
+            e,
+            500,
+            include_debug={
+                'endpoint': 'transfer',
+                'from_account': from_account if 'from_account' in locals() else 'N/A',
+                'to_account': to_account if 'to_account' in locals() else 'N/A',
+                'amount': amount if 'amount' in locals() else 'N/A'
+            }
+        )
 
 # Get transaction history endpoint
 @app.route('/transactions/<account_number>')
@@ -570,11 +713,15 @@ def upload_profile_picture(current_user):
     except Exception as e:
         # Vulnerability: Detailed error exposure
         print(f"Profile picture upload error: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e),
-            'file_path': file_path  # Vulnerability: Information disclosure
-        }), 500
+        return format_error_response(
+            e,
+            500,
+            include_debug={
+                'endpoint': 'upload_profile_picture',
+                'file_path': file_path if 'file_path' in locals() else 'N/A',
+                'filename': filename if 'filename' in locals() else 'N/A'
+            }
+        )
 
 # Upload profile picture by URL (Intentionally Vulnerable to SSRF)
 @app.route('/upload_profile_picture_url', methods=['POST'])
@@ -2065,11 +2212,20 @@ def ai_rate_limit_status():
 @app.route('/api/security-config')
 def security_config():
     return jsonify({
-        'xss_protection_enabled': XSS_PROTECTION_ENABLED
+        'xss_protection_enabled': XSS_PROTECTION_ENABLED,
+        'security_hardening_enabled': SECURITY_HARDENING_ENABLED
     })
 
 if __name__ == '__main__':
     init_db()
     init_auth_routes(app)
-    # Vulnerability: Debug mode enabled in production
-    app.run(host='0.0.0.0', port=5000, debug=True)
+
+    # Debug mode toggle (CWE-489)
+    if SECURITY_HARDENING_ENABLED:
+        # Hardened: Debug mode disabled
+        print("Starting Flask app in PRODUCTION mode (debug=False)")
+        app.run(host='0.0.0.0', port=5000, debug=False)
+    else:
+        # Vulnerable: Debug mode enabled in production
+        print("Starting Flask app in DEBUG mode (debug=True) - INSECURE!")
+        app.run(host='0.0.0.0', port=5000, debug=True)

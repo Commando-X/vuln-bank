@@ -19,6 +19,9 @@
             <div style="font-size: 0.7rem; margin-top: 0.5rem; padding: 0.3rem 0.5rem; border-radius: 4px; {% if xss_protection_enabled %}background: #28a745; color: white;{% else %}background: #dc3545; color: white;{% endif %}">
                 {% if xss_protection_enabled %}XSS Protected{% else %}XSS Vulnerable{% endif %}
             </div>
+            <div style="font-size: 0.7rem; margin-top: 0.5rem; padding: 0.3rem 0.5rem; border-radius: 4px; {% if security_hardening_enabled %}background: #28a745; color: white;{% else %}background: #dc3545; color: white;{% endif %}">
+                {% if security_hardening_enabled %}Security Hardened{% else %}Security Misconfigured{% endif %}
+            </div>
         </div>
         <nav>
             <a href="#profile" class="nav-link" onclick="setActiveLink(this)">

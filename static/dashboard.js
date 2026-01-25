@@ -1,5 +1,6 @@
 // Global security configuration
 let XSS_PROTECTION_ENABLED = false;
+let SECURITY_HARDENING_ENABLED = false;
 
 // Fetch security configuration
 async function loadSecurityConfig() {
@@ -7,6 +8,7 @@ async function loadSecurityConfig() {
         const response = await fetch('/api/security-config');
         const data = await response.json();
         XSS_PROTECTION_ENABLED = data.xss_protection_enabled;
+        SECURITY_HARDENING_ENABLED = data.security_hardening_enabled;
     } catch (error) {
         console.error('Failed to load security config:', error);
     }

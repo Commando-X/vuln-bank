@@ -1,13 +1,31 @@
 from flask import jsonify, request
 import jwt
 import datetime
-import sqlite3  
+import sqlite3
 from functools import wraps
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Vulnerable JWT implementation with common security issues
 
-# Weak secret key (CWE-326)
-JWT_SECRET = "secret123"
+# Security Misconfiguration toggle
+SECURITY_HARDENING_ENABLED = os.getenv('SECURITY_HARDENING_ENABLED', 'false').lower() == 'true'
+JWT_SECRET_KEY_ENV = os.getenv('JWT_SECRET_KEY', 'secret123')
+
+# JWT secret key configuration (CWE-326)
+if SECURITY_HARDENING_ENABLED:
+    # Hardened: Use strong secret from environment
+    JWT_SECRET = JWT_SECRET_KEY_ENV
+    if len(JWT_SECRET) < 32:
+        print("WARNING: JWT secret key should be at least 32 characters long")
+    if JWT_SECRET == 'secret123' or 'please-generate' in JWT_SECRET:
+        print("WARNING: Using default/placeholder JWT secret key. Generate a strong key!")
+else:
+    # Vulnerable: Weak secret key
+    JWT_SECRET = "secret123"
 
 # Vulnerable algorithm selection - allows 'none' algorithm
 ALGORITHMS = ['HS256', 'none']

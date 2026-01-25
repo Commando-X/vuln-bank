@@ -12,8 +12,13 @@ services:
       - DB_NAME=vulnerable_bank
       - DB_USER=postgres
       - DB_PASSWORD=postgres
-      - DB_HOST=db 
+      - DB_HOST=db
       - DB_PORT=5432
+      - XSS_PROTECTION_ENABLED=${XSS_PROTECTION_ENABLED:-false}
+      - SECURITY_HARDENING_ENABLED=${SECURITY_HARDENING_ENABLED:-false}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-secret123}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-secret123}
+      - ALLOWED_CORS_ORIGINS=${ALLOWED_CORS_ORIGINS:-}
     depends_on:
       - db
     volumes:
