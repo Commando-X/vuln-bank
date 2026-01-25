@@ -217,17 +217,31 @@ def register():
                     'username': user_data.get('username'),
                     'tried_at': str(datetime.now())  # Information disclosure
                 }), 400
-            
+
+            if harden:
+                # HARDENED: registration field whitelist
+                ALLOWED_REGISTRATION_FIELDS = ['username', 'password']
+
             # Build dynamic query based on user input fields
             # Vulnerability: Mass Assignment possible here
             fields = ['username', 'password', 'account_number']
             values = [user_data.get('username'), user_data.get('password'), account_number]
             
-            # Include any additional parameters from user input
-            for key, value in user_data.items():
-                if key not in ['username', 'password']:
-                    fields.append(key)
-                    values.append(value)
+            if harden:
+                # HARDEN: validate input against whitelist
+                for key in user_data.keys():
+                    if key not in ALLOWED_REGISTRATION_FIELDS:
+                        return jsonify({
+                            'status': 'error',
+                            'message': f'Invalid field: {key}. Only username and password are allowed.',
+                            'allowed_fields': ALLOWED_REGISTRATION_FIELDS
+                        }), 400
+            else:
+                # Include any additional parameters from user input
+                for key, value in user_data.items():
+                    if key not in ['username', 'password']:
+                        fields.append(key)
+                        values.append(value)
             
             # Build the SQL query dynamically
             query = f"""
