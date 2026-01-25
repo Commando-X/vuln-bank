@@ -8,15 +8,20 @@ def login_hardened():
 
     return query
 
+
 def create_admin_hardened():
     """
     Hardened against SQL injection when creating admin
     by adding parameterized queries.
     """
 
-    query = "INSERT INTO users (username, password, account_number, is_admin) VALUES (%s, %s, %s, %s);"
+    query = (
+        "INSERT INTO users (username, password, account_number, is_admin) "
+        "VALUES (%s, %s, %s, %s);"
+    )
 
     return query
+
 
 def forgot_password_hardened():
     """
@@ -27,6 +32,7 @@ def forgot_password_hardened():
     query = "SELECT id FROM users WHERE username= %s;"
 
     return query
+
 
 def api_v1_forgot_password_hardened():
     """
@@ -39,6 +45,7 @@ def api_v1_forgot_password_hardened():
 
     return query
 
+
 def api_v2_forgot_password_hardened():
     """
     Hardened against SQL injection when requesting password
@@ -50,6 +57,7 @@ def api_v2_forgot_password_hardened():
 
     return query
 
+
 def api_v3_forgot_password_hardened():
     """
     Hardened against SQL injection when requesting password
@@ -60,6 +68,8 @@ def api_v3_forgot_password_hardened():
 
     return query
 
+
+'''
 def api_transactions_hardened():
     """
     Hardened against SQL injection when checking transactions
@@ -91,4 +101,4 @@ def get_payment_history_hardened():
     """
 
     return query
-
+'''
