@@ -10,6 +10,7 @@ Browser access to functioning web app and two registered user accounts, at least
 This vulnerability is present in six different functions within app.py. Steps for exploitation and verification of hardening are as follows.
 
 ### check_balance_hardened()
+Grants attacker access to any user's balance.
 #### Exploit
 1. Log in as any user and note their <account_number> (visible directly below their account balance).
 ![alt text](./screenshots/image-2.png)
@@ -34,6 +35,7 @@ Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button
 ![alt text](./screenshots/image-1.png)
 
 ### get_transaction_history()
+Grants attacker access to any user's transaction history.
 #### Exploit
 Initial steps are identical to those above: log in, note account number, log out, then log in as another user. Specific API endpoint used is the only difference. Similarly, this can follow two paths:
 ##### via URL
@@ -41,18 +43,29 @@ Initial steps are identical to those above: log in, note account number, log out
 2. Press enter, then observe outcome in browser window.
 ##### via CLI
 1. Open the browser console/terminal.
-2. Issue the following fetch request as a command, replacing `<ACCOUNT_NUMBER>` with the previously noted account number:
+2. Issue the following fetch request as a command -- replacing `<ACCOUNT_NUMBER>` with the previously noted account number -- and observe outcome:
     `const attackerToken = localStorage.getItem('jwt_token');
     fetch('/transactions/' + '<ACCOUNT_NUMBER>', {
     headers: { Authorization: 'Bearer ' + attackerToken }
     }).then(r => r.json()).then(console.log);`
 #### Mitigate
 Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack (either sequence of steps above) and observe outcome:
-![alt text](./screenshots/image.png)
+![alt text](./screenshots/image-4.png)
 
 ### toggle_card_freeze()
+Allows attacker to freeze or unfreeze any user's virtual card.
 #### Exploit
+1. Log in as any user and open browser console.
+2. Issue the following fetch request as a command -- replacing <vc_num> with any number > 0 -- and observe outcome:
+    `const attackerToken = localStorage.getItem('jwt_token');
+    fetch('/api/virtual-cards/' + <vc_num> + '/toggle-freeze', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + attackerToken }
+    }).then(r => r.json()).then(console.log);`
+![alt text](./screenshots/image-5.png)
 #### Mitigate
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack and observe outcome:
+![alt text](./screenshots/image-6.png)
 
 ### get_card_transactions()
 #### Exploit
