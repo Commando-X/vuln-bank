@@ -786,6 +786,13 @@
                 <nav class="nav-links">
                     <!-- <a href="{{ url_for('login') }}">Sign In</a> -->
                     <!-- <a href="{{ url_for('register') }}">Sign Up</a> -->
+                    <!--Toggle button (just for demo as of 1/21/26)-->
+                    <a id="mitigationToggle"
+                        href="#"
+                        onclick="toggleVulnerabilities(event)"
+                        style="color: yellow; text-shadow: -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black, 1px 1px 0 black, -1px 0 0 black, 1px 0 0 black, 0 -1px 0 black, 0 1px 0 black;">
+                        Toggle Vulnerabilities
+                    </a>
                     <a href="https://github.com/Commando-X/vuln-bank?tab=readme-ov-file#testing-guide-" target="_blank">Guide</a>
                     <a href="/api/docs"> API Docs</a>
                     <a href="https://github.com/Commando-X/vuln-bank" target="_blank" title="View on GitHub">
@@ -1135,6 +1142,36 @@
             };
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
+
+    </script>
+
+    <script>
+        // Toggle logic for button
+        let hardened = null;
+
+        async function toggleVulnerabilities(e) {
+            e.preventDefault();
+
+            try {
+                const res = await fetch('/api/toggle/harden', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    hardened = !!data.hardened;
+                    alert(`Hardened mode: ${hardened ? 'ON' : 'OFF'}`);
+                } else {
+                    alert(data.message || 'Toggle failed');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error toggling vulnerabilities');
+            }
+        }       
     </script>
 
 </body>

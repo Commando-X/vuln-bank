@@ -9,8 +9,8 @@ import time
 # CWE-798: Use of Hard-coded Credentials
 DB_CONFIG = {
     'dbname': os.getenv('DB_NAME', 'vulnerable_bank'),
-    'user': os.getenv('DB_USER', 'postgres'),
-    'password': os.getenv('DB_PASSWORD', 'postgres'),  # Hardcoded password in default value
+    'user': os.getenv('DB_USER', 'vuln_user'),
+    'password': os.getenv('DB_PASSWORD', 'vulnbank123'),  # Hardcoded password in default value
     'host': os.getenv('DB_HOST', 'localhost'),
     'port': os.getenv('DB_PORT', '5432')
 }

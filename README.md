@@ -1,1 +1,3 @@
-Under construction by CS467_W26 capstone team. See source repo for original readme.
+# Vulnerable Bank Application 🏦
+
+Under construction by the CS467_W26 capstone team.
