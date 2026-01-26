@@ -51,6 +51,8 @@ app.secret_key = "secret123"
 # Hardening feature flag
 harden = False
 
+app.config["HARDENED"] = harden
+
 # Rate limiting configuration
 RATE_LIMIT_WINDOW = 3 * 60 * 60  # 3 hours in seconds
 UNAUTHENTICATED_LIMIT = 5  # requests per IP per window
@@ -1023,6 +1025,8 @@ def create_admin(current_user):
 def harden_toggle():
     global harden
     harden = not harden
+
+    app.config["HARDENED"] = harden
 
     return jsonify({
         'status': 'success',
