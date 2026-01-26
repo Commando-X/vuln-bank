@@ -1,5 +1,6 @@
 from typing import Dict, Iterable, Any
 
+
 def update_card_limit_hardened(data: Dict[str, Any], allowed_fields: Iterable[str]) -> None:
     allowed = set(allowed_fields)
     unexpected = set((data or {}).keys()) - allowed
