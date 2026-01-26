@@ -1,4 +1,4 @@
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 import jwt
 import datetime
 import sqlite3  
@@ -58,7 +58,12 @@ def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
-        
+        unsafe_method = request.method in ("POST", "PUT", "PATCH", "DELETE")
+        token_from_auth_header = False
+
+        # Flag for Toggle Vulnerabilities button
+        hardened_flag = current_app.config.get("HARDENED", False)
+
         # Try to get token from Authorization header
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']
@@ -70,20 +75,32 @@ def token_required(f):
                     token = auth_header
             except IndexError:
                 token = None
-                
+            # Track token state
+            if token:
+                token_from_auth_header = True
+
+        # Mitigates CSRF attacks, such as cross-site HTML form attacks,
+        # by requiring an Authorization header token with unsafe
+        # (POST/PUT/PATCH/DELETE) requests.
+        if hardened_flag and unsafe_method and not token_from_auth_header:
+            return jsonify({
+                'error': 'Missing Authorization token',
+                'details': 'Unsafe request. Authorization token required.'
+            }), 401
+
         # Vulnerability: Multiple token locations (token hijacking risk)
         # Also check query parameters (vulnerable by design)
         if not token and 'token' in request.args:
             token = request.args['token']
-            
+
         # Also check form data (vulnerable by design)
         if not token and 'token' in request.form:
             token = request.form['token']
-            
+
         # Also check cookies (vulnerable by design)
         if not token and 'token' in request.cookies:
             token = request.cookies['token']
-            
+
         if not token:
             return jsonify({'error': 'Token is missing'}), 401
 
@@ -91,17 +108,17 @@ def token_required(f):
             current_user = verify_token(token)
             if current_user is None:
                 return jsonify({'error': 'Invalid token'}), 401
-                
+
             # Vulnerability: No token expiration check
             return f(current_user, *args, **kwargs)
-            
+
         except Exception as e:
             # Vulnerability: Detailed error exposure
             return jsonify({
                 'error': 'Invalid token', 
                 'details': str(e)
             }), 401
-            
+
     return decorated
 
 # New API endpoints with JWT authentication
