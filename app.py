@@ -287,8 +287,11 @@ def login():
             print(f"Login attempt - Username: {username}")  # Debug print
 
             if harden:
+                # Fixes SQL injection vulnerability
                 query = sql_injections.login_hardened()
+                print(f"Debug - Login query: {query}")  # Debug print
                 user = execute_query(query, (username, password))
+                print(f"Debug - Query result: {user}")  # Debug print
             else:
                 # SQL Injection vulnerability (intentionally vulnerable)
                 query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
@@ -959,14 +962,21 @@ def create_admin(current_user):
         username = data.get('username')
         password = data.get('password')
         account_number = generate_account_number()
-        
-        # Vulnerability: SQL injection possible
-        # Vulnerability: No password complexity requirements
-        # Vulnerability: No account number uniqueness check
-        execute_query(
-            f"INSERT INTO users (username, password, account_number, is_admin) VALUES ('{username}', '{password}', '{account_number}', true)",
-            fetch=False
-        )
+
+        if harden:
+            # Fixes SQL injection
+            query = sql_injections.create_admin_hardened()
+            execute_query(query, (username, password, account_number, True),
+                          fetch=False
+            )
+        else:
+            # Vulnerability: SQL injection possible
+            # Vulnerability: No password complexity requirements
+            # Vulnerability: No account number uniqueness check
+            execute_query(
+                f"INSERT INTO users (username, password, account_number, is_admin) VALUES ('{username}', '{password}', '{account_number}', true)",
+                fetch=False
+            )
         
         return jsonify({
             'status': 'success',
@@ -997,12 +1007,18 @@ def forgot_password():
         try:
             data = request.get_json()  # Changed to get_json()
             username = data.get('username')
-            
+
             # Vulnerability: SQL Injection possible
-            user = execute_query(
-                f"SELECT id FROM users WHERE username='{username}'"
-            )
-            
+            if harden:
+                # Fixes SQL injection
+                query = sql_injections.forgot_password_hardened()
+                user = execute_query(query, (username,))
+
+            else:
+                user = execute_query(
+                    f"SELECT id FROM users WHERE username='{username}'"
+                )
+
             if user:
                 # Weak reset pin logic (CWE-330)
                 # Using only 3 digits makes it easily guessable
@@ -1097,10 +1113,15 @@ def api_v1_forgot_password():
         data = request.get_json()
         username = data.get('username')
         
-        # Vulnerability: SQL Injection possible
-        user = execute_query(
-            f"SELECT id FROM users WHERE username='{username}'"
-        )
+        if harden:
+            # Fixes SQL injection
+            query = sql_injections.api_v1_forgot_password_hardened()
+            user = execute_query(query, (username,))
+        else:
+            # Vulnerability: SQL Injection possible
+            user = execute_query(
+                f"SELECT id FROM users WHERE username='{username}'"
+            )
         
         if user:
             # Weak reset pin logic (CWE-330)
@@ -1147,10 +1168,15 @@ def api_v2_forgot_password():
         data = request.get_json()
         username = data.get('username')
         
-        # Vulnerability: SQL Injection still possible
-        user = execute_query(
-            f"SELECT id FROM users WHERE username='{username}'"
-        )
+        if harden:
+            # Fixes SQL injection
+            query = sql_injections.api_v2_forgot_password_hardened()
+            user = execute_query(query, (username,))
+        else:
+            # Vulnerability: SQL Injection still possible
+            user = execute_query(
+                f"SELECT id FROM users WHERE username='{username}'"
+            )
         
         if user:
             # Weak reset pin logic (CWE-330) - still using 3 digits
@@ -1194,12 +1220,17 @@ def api_v3_forgot_password():
     try:
         data = request.get_json()
         username = data.get('username')
-        
-        # Vulnerability: SQL Injection still possible
-        user = execute_query(
-            f"SELECT id FROM users WHERE username='{username}'"
-        )
-        
+
+        if harden:
+            # Fixes SQL injection
+            query = sql_injections.api_v3_forgot_password_hardened()
+            user = execute_query(query, (username,))
+        else:
+            # Vulnerability: SQL Injection still possible
+            user = execute_query(
+                f"SELECT id FROM users WHERE username='{username}'"
+            )
+
         if user:
             # Weak reset pin logic (CWE-330) - now 4 digits but still guessable
             reset_pin = str(random.randint(1000, 9999))
