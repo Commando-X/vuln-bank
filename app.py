@@ -18,7 +18,7 @@ from collections import defaultdict
 import requests
 from urllib.parse import urlparse
 import platform
-from mitigations import BOLA
+from mitigations import BOLA, MA
 from mitigations import sql_injections
 
 # Load environment variables
@@ -1668,7 +1668,16 @@ def update_card_limit(current_user, card_id):
         update_fields = []
         update_values = []
         updated_fields_list = []  # Store field names in a regular list
-        
+
+        if harden:
+            try:
+                MA.update_card_limit_hardened(data or {}, ['card_limit'])
+            except ValueError as ve:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Illegal payload'
+                }), 403
+    
         # Iterate through all fields sent in request
         # Vulnerability: No whitelist of allowed fields
         # This allows updating any column including balance
