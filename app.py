@@ -395,16 +395,20 @@ def dashboard(current_user):
 @token_required
 def check_balance(current_user, account_number):
     # User param passed in for use in hardened variant, should it trigger.
-    if harden:
-        return BOLA.check_balance_hardened(current_user, account_number)
+    # if harden:
+    #     return BOLA.check_balance_hardened(current_user, account_number)
 
     # Broken Object Level Authorization (BOLA) vulnerability
     # No authentication check, anyone can check any account balance
     try:
-        # Vulnerability: SQL Injection possible
-        user = execute_query(
-            f"SELECT username, balance FROM users WHERE account_number='{account_number}'"
-        )
+        if harden:
+            query = BOLA.check_balance_hardened()
+            user = execute_query(query, (account_number, current_user['user_id']))
+        else:
+            # Vulnerability: SQL Injection possible
+            user = execute_query(
+                f"SELECT username, balance FROM users WHERE account_number='{account_number}'"
+            )
         
         if user:
             # Vulnerability: Information disclosure
@@ -493,26 +497,37 @@ def transfer(current_user):
 
 # Get transaction history endpoint
 @app.route('/transactions/<account_number>')
-def get_transaction_history(account_number):
+@token_required
+def get_transaction_history(current_user, account_number):
+    # if harden:
+    #     return BOLA.get_transaction_history_hardened(current_user, account_number)
     # Vulnerability: No authentication required (BOLA)
     # Vulnerability: SQL Injection possible
     try:
-        query = f"""
-            SELECT 
-                id,
-                from_account,
-                to_account,
-                amount,
-                timestamp,
-                transaction_type,
-                description
-            FROM transactions 
-            WHERE from_account='{account_number}' OR to_account='{account_number}'
-            ORDER BY timestamp DESC
-        """
-        
-        transactions = execute_query(query)
-        
+        if harden:
+            query = BOLA.get_transaction_history_hardened()
+            params = (account_number, account_number, current_user['user_id'], current_user['user_id'])
+            transactions = execute_query(query, params)
+        else:
+            query = f"""
+                SELECT 
+                    id,
+                    from_account,
+                    to_account,
+                    amount,
+                    timestamp,
+                    transaction_type,
+                    description
+                FROM transactions 
+                WHERE from_account='{account_number}' OR to_account='{account_number}'
+                ORDER BY timestamp DESC
+            """
+            
+            transactions = execute_query(query)
+
+        if not transactions:
+            return jsonify({'status': 'error', 'message': 'Account not found or access denied'}), 403
+
         # Vulnerability: Information disclosure
         transaction_list = [{
             'id': t[0],
@@ -522,16 +537,16 @@ def get_transaction_history(account_number):
             'timestamp': str(t[4]),
             'type': t[5],
             'description': t[6]
-            #'query_used': query  # Vulnerability: Exposing SQL query
+            # 'query_used': query  # Vulnerability: Exposing SQL query
         } for t in transactions]
-        
+
         return jsonify({
             'status': 'success',
             'account_number': account_number,
             'transactions': transaction_list,
             'server_time': str(datetime.now())  # Vulnerability: Server information disclosure
         })
-        
+
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -1545,17 +1560,22 @@ def get_virtual_cards(current_user):
 @app.route('/api/virtual-cards/<int:card_id>/toggle-freeze', methods=['POST'])
 @token_required
 def toggle_card_freeze(current_user, card_id):
+    # if harden:
+    #     return BOLA.toggle_card_freeze_hardened(current_user, card_id)
     try:
-        # Vulnerability: No CSRF protection
-        # Vulnerability: BOLA - no verification if card belongs to user
-        query = f"""
-            UPDATE virtual_cards 
-            SET is_frozen = NOT is_frozen 
-            WHERE id = {card_id}
-            RETURNING is_frozen
-        """
-        
-        result = execute_query(query)
+        if harden:
+            query = BOLA.toggle_card_freeze_hardened()
+            result = execute_query(query, (card_id, current_user['user_id']))
+        else:
+            # Vulnerability: No CSRF protection
+            # Vulnerability: BOLA - no verification if card belongs to user
+            query = f"""
+                UPDATE virtual_cards 
+                SET is_frozen = NOT is_frozen 
+                WHERE id = {card_id}
+                RETURNING is_frozen
+            """
+            result = execute_query(query)
         
         if result:
             return jsonify({
@@ -1563,10 +1583,15 @@ def toggle_card_freeze(current_user, card_id):
                 'message': f"Card {'frozen' if result[0][0] else 'unfrozen'} successfully"
             })
             
+        # return jsonify({
+        #     'status': 'error',
+        #     'message': 'Card not found'
+        # }), 404
+
         return jsonify({
             'status': 'error',
-            'message': 'Card not found'
-        }), 404
+            'message': 'Card not found or access denied'
+        }), 403
         
     except Exception as e:
         return jsonify({
@@ -1578,17 +1603,21 @@ def toggle_card_freeze(current_user, card_id):
 @token_required
 def get_card_transactions(current_user, card_id):
     try:
-        # Vulnerability: BOLA - no verification if card belongs to user
-        # Vulnerability: SQL Injection possible
-        query = f"""
-            SELECT ct.*, vc.card_number 
-            FROM card_transactions ct
-            JOIN virtual_cards vc ON ct.card_id = vc.id
-            WHERE ct.card_id = {card_id}
-            ORDER BY ct.timestamp DESC
-        """
-        
-        transactions = execute_query(query)
+        if harden:
+            query = BOLA.get_card_transactions_hardened()
+            transactions = execute_query(query, (card_id, current_user['user_id']))
+        else:
+            # Vulnerability: BOLA - no verification if card belongs to user
+            # Vulnerability: SQL Injection possible
+            query = f"""
+                SELECT ct.*, vc.card_number 
+                FROM card_transactions ct
+                JOIN virtual_cards vc ON ct.card_id = vc.id
+                WHERE ct.card_id = {card_id}
+                ORDER BY ct.timestamp DESC
+            """
+            
+            transactions = execute_query(query)
         
         # Vulnerability: Information disclosure
         return jsonify({
@@ -1636,15 +1665,19 @@ def update_card_limit(current_user, card_id):
             update_fields.append(f"{key} = %s")
             update_values.append(value)
             updated_fields_list.append(key)  # Add to list instead of dict_keys
+
+        if harden:
+            query = BOLA.update_card_limit_hardened(update_fields)
+            update_values.extend([card_id, current_user['user_id']])
+        else:
+            # Vulnerability: BOLA - no verification if card belongs to user
+            query = f"""
+                UPDATE virtual_cards
+                SET {', '.join(update_fields)}
+                WHERE id = {card_id}
+                RETURNING *
+            """
             
-        # Vulnerability: BOLA - no verification if card belongs to user
-        query = f"""
-            UPDATE virtual_cards 
-            SET {', '.join(update_fields)}
-            WHERE id = {card_id}
-            RETURNING *
-        """
-        
         result = execute_query(query, tuple(update_values))
         
         if result:
@@ -1667,8 +1700,8 @@ def update_card_limit(current_user, card_id):
             
         return jsonify({
             'status': 'error',
-            'message': 'Card not found'
-        }), 404
+            'message': 'Card not found or access denied'
+        }), 403
             
     except Exception as e:
         # Vulnerability: Detailed error exposure
@@ -1744,14 +1777,24 @@ def create_bill_payment(current_user):
         # Vulnerability: No payment method validation
         
         if payment_method == 'virtual_card' and card_id:
-            # Vulnerability: BOLA - no verification if card belongs to user
-            # Vulnerability: SQL injection possible
-            card_query = f"""
-                SELECT current_balance, card_limit, is_frozen 
-                FROM virtual_cards 
-                WHERE id = {card_id}
-            """
-            card = execute_query(card_query)[0]
+            if harden:
+                card_query = BOLA.create_bill_payment_hardened()
+                card = execute_query(card_query, (card_id, current_user['user_id']))
+            else:
+                # Vulnerability: BOLA - no verification if card belongs to user
+                # Vulnerability: SQL injection possible
+                card_query = f"""
+                    SELECT current_balance, card_limit, is_frozen 
+                    FROM virtual_cards 
+                    WHERE id = {card_id}
+                """
+                card = execute_query(card_query)[0]
+            
+            if not card:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Card not found or access denied'
+                }), 403
             
             if card[2]:  # is_frozen
                 return jsonify({

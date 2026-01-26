@@ -162,6 +162,20 @@ Your dashboard shows:
   - Pay Bills
   - AI Customer Support
 
+### Step 6: Virtual Cards
+Complete setup of at least one VC is necessary for pentesting and only achievable via CLI.
+1. Create VC via web app UI.
+2. Issue the following bash command in the backend CLI: `psql -U vuln_user -d vulnerable_bank -h localhost -W`
+3. Type the database password shown in the .env file, then press enter.
+4. Issue the following SQL command: 'UPDATE virtual_cards SET current_balance = current_balance + 100 WHERE id = <card_id>;'
+- Variable <card_id> is the id value of the target card. These are zero indexed and can be identified by issuing the following command in the browser console: 'const token = localStorage.getItem('jwt_token');
+fetch('/api/virtual-cards', {
+  headers: { Authorization: 'Bearer ' + token }
+}).then(r => r.json()).then(d => {
+  console.log('Cards:', d.cards);
+});'
+![alt text](./screenshots/image-7.png)
+
 ---
 
 ## Exploring Vulnerabilities
