@@ -43,14 +43,44 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
-# Security toggle configuration
+# ==========================================
+# VULNERABILITY TOGGLE CONFIGURATION
+# ==========================================
+# All toggles default to 'false' (vulnerable) for demonstration purposes
+# Set to 'true' in .env to enable protections
+
+# 1. Cross-Site Scripting (XSS) Protection - CWE-79
 XSS_PROTECTION_ENABLED = os.getenv('XSS_PROTECTION_ENABLED', 'false').lower() == 'true'
 
-# Security Misconfiguration toggle configuration
+# 2. Security Misconfiguration - CWE-16
 SECURITY_HARDENING_ENABLED = os.getenv('SECURITY_HARDENING_ENABLED', 'false').lower() == 'true'
 FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'secret123')
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'secret123')
 ALLOWED_CORS_ORIGINS = os.getenv('ALLOWED_CORS_ORIGINS', '').split(',') if os.getenv('ALLOWED_CORS_ORIGINS') else []
+
+# 3. SQL Injection Protection - CWE-89
+SQL_INJECTION_PROTECTION = os.getenv('SQL_INJECTION_PROTECTION', 'false').lower() == 'true'
+
+# 4. Broken Authorization (BOLA) - CWE-285
+AUTHORIZATION_ENABLED = os.getenv('AUTHORIZATION_ENABLED', 'false').lower() == 'true'
+
+# 5. Information Disclosure Protection - CWE-200
+INFORMATION_DISCLOSURE_PROTECTION = os.getenv('INFORMATION_DISCLOSURE_PROTECTION', 'false').lower() == 'true'
+
+# 6. Mass Assignment Protection - CWE-915
+MASS_ASSIGNMENT_PROTECTION = os.getenv('MASS_ASSIGNMENT_PROTECTION', 'false').lower() == 'true'
+
+# 7. Server-Side Request Forgery (SSRF) Protection - CWE-918
+SSRF_PROTECTION = os.getenv('SSRF_PROTECTION', 'false').lower() == 'true'
+
+# 8. Password Hashing - CWE-256/CWE-522
+PASSWORD_HASHING_ENABLED = os.getenv('PASSWORD_HASHING_ENABLED', 'false').lower() == 'true'
+
+# 9. File Upload Validation - CWE-434
+FILE_UPLOAD_VALIDATION = os.getenv('FILE_UPLOAD_VALIDATION', 'false').lower() == 'true'
+
+# 10. AI Prompt Injection Protection - CWE-94
+AI_PROMPT_INJECTION_PROTECTION = os.getenv('AI_PROMPT_INJECTION_PROTECTION', 'false').lower() == 'true'
 
 # Flask secret key configuration (CWE-798)
 if SECURITY_HARDENING_ENABLED:
@@ -297,6 +327,15 @@ def generate_cvv():
 def index():
     return render_template('index.html')
 
+@app.route('/demo')
+def demo():
+    """
+    Security demonstration control panel.
+    Displays all vulnerability toggles and their current states.
+    Provides test scenarios and instructions for each vulnerability.
+    """
+    return render_template('demo.html')
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -400,12 +439,19 @@ def login():
             password = data.get('password')
             
             print(f"Login attempt - Username: {username}")  # Debug print
-            
-            # SQL Injection vulnerability (intentionally vulnerable)
-            query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
-            print(f"Debug - Login query: {query}")  # Debug print
-            
-            user = execute_query(query)
+
+            # SQL Injection Protection Toggle (CWE-89)
+            if SQL_INJECTION_PROTECTION:
+                # Protected: Use parameterized query to prevent SQL injection
+                query = "SELECT * FROM users WHERE username=%s AND password=%s"
+                user = execute_query(query, (username, password))
+                print(f"Debug - Using parameterized query (protected)")
+            else:
+                # Vulnerable: Direct string concatenation allows SQL injection
+                query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
+                print(f"Debug - Login query: {query}")  # Debug print
+                user = execute_query(query)
+
             print(f"Debug - Query result: {user}")  # Debug print
             
             if user and len(user) > 0:
@@ -470,16 +516,28 @@ def login():
 
 @app.route('/debug/users')
 def debug_users():
-    users = execute_query("SELECT id, username, password, account_number, is_admin FROM users")
-    return jsonify({'users': [
-        {
-            'id': u[0],
-            'username': u[1],
-            'password': u[2],
-            'account_number': u[3],
-            'is_admin': u[4]
-        } for u in users
-    ]})
+    """
+    Debug endpoint that exposes all users with sensitive data.
+    Information Disclosure Protection Toggle (CWE-200)
+    """
+    if INFORMATION_DISCLOSURE_PROTECTION:
+        # Protected: Debug endpoint disabled
+        return jsonify({
+            'status': 'error',
+            'message': 'Not found'
+        }), 404
+    else:
+        # Vulnerable: Expose all users with plaintext passwords
+        users = execute_query("SELECT id, username, password, account_number, is_admin FROM users")
+        return jsonify({'users': [
+            {
+                'id': u[0],
+                'username': u[1],
+                'password': u[2],
+                'account_number': u[3],
+                'is_admin': u[4]
+            } for u in users
+        ]})
 
 @app.route('/dashboard')
 @token_required
@@ -519,15 +577,23 @@ def dashboard(current_user):
 @app.route('/check_balance/<account_number>')
 def check_balance(account_number):
     # Broken Object Level Authorization (BOLA) vulnerability
-    # No authentication check, anyone can check any account balance
+    # Note: When AUTHORIZATION_ENABLED=false, no authentication is required
     try:
-        # Vulnerability: SQL Injection possible
-        user = execute_query(
-            f"SELECT username, balance FROM users WHERE account_number='{account_number}'"
-        )
-        
+        # SQL Injection Protection Toggle (CWE-89)
+        if SQL_INJECTION_PROTECTION:
+            # Protected: Use parameterized query
+            user = execute_query(
+                "SELECT username, balance FROM users WHERE account_number=%s",
+                (account_number,)
+            )
+        else:
+            # Vulnerable: Direct string concatenation allows SQL injection
+            user = execute_query(
+                f"SELECT username, balance FROM users WHERE account_number='{account_number}'"
+            )
+
         if user:
-            # Vulnerability: Information disclosure
+            # Vulnerability: Information disclosure (no authorization check)
             return jsonify({
                 'status': 'success',
                 'username': user[0][0],
@@ -539,15 +605,14 @@ def check_balance(account_number):
             'message': 'Account not found'
         }), 404
     except Exception as e:
-        return format_error_response(
-            e,
-            500,
-            include_debug={
-                'endpoint': 'check_balance',
-                'account_number': account_number,
-                'query': f"SELECT username, balance FROM users WHERE account_number='{account_number}'"
-            }
-        )
+        debug_info = {
+            'endpoint': 'check_balance',
+            'account_number': account_number
+        }
+        if not SQL_INJECTION_PROTECTION:
+            debug_info['query'] = f"SELECT username, balance FROM users WHERE account_number='{account_number}'"
+
+        return format_error_response(e, 500, include_debug=debug_info)
 
 # Transfer endpoint
 @app.route('/transfer', methods=['POST'])
@@ -625,25 +690,44 @@ def transfer(current_user):
 # Get transaction history endpoint
 @app.route('/transactions/<account_number>')
 def get_transaction_history(account_number):
-    # Vulnerability: No authentication required (BOLA)
-    # Vulnerability: SQL Injection possible
+    # Broken Authorization (BOLA) - CWE-285
+    # Note: When AUTHORIZATION_ENABLED=false, no authentication required
+    # When enabled, should verify user owns the account_number
     try:
-        query = f"""
-            SELECT 
-                id,
-                from_account,
-                to_account,
-                amount,
-                timestamp,
-                transaction_type,
-                description
-            FROM transactions 
-            WHERE from_account='{account_number}' OR to_account='{account_number}'
-            ORDER BY timestamp DESC
-        """
-        
-        transactions = execute_query(query)
-        
+        # SQL Injection Protection Toggle (CWE-89)
+        if SQL_INJECTION_PROTECTION:
+            # Protected: Use parameterized query
+            query = """
+                SELECT
+                    id,
+                    from_account,
+                    to_account,
+                    amount,
+                    timestamp,
+                    transaction_type,
+                    description
+                FROM transactions
+                WHERE from_account=%s OR to_account=%s
+                ORDER BY timestamp DESC
+            """
+            transactions = execute_query(query, (account_number, account_number))
+        else:
+            # Vulnerable: Direct string concatenation allows SQL injection
+            query = f"""
+                SELECT
+                    id,
+                    from_account,
+                    to_account,
+                    amount,
+                    timestamp,
+                    transaction_type,
+                    description
+                FROM transactions
+                WHERE from_account='{account_number}' OR to_account='{account_number}'
+                ORDER BY timestamp DESC
+            """
+            transactions = execute_query(query)
+
         # Vulnerability: Information disclosure
         transaction_list = [{
             'id': t[0],
@@ -653,23 +737,32 @@ def get_transaction_history(account_number):
             'timestamp': str(t[4]),
             'type': t[5],
             'description': t[6]
-            #'query_used': query  # Vulnerability: Exposing SQL query
         } for t in transactions]
-        
-        return jsonify({
+
+        response_data = {
             'status': 'success',
             'account_number': account_number,
-            'transactions': transaction_list,
-            'server_time': str(datetime.now())  # Vulnerability: Server information disclosure
-        })
-        
+            'transactions': transaction_list
+        }
+
+        # Information Disclosure Toggle (CWE-200)
+        if not INFORMATION_DISCLOSURE_PROTECTION:
+            response_data['server_time'] = str(datetime.now())
+
+        return jsonify(response_data)
+
     except Exception as e:
-        return jsonify({
+        error_response = {
             'status': 'error',
-            'message': str(e),
-            'query': query,  # Vulnerability: Query exposure
+            'message': str(e) if not INFORMATION_DISCLOSURE_PROTECTION else 'An error occurred',
             'account_number': account_number
-        }), 500
+        }
+
+        # Only expose query in vulnerable mode
+        if not SQL_INJECTION_PROTECTION and not INFORMATION_DISCLOSURE_PROTECTION:
+            error_response['query'] = query
+
+        return jsonify(error_response), 500
 
 @app.route('/upload_profile_picture', methods=['POST'])
 @token_required
@@ -734,12 +827,44 @@ def upload_profile_picture_url(current_user):
         if not image_url:
             return jsonify({'status': 'error', 'message': 'image_url is required'}), 400
 
-        # Vulnerabilities:
-        # - No URL scheme/host allowlist (SSRF)
-        # - SSL verification disabled
-        # - Follows redirects
-        # - No content-type or size validation
-        resp = requests.get(image_url, timeout=10, allow_redirects=True, verify=False)
+        # SSRF Protection Toggle (CWE-918)
+        if SSRF_PROTECTION:
+            # Protected: Validate URL scheme and block private/internal addresses
+            parsed = urlparse(image_url)
+
+            # Only allow http/https
+            if parsed.scheme not in ['http', 'https']:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Only http and https protocols are allowed'
+                }), 400
+
+            # Block private IP ranges and localhost
+            hostname = parsed.hostname
+            if not hostname:
+                return jsonify({'status': 'error', 'message': 'Invalid URL'}), 400
+
+            # Block common internal/metadata endpoints
+            blocked_patterns = [
+                'localhost', '127.0.0.1', '0.0.0.0',
+                '169.254.169.254',  # AWS metadata
+                '::1',  # IPv6 localhost
+                '10.', '172.16.', '192.168.',  # Private IP ranges
+                'metadata.google.internal'  # GCP metadata
+            ]
+
+            if any(hostname.startswith(pattern) or hostname == pattern.rstrip('.') for pattern in blocked_patterns):
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Access to internal/private addresses is not allowed'
+                }), 403
+
+            # Protected: Enable SSL verification, don't follow redirects
+            resp = requests.get(image_url, timeout=10, allow_redirects=False, verify=True)
+        else:
+            # Vulnerable: No URL validation, SSL verification disabled, follows redirects
+            # Allows SSRF attacks to access internal services, cloud metadata, etc.
+            resp = requests.get(image_url, timeout=10, allow_redirects=True, verify=False)
         if resp.status_code >= 400:
             return jsonify({'status': 'error', 'message': f'Failed to fetch URL: HTTP {resp.status_code}'}), 400
 
@@ -2211,9 +2336,21 @@ def ai_rate_limit_status():
 
 @app.route('/api/security-config')
 def security_config():
+    """
+    Endpoint that returns the current state of all vulnerability toggles.
+    Used by the demo interface to display which protections are enabled/disabled.
+    """
     return jsonify({
         'xss_protection_enabled': XSS_PROTECTION_ENABLED,
-        'security_hardening_enabled': SECURITY_HARDENING_ENABLED
+        'security_hardening_enabled': SECURITY_HARDENING_ENABLED,
+        'sql_injection_protection': SQL_INJECTION_PROTECTION,
+        'authorization_enabled': AUTHORIZATION_ENABLED,
+        'information_disclosure_protection': INFORMATION_DISCLOSURE_PROTECTION,
+        'mass_assignment_protection': MASS_ASSIGNMENT_PROTECTION,
+        'ssrf_protection': SSRF_PROTECTION,
+        'password_hashing_enabled': PASSWORD_HASHING_ENABLED,
+        'file_upload_validation': FILE_UPLOAD_VALIDATION,
+        'ai_prompt_injection_protection': AI_PROMPT_INJECTION_PROTECTION
     })
 
 if __name__ == '__main__':

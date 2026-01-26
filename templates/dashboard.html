@@ -22,6 +22,9 @@
             <div style="font-size: 0.7rem; margin-top: 0.5rem; padding: 0.3rem 0.5rem; border-radius: 4px; {% if security_hardening_enabled %}background: #28a745; color: white;{% else %}background: #dc3545; color: white;{% endif %}">
                 {% if security_hardening_enabled %}Security Hardened{% else %}Security Misconfigured{% endif %}
             </div>
+            <a href="/demo" target="_blank" style="display: block; margin-top: 0.5rem; padding: 0.5rem; background: #667eea; color: white; text-align: center; border-radius: 4px; text-decoration: none; font-size: 0.75rem; font-weight: bold;">
+                🛡️ Security Demo Panel
+            </a>
         </div>
         <nav>
             <a href="#profile" class="nav-link" onclick="setActiveLink(this)">
@@ -55,7 +58,7 @@
             </a>
             {% endif %}
             <a href="#" onclick="logout()" class="nav-link">
-                <span class="nav-link-icon">🔒</span>
+                <span class="nav-lock-icon">🔒</span>
                 Logout
             </a>
         </nav>
