@@ -422,8 +422,8 @@ def check_balance(current_user, account_number):
             })
         return jsonify({
             'status': 'error',
-            'message': 'Account not found'
-        }), 404
+            'message': 'Account not found or access denied'
+        }), 403
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -1610,6 +1610,11 @@ def get_card_transactions(current_user, card_id):
         if harden:
             query = BOLA.get_card_transactions_hardened()
             transactions = execute_query(query, (card_id, current_user['user_id']))
+            if not transactions:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Record empty or access denied.'
+                }), 403
         else:
             # Vulnerability: BOLA - no verification if card belongs to user
             # Vulnerability: SQL Injection possible
@@ -1620,9 +1625,9 @@ def get_card_transactions(current_user, card_id):
                 WHERE ct.card_id = {card_id}
                 ORDER BY ct.timestamp DESC
             """
-            
+
             transactions = execute_query(query)
-        
+
         # Vulnerability: Information disclosure
         return jsonify({
             'status': 'success',
@@ -1637,7 +1642,7 @@ def get_card_transactions(current_user, card_id):
                 'card_number': t[8]
             } for t in transactions]
         })
-        
+
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -1781,24 +1786,14 @@ def create_bill_payment(current_user):
         # Vulnerability: No payment method validation
         
         if payment_method == 'virtual_card' and card_id:
-            if harden:
-                card_query = BOLA.create_bill_payment_hardened()
-                card = execute_query(card_query, (card_id, current_user['user_id']))
-            else:
-                # Vulnerability: BOLA - no verification if card belongs to user
-                # Vulnerability: SQL injection possible
-                card_query = f"""
-                    SELECT current_balance, card_limit, is_frozen 
-                    FROM virtual_cards 
-                    WHERE id = {card_id}
-                """
-                card = execute_query(card_query)[0]
-            
-            if not card:
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Card not found or access denied'
-                }), 403
+            # Vulnerability: BOLA - no verification if card belongs to user
+            # Vulnerability: SQL injection possible
+            card_query = f"""
+                SELECT current_balance, card_limit, is_frozen 
+                FROM virtual_cards 
+                WHERE id = {card_id}
+            """
+            card = execute_query(card_query)[0]
             
             if card[2]:  # is_frozen
                 return jsonify({
@@ -1889,6 +1884,7 @@ def create_bill_payment(current_user):
             'status': 'error',
             'message': str(e)
         }), 500
+
 
 @app.route('/api/bill-payments/history', methods=['GET'])
 @token_required
