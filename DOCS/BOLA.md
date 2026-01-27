@@ -6,6 +6,21 @@ Browser access to functioning web app and two registered user accounts, at least
 - One transaction of any amount.
 - One virtual card of any limit with a balance >= $0.
 
+***Important Note***
+
+Complete setup of at least one VC is necessary for pentesting and only achievable via CLI.
+1. Create VC via web app UI.
+2. Issue the following bash command in the backend CLI: `psql -U vuln_user -d vulnerable_bank -h localhost -W`
+3. Type the database password shown in the .env file, then press enter.
+4. Issue the following SQL command: 'UPDATE virtual_cards SET current_balance = current_balance + 100 WHERE id = <card_id>;'
+- Variable <card_id> is the id value of the target card. These are zero indexed and can be identified by issuing the following command in the browser console: 'const token = localStorage.getItem('jwt_token');
+fetch('/api/virtual-cards', {
+  headers: { Authorization: 'Bearer ' + token }
+}).then(r => r.json()).then(d => {
+  console.log('Cards:', d.cards);
+});'
+![alt text](./screenshots/image-7.png)
+
 ## Demonstrations
 This vulnerability is present in six different functions within app.py. Steps for exploitation and verification of hardening are as follows.
 
@@ -56,7 +71,7 @@ Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button
 Allows attacker to freeze or unfreeze any user's virtual card.
 #### Exploit
 1. Log in as any user and open browser console.
-2. Issue the following fetch request as a command -- replacing <vc_num> with any number > 0 -- and observe outcome:
+2. Issue the following fetch request as a command -- replacing <vc_num> with the virtual card ID of any <em>other</em> user -- and observe outcome:
 
     `const attackerToken = localStorage.getItem('jwt_token');
     fetch('/api/virtual-cards/' + <vc_num> + '/toggle-freeze', {
