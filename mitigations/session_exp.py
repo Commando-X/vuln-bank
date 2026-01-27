@@ -7,5 +7,5 @@ def generate_token_hardened(user_id, username, is_admin):
         'username': username,
         'is_admin': is_admin,
         'iat': datetime.utcnow(),
-        'exp': datetime.utcnow() + timedelta(minutes=1)
+        'exp': datetime.utcnow() + timedelta(seconds=5)
     }
