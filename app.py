@@ -18,7 +18,7 @@ from collections import defaultdict
 import requests
 from urllib.parse import urlparse
 import platform
-from mitigations import BOLA
+from mitigations import BOLA, MA
 from mitigations import sql_injections
 
 # Load environment variables
@@ -219,17 +219,31 @@ def register():
                     'username': user_data.get('username'),
                     'tried_at': str(datetime.now())  # Information disclosure
                 }), 400
-            
+
+            if harden:
+                # HARDENED: registration field whitelist
+                ALLOWED_REGISTRATION_FIELDS = ['username', 'password']
+
             # Build dynamic query based on user input fields
             # Vulnerability: Mass Assignment possible here
             fields = ['username', 'password', 'account_number']
             values = [user_data.get('username'), user_data.get('password'), account_number]
             
-            # Include any additional parameters from user input
-            for key, value in user_data.items():
-                if key not in ['username', 'password']:
-                    fields.append(key)
-                    values.append(value)
+            if harden:
+                # HARDEN: validate input against whitelist
+                for key in user_data.keys():
+                    if key not in ALLOWED_REGISTRATION_FIELDS:
+                        return jsonify({
+                            'status': 'error',
+                            'message': f'Invalid field: {key}. Only username and password are allowed.',
+                            'allowed_fields': ALLOWED_REGISTRATION_FIELDS
+                        }), 400
+            else:
+                # Include any additional parameters from user input
+                for key, value in user_data.items():
+                    if key not in ['username', 'password']:
+                        fields.append(key)
+                        values.append(value)
             
             # Build the SQL query dynamically
             query = f"""
@@ -1659,7 +1673,16 @@ def update_card_limit(current_user, card_id):
         update_fields = []
         update_values = []
         updated_fields_list = []  # Store field names in a regular list
-        
+
+        if harden:
+            try:
+                MA.update_card_limit_hardened(data or {}, ['card_limit'])
+            except ValueError as ve:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Illegal payload'
+                }), 403
+    
         # Iterate through all fields sent in request
         # Vulnerability: No whitelist of allowed fields
         # This allows updating any column including balance
