@@ -1453,16 +1453,21 @@ def api_transactions(current_user):
     if not account_number:
         return jsonify({'error': 'Account number required'}), 400
         
-    # Vulnerability: SQL Injection
-    query = f"""
-        SELECT * FROM transactions 
-        WHERE from_account='{account_number}' OR to_account='{account_number}'
-        ORDER BY timestamp DESC
-    """
-    
+    if harden:
+        query = sql_injections.api_transactions_hardened()
+        params = (account_number, account_number)
+    else:
+        # Vulnerability: SQL Injection
+        query = f"""
+            SELECT * FROM transactions
+            WHERE from_account='{account_number}' OR to_account='{account_number}'
+            ORDER BY timestamp DESC
+        """
+        params = ()
+
     try:
-        transactions = execute_query(query)
-        
+        transactions = execute_query(query, params)
+
         # Convert Decimal objects to float for JSON serialization
         transaction_list = []
         for t in transactions:
@@ -1502,16 +1507,29 @@ def create_virtual_card(current_user):
         # Vulnerability: SQL injection possible in card_type
         card_type = data.get('card_type', 'standard')
         
+        if harden:
+            query = sql_injections.create_virtual_card_hardened()
+            params = (
+                current_user['user_id'],
+                card_number,
+                cvv,
+                expiry_date,
+                card_limit,
+                card_type
+            )
+            result = execute_query(query, params)
+
+        else:
         # Create virtual card
-        query = f"""
-            INSERT INTO virtual_cards 
-            (user_id, card_number, cvv, expiry_date, card_limit, card_type)
-            VALUES 
-            ({current_user['user_id']}, '{card_number}', '{cvv}', '{expiry_date}', {card_limit}, '{card_type}')
-            RETURNING id
-        """
-        
-        result = execute_query(query)
+            query = f"""
+                INSERT INTO virtual_cards
+                (user_id, card_number, cvv, expiry_date, card_limit, card_type)
+                VALUES
+                ({current_user['user_id']}, '{card_number}', '{cvv}', '{expiry_date}', {card_limit}, '{card_type}')
+                RETURNING id
+            """
+            params = ()
+            result = execute_query(query)
         
         if result:
             # Vulnerability: Sensitive data exposure
@@ -1764,15 +1782,20 @@ def get_bill_categories():
         }), 500
 
 @app.route('/api/billers/by-category/<int:category_id>', methods=['GET'])
+#@app.route('/api/billers/by-category/<category_id>', methods=['GET']) # Only for testing purposes
 def get_billers_by_category(category_id):
     try:
-        # Vulnerability: SQL injection possible
-        query = f"""
-            SELECT * FROM billers 
-            WHERE category_id = {category_id} 
-            AND is_active = TRUE
-        """
-        billers = execute_query(query)
+        if harden:
+            query = sql_injections.get_billers_by_category_hardened()
+            billers = execute_query(query, (category_id,))
+        else:
+            # Vulnerability: SQL injection possible
+            query = f"""
+                SELECT * FROM billers
+                WHERE category_id = {category_id}
+                AND is_active = TRUE
+            """
+            billers = execute_query(query)
         
         # Vulnerability: Information disclosure
         return jsonify({
@@ -1914,22 +1937,26 @@ def create_bill_payment(current_user):
 def get_payment_history(current_user):
     try:
         # Vulnerability: No pagination
-        # Vulnerability: SQL injection possible
-        query = f"""
-            SELECT 
-                bp.*,
-                b.name as biller_name,
-                bc.name as category_name,
-                vc.card_number
-            FROM bill_payments bp
-            JOIN billers b ON bp.biller_id = b.id
-            JOIN bill_categories bc ON b.category_id = bc.id
-            LEFT JOIN virtual_cards vc ON bp.card_id = vc.id
-            WHERE bp.user_id = {current_user['user_id']}
-            ORDER BY bp.created_at DESC
-        """
+        if harden:
+            query = sql_injections.get_payment_history_hardened()
+            payments = execute_query(query, (current_user['user_id'],))
+        else:
+            # Vulnerability: SQL injection possible
+            query = f"""
+                SELECT
+                    bp.*,
+                    b.name as biller_name,
+                    bc.name as category_name,
+                    vc.card_number
+                FROM bill_payments bp
+                JOIN billers b ON bp.biller_id = b.id
+                JOIN bill_categories bc ON b.category_id = bc.id
+                LEFT JOIN virtual_cards vc ON bp.card_id = vc.id
+                WHERE bp.user_id = {current_user['user_id']}
+                ORDER BY bp.created_at DESC
+            """
         
-        payments = execute_query(query)
+            payments = execute_query(query)
         
         # Vulnerability: Excessive data exposure
         return jsonify({

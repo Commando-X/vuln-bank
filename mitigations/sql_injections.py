@@ -69,14 +69,20 @@ def api_v3_forgot_password_hardened():
     return query
 
 
-'''
 def api_transactions_hardened():
     """
     Hardened against SQL injection when checking transactions
     by adding parameterized queries.
     """
 
+    query = (
+        "SELECT * FROM transactions "
+        "WHERE from_account= %s OR to_account= %s "
+        "ORDER BY timestamp DESC; "
+        )
+
     return query
+
 
 def create_virtual_card_hardened():
     """
@@ -84,7 +90,16 @@ def create_virtual_card_hardened():
     a virtual card by adding parameterized queries.
     """
 
+    query = (
+        "INSERT INTO virtual_cards "
+        "(user_id, card_number, cvv, expiry_date, card_limit, card_type) "
+        "VALUES "
+        "(%s, %s, %s, %s, %s, %s) "
+        "RETURNING id; "
+        )
+
     return query
+
 
 def get_billers_by_category_hardened():
     """
@@ -92,7 +107,14 @@ def get_billers_by_category_hardened():
     biller categories by adding parameterized queries.
     """
 
+    query = (
+        "SELECT * FROM billers "
+        "WHERE category_id = %s "
+        "AND is_active = TRUE "
+        )
+
     return query
+
 
 def get_payment_history_hardened():
     """
@@ -100,5 +122,18 @@ def get_payment_history_hardened():
     the payment history by adding parameterized queries.
     """
 
+    query = (
+        "SELECT "
+        "bp.*, "
+        "b.name AS biller_name, "
+        "bc.name AS category_name, "
+        "vc.card_number "
+        "FROM bill_payments bp "
+        "JOIN billers b ON bp.biller_id = b.id "
+        "JOIN bill_categories bc ON b.category_id = bc.id "
+        "LEFT JOIN virtual_cards vc ON bp.card_id = vc.id "
+        "WHERE bp.user_id = %s "
+        "ORDER BY bp.created_at DESC"
+    )
+
     return query
-'''
