@@ -137,4 +137,3 @@ def get_payment_history_hardened():
     )
 
     return query
-
