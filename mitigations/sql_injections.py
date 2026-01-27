@@ -69,15 +69,21 @@ def api_v3_forgot_password_hardened():
     return query
 
 
-'''
 def api_transactions_hardened():
     """
     Hardened against SQL injection when checking transactions
     by adding parameterized queries.
     """
 
+    query = (
+        "SELECT * FROM transactions "
+        "WHERE from_account= %s OR to_account= %s "
+        "ORDER BY timestamp DESC; "
+        )
+
     return query
 
+'''
 def create_virtual_card_hardened():
     """
     Hardened againsted SQL injections when creating

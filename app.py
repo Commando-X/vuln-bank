@@ -1439,16 +1439,21 @@ def api_transactions(current_user):
     if not account_number:
         return jsonify({'error': 'Account number required'}), 400
         
-    # Vulnerability: SQL Injection
-    query = f"""
-        SELECT * FROM transactions 
-        WHERE from_account='{account_number}' OR to_account='{account_number}'
-        ORDER BY timestamp DESC
-    """
-    
+    if harden:
+        query = sql_injections.api_transactions_hardened()
+        params = (account_number, account_number)
+    else:
+        # Vulnerability: SQL Injection
+        query = f"""
+            SELECT * FROM transactions
+            WHERE from_account='{account_number}' OR to_account='{account_number}'
+            ORDER BY timestamp DESC
+        """
+        params = ()
+
     try:
-        transactions = execute_query(query)
-        
+        transactions = execute_query(query, params)
+
         # Convert Decimal objects to float for JSON serialization
         transaction_list = []
         for t in transactions:
