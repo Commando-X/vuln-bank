@@ -100,14 +100,22 @@ def create_virtual_card_hardened():
 
     return query
 
-'''
+
 def get_billers_by_category_hardened():
     """
     Hardened against SQL injections into
     biller categories by adding parameterized queries.
     """
 
+    query = (
+        "SELECT * FROM billers "
+        "WHERE category_id = %s "
+        "AND is_active = TRUE "
+        )
+
     return query
+
+'''
 
 def get_payment_history_hardened():
     """

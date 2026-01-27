@@ -1761,13 +1761,17 @@ def get_bill_categories():
 @app.route('/api/billers/by-category/<int:category_id>', methods=['GET'])
 def get_billers_by_category(category_id):
     try:
-        # Vulnerability: SQL injection possible
-        query = f"""
-            SELECT * FROM billers 
-            WHERE category_id = {category_id} 
-            AND is_active = TRUE
-        """
-        billers = execute_query(query)
+        if harden:
+            query = sql_injections.get_billers_by_category_hardened()
+            billers = execute_query(query, (category_id,))
+        else:
+            # Vulnerability: SQL injection possible
+            query = f"""
+                SELECT * FROM billers
+                WHERE category_id = {category_id}
+                AND is_active = TRUE
+            """
+            billers = execute_query(query)
         
         # Vulnerability: Information disclosure
         return jsonify({
