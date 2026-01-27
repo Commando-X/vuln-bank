@@ -3,6 +3,7 @@ import jwt
 import datetime
 import sqlite3  
 from functools import wraps
+from mitigations import session_exp
 
 # Vulnerable JWT implementation with common security issues
 
@@ -17,13 +18,20 @@ def generate_token(user_id, username, is_admin=False):
     Generate a JWT token with weak implementation
     Vulnerability: No token expiration (CWE-613)
     """
-    payload = {
-        'user_id': user_id,
-        'username': username,
-        'is_admin': is_admin,
-        # Missing 'exp' claim - tokens never expire
-        'iat': datetime.datetime.utcnow()
-    }
+    # Flag for Toggle Vulnerabilities button
+    hardened_flag = current_app.config.get("HARDENED", False)
+
+    if hardened_flag:
+        # Fixes token that never expires
+        payload = session_exp.generate_token_hardened(user_id, username, is_admin)
+    else:
+        payload = {
+            'user_id': user_id,
+            'username': username,
+            'is_admin': is_admin,
+            # Missing 'exp' claim - tokens never expire
+            'iat': datetime.datetime.utcnow()
+        }
     
     # Vulnerability: Using a weak secret key
     token = jwt.encode(payload, JWT_SECRET, algorithm='HS256')
@@ -36,10 +44,23 @@ def verify_token(token):
     - No signature verification in some cases
     - No expiration check
     """
+
+    # Flag for Toggle Vulnerabilities button
+    hardened_flag = current_app.config.get("HARDENED", False)
+
     try:
         # Vulnerability: Accepts any algorithm, including 'none'
-        payload = jwt.decode(token, JWT_SECRET, algorithms=ALGORITHMS)
-        return payload
+        if hardened_flag:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=ALGORITHMS, options={"require": ["exp"]})
+            return payload
+        else:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=ALGORITHMS)
+            return payload
+
+    # Expiration check
+    except jwt.ExpiredSignatureError:
+        return None
+
     except jwt.exceptions.InvalidSignatureError:
         # Vulnerability: Still accepts tokens in some error cases
         try:
@@ -112,6 +133,10 @@ def token_required(f):
             # Vulnerability: No token expiration check
             return f(current_user, *args, **kwargs)
 
+        except ExpiredSignatureError:
+        # Token expiration check
+            return jsonify({'error': 'Token has expired'}), 401
+
         except Exception as e:
             # Vulnerability: Detailed error exposure
             return jsonify({
@@ -130,6 +155,9 @@ def init_auth_routes(app):
         if not auth or not auth.get('username') or not auth.get('password'):
             return jsonify({'error': 'Missing credentials'}), 401
             
+        # Flag for Toggle Vulnerabilities button
+        hardened_flag = current_app.config.get("HARDENED", False)
+
         # Vulnerability: SQL Injection still possible here
         conn = sqlite3.connect('bank.db')
         c = conn.cursor()
