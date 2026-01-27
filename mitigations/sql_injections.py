@@ -83,15 +83,24 @@ def api_transactions_hardened():
 
     return query
 
-'''
+
 def create_virtual_card_hardened():
     """
     Hardened againsted SQL injections when creating
     a virtual card by adding parameterized queries.
     """
 
+    query = (
+        "INSERT INTO virtual_cards "
+        "(user_id, card_number, cvv, expiry_date, card_limit, card_type) "
+        "VALUES "
+        "(%s, %s, %s, %s, %s, %s) "
+        "RETURNING id; "
+        )
+
     return query
 
+'''
 def get_billers_by_category_hardened():
     """
     Hardened against SQL injections into

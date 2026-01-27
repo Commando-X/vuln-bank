@@ -1493,16 +1493,29 @@ def create_virtual_card(current_user):
         # Vulnerability: SQL injection possible in card_type
         card_type = data.get('card_type', 'standard')
         
+        if harden:
+            query = sql_injections.create_virtual_card_hardened()
+            params = (
+                current_user['user_id'],
+                card_number,
+                cvv,
+                expiry_date,
+                card_limit,
+                card_type
+            )
+            result = execute_query(query, params)
+
+        else:
         # Create virtual card
-        query = f"""
-            INSERT INTO virtual_cards 
-            (user_id, card_number, cvv, expiry_date, card_limit, card_type)
-            VALUES 
-            ({current_user['user_id']}, '{card_number}', '{cvv}', '{expiry_date}', {card_limit}, '{card_type}')
-            RETURNING id
-        """
-        
-        result = execute_query(query)
+            query = f"""
+                INSERT INTO virtual_cards
+                (user_id, card_number, cvv, expiry_date, card_limit, card_type)
+                VALUES
+                ({current_user['user_id']}, '{card_number}', '{cvv}', '{expiry_date}', {card_limit}, '{card_type}')
+                RETURNING id
+            """
+            params = ()
+            result = execute_query(query)
         
         if result:
             # Vulnerability: Sensitive data exposure
