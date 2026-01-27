@@ -1759,6 +1759,7 @@ def get_bill_categories():
         }), 500
 
 @app.route('/api/billers/by-category/<int:category_id>', methods=['GET'])
+#@app.route('/api/billers/by-category/<category_id>', methods=['GET']) # Only for testing purposes
 def get_billers_by_category(category_id):
     try:
         if harden:
@@ -1913,22 +1914,26 @@ def create_bill_payment(current_user):
 def get_payment_history(current_user):
     try:
         # Vulnerability: No pagination
-        # Vulnerability: SQL injection possible
-        query = f"""
-            SELECT 
-                bp.*,
-                b.name as biller_name,
-                bc.name as category_name,
-                vc.card_number
-            FROM bill_payments bp
-            JOIN billers b ON bp.biller_id = b.id
-            JOIN bill_categories bc ON b.category_id = bc.id
-            LEFT JOIN virtual_cards vc ON bp.card_id = vc.id
-            WHERE bp.user_id = {current_user['user_id']}
-            ORDER BY bp.created_at DESC
-        """
+        if harden:
+            query = sql_injections.get_payment_history_hardened()
+            payments = execute_query(query, (current_user['user_id'],))
+        else:
+            # Vulnerability: SQL injection possible
+            query = f"""
+                SELECT
+                    bp.*,
+                    b.name as biller_name,
+                    bc.name as category_name,
+                    vc.card_number
+                FROM bill_payments bp
+                JOIN billers b ON bp.biller_id = b.id
+                JOIN bill_categories bc ON b.category_id = bc.id
+                LEFT JOIN virtual_cards vc ON bp.card_id = vc.id
+                WHERE bp.user_id = {current_user['user_id']}
+                ORDER BY bp.created_at DESC
+            """
         
-        payments = execute_query(query)
+            payments = execute_query(query)
         
         # Vulnerability: Excessive data exposure
         return jsonify({

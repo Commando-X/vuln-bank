@@ -115,7 +115,6 @@ def get_billers_by_category_hardened():
 
     return query
 
-'''
 
 def get_payment_history_hardened():
     """
@@ -123,5 +122,19 @@ def get_payment_history_hardened():
     the payment history by adding parameterized queries.
     """
 
+    query = (
+        "SELECT "
+        "bp.*, "
+        "b.name AS biller_name, "
+        "bc.name AS category_name, "
+        "vc.card_number "
+        "FROM bill_payments bp "
+        "JOIN billers b ON bp.biller_id = b.id "
+        "JOIN bill_categories bc ON b.category_id = bc.id "
+        "LEFT JOIN virtual_cards vc ON bp.card_id = vc.id "
+        "WHERE bp.user_id = %s "
+        "ORDER BY bp.created_at DESC"
+    )
+
     return query
-'''
+
