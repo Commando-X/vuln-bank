@@ -151,7 +151,7 @@ username: "admin' OR '1'='1"
     ![alt text](./screenshots/forgot_5.png)
 
 #### Mitigate
-Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button.
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack (either sequence of steps above) and observe outcome:
 
 7. UI:
 
@@ -162,24 +162,45 @@ Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button
     ![alt text](./screenshots/forgot_6.png)
 
 ###  api_v1_forgot_password()
-
+Username is vulnerable to SQL injection.
 #### Exploit
-
-##### via URL
-
+This may be exploited with the CLI.
 ##### via CLI
+1. Open the browser console/terminal.
+2. Issue the following fetch request as a command
+to test the SQL injection: `fetch('/api/v1/forgot-password', {
+method: 'POST',
+headers: {'Content-Type': 'application/json'
+},body: JSON.stringify({
+username: "admin' OR '1'='1"
+})}).then(r => r.json())
+.then(console.log)`
+
+3. See result:
+
+    ![alt text](./screenshots/forgot_v1_vuln.png)
 
 #### Mitigate
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack as above and observe outcome:
+
+4. CLI:
+
+    ![alt text](./screenshots/forgot_v1_hardened.png)
 
 ###  api_v2_forgot_password()
-
+Username is vulnerable to SQL injection.
 #### Exploit
-
-##### via URL
-
+This may be exploited with the CLI.
 ##### via CLI
+1. Open the browser console/terminal.
+2. Issue the following fetch request as a command
+to test the SQL injection: ``
 
+3. See result:
 #### Mitigate
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack as above and observe outcome:
+
+4. CLI:
 
 ###  api_v3_forgot_password()
 
