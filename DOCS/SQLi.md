@@ -1,8 +1,9 @@
 # SQL Injection Vulnerabilities
-``
+
 ## Prerequisites
 Browser access to functioning web app and at least three registered user accounts.
 - At least one of the accounts needs to be an admin.
+- At least one money transaction.
 
 ## Demonstrations
 This vulnerability is present in ten different functions within app.py. Steps for exploitation and verification of hardening are as follows.
@@ -13,7 +14,7 @@ Grants attacker full access to a user account.
 From here, this may be exploited in one of two ways:
 ##### via UI
 2. To access a specific user account (say "admin" in this case),
-type in `admin' OR '1'='1` into the username field.
+type in `admin' OR '1'='1` into the username field.1.
 3. Type in whatever for the password.
 
     ![alt text](./screenshots/sql_login_vuln.png)
@@ -121,12 +122,12 @@ to test the SQL injection: `fetch("/admin/create_admin", {
 ### forgot_password()
 Username is vulnerable to SQL injection.
 #### Exploit
-This may be exploited in one of two ways:
-##### via UI
 1. Go to the login page and click on ‘Forgot Password? Reset here’.
 
     ![alt text](./screenshots/forgot_1.png)
 
+From here, this may be exploited in one of two ways:
+##### via UI
 2. Type in `admin' OR '1'='1` in username.
 
     ![alt text](./screenshots/forgot_2.png)
@@ -239,20 +240,45 @@ Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button
     ![alt text](./screenshots/forgot_v3_hardened.png)
 
 ###  api_transactions()
-
+Allows attacker to view transactions from all users.
 #### Exploit
-
+From the Vulnerable Bank homepage, this may be exploited in one of two ways:
 ##### via URL
+1. To view transactions by all users, append this to the root URL: `/api/transactions?account_number=' OR '1'='1`
+
+2. See transactions:
+
+    ![alt text](./screenshots/transaction_1.png)
 
 ##### via CLI
+2. Login as any user.
+3. Open the browser console/terminal.
+4. Issue the following fetch request as a command
+to test the SQL injection: `fetch("/api/transactions?account_number=' OR '1'='1' --", {
+method: 'GET',headers: {
+'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
+}}).then(r => r.json()).then(console.log);`
+
+5. See transaction:
+
+    ![alt text](./screenshots/transaction_3.png)
 
 #### Mitigate
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack (either sequence of steps above) and observe outcome:
+
+6. URL:
+
+    ![alt text](./screenshots/transaction_2.png)
+
+7. CLI:
+
+    ![alt text](./screenshots/transaction_4.png)
+
+8. The results of the mitigations will not show the transaction information. It will just show empty an empty transactions array. It will not detect that it is not a valid account number due to a different vulnerability, but it will not show the transaction information.
 
 ###  create_virtual_card()
 
 #### Exploit
-
-##### via URL
 
 ##### via CLI
 
