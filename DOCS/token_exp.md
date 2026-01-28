@@ -24,7 +24,9 @@ headers: {"Authorization": "Bearer YOUR_TOKEN_HERE"
 
 #### Mitigate
 Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button.
+
 7. Repeat the directions above.
+
 8. See result:
 
 ![alt text](./screenshots/token_2.png)
