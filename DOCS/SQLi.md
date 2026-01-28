@@ -40,10 +40,10 @@ body: JSON.stringify({username: "admin' OR '1'='1"
 Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack (either sequence of steps above) and observe outcome:
 13. IU:
 
-    ![alt text](./screenshots/sql_login_harden.png)
+![alt text](./screenshots/sql_login_harden.png)
 14. CLI:
 
-    ![alt text](./screenshots/sql_login_harden_cli.png)
+![alt text](./screenshots/sql_login_harden_cli.png)
 ### create_admin()
 
 #### Exploit
