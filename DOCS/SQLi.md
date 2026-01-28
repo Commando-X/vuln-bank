@@ -277,12 +277,28 @@ Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button
 8. The results of the mitigations will not show the transaction information. It will just show empty an empty transactions array. It will not detect that it is not a valid account number due to a different vulnerability, but it will not show the transaction information.
 
 ###  create_virtual_card()
-
+The card_type variable is susceptible to SQL injections.
 #### Exploit
-
+This may be exploited with the CLI.
 ##### via CLI
+1. Login as any user.
+2. Open the browser console/terminal.
+3. Issue the following fetch request as a command
+to test the SQL injection: `fetch("/api/virtual-cards/create", {
+method: "POST",headers: {"Content-Type": "application/json",
+"Authorization": "Bearer " + localStorage.getItem("jwt_token")
+},body: JSON.stringify({card_type: "standard'",
+card_limit: 1000})}).then(r => r.json())
+.then(console.log).catch(console.error);`
+
+4. See result:
+
+![alt text](./screenshots/virtual_1.png)
 
 #### Mitigate
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack (either sequence of steps above) and observe outcome:
+
+![alt text](./screenshots/virtual_2.png)
 
 ###  get_billers_by_category()
 Will complete later - not needed for demo
