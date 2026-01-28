@@ -128,7 +128,7 @@ to test the SQL injection: `fetch("/admin/create_admin", {
     }).then(r => r.json())
     .then(console.log);`
 
-    ![alt text](./screenshots/sql_admin_hardened_3.png)
+![alt text](./screenshots/sql_admin_hardened_3.png)
 
 18. Observe that this creates a strangely named user, but does not delete "newuser1".
 
@@ -313,7 +313,7 @@ card_limit: 1000})}).then(r => r.json())
 #### Mitigate
 Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack (either sequence of steps above) and observe outcome:
 
-    ![alt text](./screenshots/virtual_2.png)
+![alt text](./screenshots/virtual_2.png)
 
 With the way the bank app is set up, users are allowed to create their own cards. This is a separate vulnerability.
 ###  get_billers_by_category()
