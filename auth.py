@@ -59,7 +59,8 @@ def verify_token(token):
 
     # Expiration check
     except jwt.ExpiredSignatureError:
-        return None
+        #return None
+        raise
 
     except jwt.exceptions.InvalidSignatureError:
         # Vulnerability: Still accepts tokens in some error cases
@@ -133,7 +134,7 @@ def token_required(f):
             # Vulnerability: No token expiration check
             return f(current_user, *args, **kwargs)
 
-        except ExpiredSignatureError:
+        except jwt.ExpiredSignatureError:
         # Token expiration check
             return jsonify({'error': 'Token has expired'}), 401
 
