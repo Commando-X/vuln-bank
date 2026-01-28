@@ -194,13 +194,24 @@ This may be exploited with the CLI.
 ##### via CLI
 1. Open the browser console/terminal.
 2. Issue the following fetch request as a command
-to test the SQL injection: ``
+to test the SQL injection: `fetch('/api/v2/forgot-password', {
+method: 'POST',headers: {
+'Content-Type': 'application/json'
+},body: JSON.stringify({
+username: "admin' OR '1'='1"
+})}).then(r => r.json())
+.then(console.log)`
 
 3. See result:
+
+    ![alt text](./screenshots/forgot_v2_vuln.png)
+
 #### Mitigate
 Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack as above and observe outcome:
 
 4. CLI:
+
+    ![alt text](./screenshots/forgot_v2_hardened.png)
 
 ###  api_v3_forgot_password()
 
