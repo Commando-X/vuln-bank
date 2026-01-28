@@ -333,6 +333,6 @@ In order to follow best practices, the query was parameterized which would stop 
 ![alt text](./screenshots/cat_2.png)
 
 ###  get_payment_history()
-The SQL injection in this function would require another vulnerability to be practically exploitable.
+The SQL injection in this function would require another vulnerability to be practically exploitable, so its demonstration is and will remain deliberately omitted.
 #### Mitigate
 To follow best practices, the query was parameterized.
