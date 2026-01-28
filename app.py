@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 import platform
 from mitigations import BOLA, MA
 from mitigations import sql_injections
+from mitigations import session_exp
 
 # Load environment variables
 load_dotenv()
