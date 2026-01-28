@@ -1,55 +1,53 @@
 # SQL Injection Vulnerabilities
 ``
 ## Prerequisites
-Browser access to functioning web app and at least two registered user accounts.
+Browser access to functioning web app and at least three registered user accounts.
 - At least one of the accounts needs to be an admin.
 
 ## Demonstrations
-
+This vulnerability is present in ten different functions within app.py. Steps for exploitation and verification of hardening are as follows.
 ### login()
 Grants attacker full access to a user account.
 #### Exploit
-1. Go to login page and type in a SQL command as the username.
-2. Type in whatever as the password.
-3. If the attacker knows a specific username, they can access
-that account without their password.
-4. If the attacker does not know a username, they are granted
-access to a random account.
+1. Go to login page.
+From here, this may be exploited in one of two ways:
 ##### via UI
-5. To access a specific user account (say "admin" in this case),
+2. To access a specific user account (say "admin" in this case),
 type in `admin' OR '1'='1` into the username field.
-6. Type in whatever for the password.
+3. Type in whatever for the password.
 
     ![alt text](./screenshots/sql_login_vuln.png)
-7. This will bring the attacker to the dashboard of that user.
-8. If the username is not known, the attacker can type in
+4. This will bring the attacker to the dashboard of that user.
+5. If the username is not known, the attacker can type in
 `' OR '1'='1' --` into the username field.
-9. Type in whatever for the password.
+6. Type in whatever for the password.
 
     ![alt text](./screenshots/sql_login_vuln_random.png)
 ##### via CLI
-10. Open the browser console/terminal.
-11. Issue the following fetch request as a command
+7. Open the browser console/terminal.
+8. Issue the following fetch request as a command
 to gain access to the "admin" account:
 `fetch('/login', { method: 'POST',
 headers: {'Content-Type': 'application/json'},
 body: JSON.stringify({username: "admin' OR '1'='1"
 })}).then(r => r.json()).then(console.log)`
-12. Observe outcome.
+9. Observe outcome.
 
     ![alt text](./screenshots/sql_login_vuln_cli.png)
 #### Mitigate
 Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button. Repeat attack (either sequence of steps above) and observe outcome:
 
-13. IU:
+10. UI:
 
 ![alt text](./screenshots/sql_login_harden.png)
 
-14. CLI:
+11. CLI:
 
 ![alt text](./screenshots/sql_login_harden_cli.png)
+
 ### create_admin()
-Allows attacker to alter information in the database when creating an admin account.
+Allows attacker to alter information in the database when creating an admin account. If an attacker had
+obtained an admin token this would allow them to do this without being an admin.
 #### Exploit
 1. For the sake of the examples below, register the following users: "bb" and "cc". It does not matter what the passwords are.
 2. Log in as an admin.
@@ -121,14 +119,47 @@ to test the SQL injection: `fetch("/admin/create_admin", {
 
     ![alt text](./screenshots/sql_admin_hardened_4.png)
 ### forgot_password()
-
+Username is vulnerable to SQL injection.
 #### Exploit
+This may be exploited in one of two ways:
+##### via UI
+1. Go to the login page and click on ‘Forgot Password? Reset here’.
 
-##### via URL
+    ![alt text](./screenshots/forgot_1.png)
+
+2. Type in `admin' OR '1'='1` in username.
+
+    ![alt text](./screenshots/forgot_2.png)
+
+3. See result:
+
+    ![alt text](./screenshots/forgot_3.png)
 
 ##### via CLI
+4. Open the browser console/terminal.
+5. Issue the following fetch request as a command
+to test the SQL injection: `fetch('/forgot-password', {
+method: 'POST',
+headers: {'Content-Type': 'application/json'
+},body: JSON.stringify({
+username: "admin' OR '1'='1"
+})}).then(r => r.json())
+.then(console.log)`
+
+6. See result:
+
+    ![alt text](./screenshots/forgot_5.png)
 
 #### Mitigate
+Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button.
+
+7. UI:
+
+    ![alt text](./screenshots/forgot_4.png)
+
+8. CLI:
+
+    ![alt text](./screenshots/forgot_6.png)
 
 ###  api_v1_forgot_password()
 
@@ -181,7 +212,7 @@ to test the SQL injection: `fetch("/admin/create_admin", {
 #### Mitigate
 
 ###  get_billers_by_category()
-
+Will complete later - not needed for demo
 #### Exploit
 
 ##### via URL
@@ -191,7 +222,7 @@ to test the SQL injection: `fetch("/admin/create_admin", {
 #### Mitigate
 
 ###  get_payment_history()
-
+Will complete later - not needed for demo
 #### Exploit
 
 ##### via URL
