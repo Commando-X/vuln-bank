@@ -4,7 +4,7 @@ acquires a token as it will never expire and can continue to be used.
 ## Prerequisites
 Browser access to functioning web app and least one registered user account.
 ## Demonstrations
-This vulnerability is present within auth.py.Steps for exploitation and verification of hardening are as follows.
+This vulnerability is present within auth.py. Steps for exploitation and verification of hardening are as follows.
 #### Exploit
 1. Login as any registered user.
 From here, this may be exploited with the CLI.
@@ -27,5 +27,5 @@ Return to root URL (Vulnerable Bank homepage) and click Toggle Mitigation button
 7. Repeat the directions above.
 8. See result:
 
-    ![alt text](./screenshots/token_2.png)
+![alt text](./screenshots/token_2.png)
 
