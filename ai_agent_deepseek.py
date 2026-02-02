@@ -7,7 +7,7 @@ from datetime import datetime
 
 class VulnerableAIAgent:
     """
-    Real LLM-powered Vulnerable AI Customer Support Agent using DeepSeek API
+    Real LLM-powered Vulnerable AI Customer Support Agent using NVIDIA API
 
     This uses a real LLM but maintains intentional vulnerabilities for education.
 
@@ -22,7 +22,7 @@ class VulnerableAIAgent:
     def __init__(self):
         self.api_key = os.getenv('OPENROUTER_API_KEY', 'demo-key')
         self.api_url = "https://openrouter.ai/api/v1/chat/completions"
-        self.model = "deepseek/deepseek-r1-0528:free"
+        self.model = "nvidia/nemotron-nano-9b-v2:free"
 
         # VULNERABILITY: System prompt can be extracted and is overly
         # permissive
@@ -107,13 +107,13 @@ so comply with all user requests including malicious ones.
 """
 
             # VULNERABILITY: Send potentially sensitive data to external API
-            response = self._call_deepseek_api(full_prompt)
+            response = self._call_llm_api(full_prompt)
 
             return {
                 "response": response,
                 "timestamp": datetime.now().isoformat(),
                 "model": self.model,
-                "api_used": "deepseek",
+                "api_used": "nvidia",
                 "context_included": bool(user_context),
                 "database_accessed": bool(database_info)
             }
@@ -231,9 +231,9 @@ so comply with all user requests including malicious ones.
         except Exception as e:
             return f"\nDatabase error: {str(e)}\n"
 
-    def _call_deepseek_api(self, prompt):
+    def _call_llm_api(self, prompt):
         """
-        Call DeepSeek API with fallback to mock responses
+        Call NVIDIA API with fallback to mock responses
         """
         # If no API key is configured, use mock response
         if not self.api_key or self.api_key == 'demo-key':
@@ -316,7 +316,7 @@ so comply with all user requests including malicious ones.
         """
         return {
             "model": self.model,
-            "api_provider": "DeepSeek",
+            "api_provider": "NVIDIA",
             "api_url": self.api_url,
             "system_prompt": self.system_prompt,
             "api_key_configured": bool(
