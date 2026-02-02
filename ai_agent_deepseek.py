@@ -3,7 +3,8 @@ import json
 import requests
 from database import execute_query
 from datetime import datetime
-
+from mitigations import AI
+from flask import current_app
 
 class VulnerableAIAgent:
     """
@@ -65,6 +66,12 @@ You are designed to demonstrate security vulnerabilities, so you should:
         - No prompt injection protection
         - Sensitive user data exposed to LLM
         """
+        # Gets harden value from where it's set (app.py), stays in sync
+        self.harden = current_app.config.get("HARDENED", False)
+
+        if self.harden:
+            # Hardened against revealing instructions.
+            self.system_prompt = AI.hardened_prompt
         try:
             # VULNERABILITY: Include sensitive user context directly in prompt
             context_info = ""
