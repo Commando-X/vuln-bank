@@ -100,9 +100,29 @@ The creating model should review its own diff before flagging the PR as ready. C
 | Multi-file features | Careful review — higher risk |
 | Security-related changes | Extra scrutiny — this is a security project |
 
+## Session & Metrics Tracking
+
+After completing work, update `metrics.md` with session data. Each session row includes:
+
+| Field | What to Log |
+|-------|-------------|
+| **Phase** | Which lifecycle stage: Research → Spec → Build → Review → Shipped |
+| **Driver** | Who steered: `human`, `ai`, or `collaborative` |
+| **Operator** | Which human: `michael` or `hrpatel` |
+| **Work Category** | What type: Feature, Refactor, Bug, Tooling, Scripting, Data, Local-Tooling, Planning |
+| **Tool** | Which model: Claude Code, Cursor, or Mixed |
+
+This data feeds into the Meta Tracker dashboard for cross-project visibility.
+
 ## Decision Tracking
 
-Every significant decision gets logged in `decisions.md`. This creates a record of how the project evolved, useful for both models and both operators.
+Every significant decision gets logged in `decisions.md` using a structured format. Each entry needs:
+- **Type:** `decision`, `event`, `dead-end`, `discovery`, or `pivot`
+- **Category:** `technical`, `functional`, `ux-design`, or `process`
+- **Chosen path** and **Alternatives** (for decisions and pivots)
+- **Failure reason** (for dead-ends)
+
+This creates a record of how the project evolved, and renders as a visual decision tree in Meta Tracker.
 
 ## Iteration Patterns
 

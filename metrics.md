@@ -48,32 +48,32 @@
 
 ## 5. Session Metrics
 
-| Session | Date | Duration (approx) | PRs Created | PRs Merged | Decisions Logged | Focus Area | Models Active |
-|---------|------|--------------------|-------------|------------|-----------------|------------|---------------|
-| 1 | Mar 6 | ~45 min | 2 | 0 | 2 | Workflow setup, multi-model coordination | Claude Code |
+| Session | Date | Duration (approx) | PRs | Decisions | Focus Area | Phase | Driver | Operator | Work Category | Tool |
+|---------|------|--------------------|-----|-----------|------------|-------|--------|----------|---------------|------|
+| 1 | Mar 6 | ~45 min | 2 | 2 | Workflow setup, multi-model coordination | Spec | ai | michael | Planning | Claude Code |
+
+### Field Definitions
+
+These fields align with the Meta Tracker data model so sessions feed directly into the dashboard.
+
+| Field | Values | Meaning |
+|-------|--------|---------|
+| **Phase** | Research · Spec · Build · Review · Shipped | What project lifecycle phase this session contributed to |
+| **Driver** | human · ai · collaborative | Who steered the work — the human operator, the AI model, or both actively |
+| **Operator** | michael · hrpatel · joint | Which human operator was involved |
+| **Work Category** | Feature · Refactor · Bug · Tooling · Scripting · Data · Local-Tooling · Planning | Type of work done |
+| **Tool** | Claude Code · Cursor · Mixed | Which AI model did the work |
 
 ---
 
 ## 6. Multi-Model Activity
 
-| Task # | Model | PR | Lines Changed | Est. Time | Actual Time | Notes |
-|--------|-------|----|--------------|-----------|-------------|-------|
-| -- | Claude Code | #1 | +578 | 30 min | ~25 min | Workflow setup, all docs |
-| -- | Claude Code | #2 | +51 | 10 min | ~10 min | Review request for Cursor |
+| Task # | Model | PR | Lines Changed | Notes |
+|--------|-------|----|--------------|-------|
+| -- | Claude Code | #1 | +578 | Workflow setup, all docs |
+| -- | Claude Code | #2 | +51 | Review request for Cursor |
 
----
-
-## 7. Time Tracking Notes
-
-Time estimates and actuals are tracked per PR to understand:
-- How long AI models take on different task types
-- How much human-AI collaboration time each task requires
-- Where the bottlenecks are (coding vs review vs coordination)
-
-**How to log:**
-- **Est. Time** = model's estimate before starting (or operator's estimate when assigning)
-- **Actual Time** = approximate wall-clock time from task start to PR creation
-- **Include human collaboration time** when the operator is actively working with the model
+Both models should log their work here so activity across Claude Code and Cursor is visible in one place.
 
 ---
 

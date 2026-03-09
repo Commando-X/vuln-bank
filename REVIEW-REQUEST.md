@@ -33,12 +33,32 @@ Welcome — we'll be collaborating on this codebase. Before this workflow gets m
 4. **`.workflow/START HERE.md`** — The universal session startup checklist.
 5. **`.workflow/task-template.md`** — The format for new task files. The "Files to Edit" field is how we detect potential conflicts.
 
+### Tracking Conventions (Important)
+
+This project feeds into a dashboard called **Meta Tracker** (meta.jynaxxapps.com) that visualizes decisions and metrics across all projects. For that to work, both models need to log work consistently. Here's what to know:
+
+**When you complete a session**, update `metrics.md` Session Metrics table with these fields:
+- **Phase** — what project lifecycle stage your work contributed to: `Research`, `Spec`, `Build`, `Review`, or `Shipped`
+- **Driver** — who steered the work: `human` (operator directed every step), `ai` (model worked autonomously), or `collaborative` (both actively involved)
+- **Operator** — which human: `michael` or `hrpatel`
+- **Work Category** — type of work: `Feature`, `Refactor`, `Bug`, `Tooling`, `Scripting`, `Data`, `Local-Tooling`, or `Planning`
+- **Tool** — `Claude Code`, `Cursor`, or `Mixed`
+
+**When you log a decision** in `decisions.md`, use the structured format:
+- **Type** — `decision`, `event`, `dead-end`, `discovery`, or `pivot`
+- **Category** — `technical`, `functional`, `ux-design`, or `process`
+- Include **Chosen path** and **Alternatives** for decisions/pivots
+- Include **Failure reason** for dead-ends
+
+These aren't bureaucracy — they're the data model. The dashboard renders them into visual decision trees and metrics charts. See the format guide at the top of each file.
+
 ### Feedback We're Looking For
 
 - Does the coordination protocol in `How We Work.md` make sense? Anything unclear or unworkable?
 - Are the `.cursorrules` instructions sufficient for you to follow the workflow?
 - Is the task index format practical? Can you check it, claim tasks, and update it without friction?
 - Branch naming convention (`cursor/{##}-{task-slug}`) — does that work for you?
+- Are the tracking conventions (session metrics fields, decision log format) clear enough to follow?
 - Is there anything missing that would help you work in parallel with another AI model?
 - Any suggestions that would make this collaboration smoother?
 

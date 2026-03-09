@@ -61,8 +61,8 @@ Every task file must include these fields in its header:
 1. **Task file updated** — status set to Done, acceptance criteria checked off.
 2. **Index updated** — task marked Done in `tasks/index.md`.
 3. **Task file moved** — from `tasks/` to `tasks/done/`.
-4. **Metrics updated** — if code was shipped, update `metrics.md`.
-5. **Decisions updated** — if a significant decision was made, update `decisions.md`.
+4. **Session logged** — add a row to `metrics.md` Session Metrics with: Phase, Driver, Operator, Work Category, Tool.
+5. **Decisions logged** — if a significant decision was made, add a structured entry to `decisions.md` (type, category, chosen path, alternatives).
 6. **STATUS.md updated** — reflect the current project state.
 
 ## Review Cadence
