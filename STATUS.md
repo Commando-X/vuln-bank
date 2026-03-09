@@ -1,9 +1,10 @@
 # Vuln Bank — Current Status
 
-**Last updated:** March 6, 2026
+**Last updated:** March 9, 2026
 **Repo:** https://github.com/hrpatel/vuln-bank
 **Live site:** N/A (runs locally via Docker)
-**Current state:** Setting up workflow and task tracking
+**Current phase:** Spec
+**Current state:** Workflow docs aligned with Meta Tracker data model; awaiting Cursor review
 
 ---
 
@@ -24,6 +25,8 @@ A deliberately vulnerable banking application designed for practicing security t
 
 ## Recent Work
 
+- Aligned workflow docs with Meta Tracker data model (session fields, decision format, tracking conventions)
+- Task #01 done — vuln-bank added to Meta Tracker dashboard (PR #77 in meta-tracker repo)
 - Workflow setup: added multi-model coordination docs, task tracking, project metrics structure
 
 ## Known Issues
