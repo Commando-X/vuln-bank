@@ -326,13 +326,15 @@
    ================================================ */
 .modal {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
-  display: none; justify-content: center; align-items: center; z-index: 1000;
+  display: none; justify-content: center; align-items: center; z-index: 2000;
+  padding: 1.5rem;
 }
 .modal-content {
-  background: var(--surface); border-radius: var(--r-xl); width: 90%; max-width: 480px;
-  max-height: 85vh; overflow-y: auto; padding: 1.75rem;
+  background: var(--surface); border-radius: var(--r-xl); width: 100%; max-width: 480px;
+  max-height: calc(100vh - 3rem); overflow-y: auto; padding: 1.75rem;
   box-shadow: var(--shadow-xl); animation: modalIn var(--dur-mid) var(--ease);
   border: 1px solid var(--border);
+  margin: auto;
 }
 @keyframes modalIn { from { opacity:0; transform:scale(0.96) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
 .modal-header {
@@ -354,7 +356,7 @@
 /* ================================================
    CHAT WIDGET
    ================================================ */
-.chat-widget { position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 1000; font-family: var(--font-body); }
+.chat-widget { position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 1500; font-family: var(--font-body); }
 .chat-toggle {
   width: 56px; height: 56px; background: var(--navy-800); border-radius: var(--r-full);
   display: flex; align-items: center; justify-content: center;
@@ -468,6 +470,57 @@
 .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
 .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
 @keyframes typing { 0%,80%,100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+/* ================================================
+   TOAST NOTIFICATIONS
+   ================================================ */
+.toast-container {
+  position: fixed; top: 1.25rem; right: 1.25rem; z-index: 2500;
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+.toast {
+  display: flex; align-items: center; gap: 0.75rem;
+  min-width: 300px; max-width: 400px;
+  padding: 1rem 1.25rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  animation: toastIn var(--dur-mid) var(--ease);
+}
+.toast.toast-removing { animation: toastOut var(--dur-fast) ease-in; }
+.toast.success { border-left: 3px solid var(--green); }
+.toast.error { border-left: 3px solid var(--red); }
+.toast.warning { border-left: 3px solid var(--amber); }
+.toast-icon {
+  width: 20px; height: 20px; flex-shrink: 0;
+}
+.toast.success .toast-icon { color: var(--green); }
+.toast.error .toast-icon { color: var(--red); }
+.toast.warning .toast-icon { color: var(--amber); }
+.toast-content { flex: 1; }
+.toast-title {
+  font-family: var(--font-display); font-size: 0.875rem; font-weight: 600;
+  color: var(--text-1); margin-bottom: 0.125rem;
+}
+.toast-message {
+  font-size: 0.8125rem; color: var(--text-3); line-height: 1.5;
+}
+.toast-close {
+  width: 24px; height: 24px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: var(--r-sm);
+  color: var(--text-4); cursor: pointer;
+  transition: all var(--dur-fast) ease;
+}
+.toast-close:hover { background: var(--surface-2); color: var(--text-2); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(20px); }
+}
 
 /* ================================================
    MOBILE
