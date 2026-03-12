@@ -353,15 +353,12 @@ tr:hover td { background: var(--surface-2); }
 .theme-toggle {
   width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
   border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border-2);
-  color: var(--text-1) !important; cursor: pointer; transition: all var(--dur-fast) ease;
+  color: var(--text-1); cursor: pointer; transition: all var(--dur-fast) ease;
 }
-.theme-toggle:hover { background: var(--surface-2); color: var(--text-1) !important; border-color: var(--brand); }
-[data-theme="dark"] .theme-toggle { background: var(--surface-2); border-color: var(--border-2); color: var(--text-1) !important; }
-[data-theme="dark"] .theme-toggle:hover { background: var(--surface-3); color: var(--text-1) !important; border-color: var(--brand-light); }
+.theme-toggle:hover { background: var(--surface-2); border-color: var(--brand); }
+[data-theme="dark"] .theme-toggle { background: var(--surface-2); border-color: var(--border-2); }
+[data-theme="dark"] .theme-toggle:hover { background: var(--surface-3); border-color: var(--brand-light); }
 .theme-toggle svg { width: 20px; height: 20px; }
-.theme-toggle svg, .theme-toggle svg *, .theme-toggle svg path {
-  fill: currentColor !important;
-}
 .theme-toggle .icon-sun  { display: none; }
 .theme-toggle .icon-moon { display: block; }
 [data-theme="dark"] .theme-toggle .icon-sun  { display: block; }
