@@ -404,6 +404,194 @@ body {
     box-shadow: 0 0 0 3px rgba(0, 84, 166, 0.1);
 }
 
+/* Beneficiaries + Transfer */
+.transfer-beneficiary-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 1.5rem;
+}
+
+.transfer-pane,
+.beneficiary-pane {
+    background: #fcfdff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.beneficiary-title {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+.beneficiary-form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.beneficiary-name-enquiry {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin: 0.5rem 0 1rem;
+    min-height: 1.2rem;
+}
+
+.beneficiary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.beneficiary-item {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.9rem;
+    background-color: white;
+}
+
+.beneficiary-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.beneficiary-name {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.beneficiary-account {
+    color: var(--text-light);
+    font-size: 0.86rem;
+    margin-top: 0.25rem;
+}
+
+.beneficiary-meta {
+    margin-top: 0.5rem;
+    font-size: 0.88rem;
+    color: var(--text-light);
+}
+
+.beneficiary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+}
+
+.beneficiary-actions button {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
+}
+
+.beneficiary-status {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.beneficiary-status.verified {
+    background: #e8f5e9;
+    color: #1f7a35;
+}
+
+.beneficiary-status.pending {
+    background: #fff8e1;
+    color: #9e7400;
+}
+
+.beneficiary-transfer-meta {
+    margin-bottom: 0.9rem;
+    background: #f3f8ff;
+    border: 1px solid #d9e7fb;
+    color: #244a83;
+    border-radius: 8px;
+    padding: 0.65rem 0.8rem;
+    font-size: 0.9rem;
+}
+
+.beneficiary-otp-info {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background-color: #f4f8ff;
+    border: 1px solid #dce7fa;
+    color: #294a7a;
+    font-size: 0.9rem;
+}
+
+/* Wallets */
+.wallet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+}
+
+.wallet-block {
+    background-color: #fcfdff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.wallet-block h3 {
+    margin-top: 0;
+    margin-bottom: 0.85rem;
+    color: var(--text-color);
+}
+
+.wallet-main-balance {
+    margin-bottom: 0.9rem;
+    color: var(--text-color);
+    font-size: 0.95rem;
+}
+
+.wallet-summary-text {
+    margin-top: 0.85rem;
+    color: var(--text-light);
+    font-size: 0.9rem;
+    min-height: 1rem;
+}
+
+.wallet-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+}
+
+.wallet-item {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.85rem;
+    background-color: white;
+}
+
+.wallet-item .wallet-currency {
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.wallet-item .wallet-balance {
+    font-size: 1.1rem;
+    margin-top: 0.35rem;
+}
+
+.wallet-item .wallet-status {
+    font-size: 0.8rem;
+    margin-top: 0.45rem;
+    color: var(--text-light);
+}
+
+.wallet-rates table {
+    margin-top: 0.6rem;
+}
+
 /* Virtual cards */
 .cards-container {
     display: grid;
@@ -639,6 +827,14 @@ body {
     .account-card {
         width: 100%;
     }
+
+    .transfer-beneficiary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .wallet-list {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -668,6 +864,10 @@ body {
     .form-row {
         flex-direction: column;
         gap: 0;
+    }
+
+    .beneficiary-form-actions {
+        flex-direction: column;
     }
 }
 

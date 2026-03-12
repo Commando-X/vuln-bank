@@ -12,6 +12,8 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 from database import init_connection_pool, init_db, execute_query, execute_transaction
 from ai_agent_deepseek import ai_agent
+from graphql.beneficiary_graphql import init_beneficiary_graphql_routes
+from graphql.wallet_graphql import init_wallet_graphql_routes
 import time
 from functools import wraps
 from collections import defaultdict
@@ -25,6 +27,8 @@ load_dotenv()
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)
+init_beneficiary_graphql_routes(app)
+init_wallet_graphql_routes(app)
 
 # Initialize database connection pool
 init_connection_pool()
@@ -50,6 +54,7 @@ app.secret_key = "secret123"
 RATE_LIMIT_WINDOW = 3 * 60 * 60  # 3 hours in seconds
 UNAUTHENTICATED_LIMIT = 5  # requests per IP per window
 AUTHENTICATED_LIMIT = 10   # requests per user per window
+SUPPORTED_WALLET_CURRENCIES = ['NGN', 'USD', 'GBP', 'INR', 'JPY']
 
 # In-memory rate limiting storage
 # Format: {key: [(timestamp, request_count), ...]}
@@ -187,6 +192,25 @@ def generate_cvv():
     # Vulnerability: Predictable CVV generation
     return ''.join(random.choices(string.digits, k=3))
 
+def create_default_wallets_for_user(user_id):
+    """
+    Create default wallets for a user.
+    Vulnerability: No transaction wrapper and no id validation.
+    """
+    try:
+        # Product behavior: default wallet is USD on account creation.
+        execute_query(
+            """
+            INSERT INTO wallets (user_id, currency, balance, is_active)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (user_id, currency) DO NOTHING
+            """,
+            (user_id, 'USD', 0.0, True),
+            fetch=False
+        )
+    except Exception as e:
+        print(f"Wallet bootstrap error for user {user_id}: {str(e)}")
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -237,6 +261,7 @@ def register():
                 raise Exception("Failed to create user")
                 
             user = result[0]
+            create_default_wallets_for_user(user[0])
             
             # Excessive Data Exposure in Response
             sensitive_data = {
@@ -950,10 +975,11 @@ def create_admin(current_user):
         # Vulnerability: SQL injection possible
         # Vulnerability: No password complexity requirements
         # Vulnerability: No account number uniqueness check
-        execute_query(
-            f"INSERT INTO users (username, password, account_number, is_admin) VALUES ('{username}', '{password}', '{account_number}', true)",
-            fetch=False
+        created_admin = execute_query(
+            f"INSERT INTO users (username, password, account_number, is_admin) VALUES ('{username}', '{password}', '{account_number}', true) RETURNING id"
         )
+        if created_admin and created_admin[0]:
+            create_default_wallets_for_user(created_admin[0][0])
         
         return jsonify({
             'status': 'success',
@@ -1415,13 +1441,15 @@ def create_virtual_card(current_user):
         
         # Vulnerability: SQL injection possible in card_type
         card_type = data.get('card_type', 'standard')
+        # Vulnerability: No validation on currency
+        card_currency = data.get('currency', 'NGN')
         
         # Create virtual card
         query = f"""
             INSERT INTO virtual_cards 
-            (user_id, card_number, cvv, expiry_date, card_limit, card_type)
+            (user_id, card_number, cvv, expiry_date, card_limit, card_type, wallet_currency)
             VALUES 
-            ({current_user['user_id']}, '{card_number}', '{cvv}', '{expiry_date}', {card_limit}, '{card_type}')
+            ({current_user['user_id']}, '{card_number}', '{cvv}', '{expiry_date}', {card_limit}, '{card_type}', '{card_currency}')
             RETURNING id
         """
         
@@ -1437,7 +1465,8 @@ def create_virtual_card(current_user):
                     'cvv': cvv,
                     'expiry_date': expiry_date,
                     'limit': card_limit,
-                    'type': card_type
+                    'type': card_type,
+                    'currency': card_currency
                 }
             })
             
@@ -1479,7 +1508,8 @@ def get_virtual_cards(current_user):
                 'is_active': card[8],
                 'created_at': str(card[9]),
                 'last_used_at': str(card[10]) if card[10] else None,
-                'card_type': card[11]
+                'card_type': card[11],
+                'currency': card[12] if len(card) > 12 else 'NGN'
             } for card in cards]
         })
         
@@ -1607,7 +1637,8 @@ def update_card_limit(current_user, card_id):
                         'current_balance': float(result[0][6]),
                         'is_frozen': result[0][7],
                         'is_active': result[0][8],
-                        'card_type': result[0][11]
+                        'card_type': result[0][11],
+                        'currency': result[0][12] if len(result[0]) > 12 else 'NGN'
                     }
                 }
             })

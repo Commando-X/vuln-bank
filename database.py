@@ -113,8 +113,15 @@ def init_db():
                     is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_used_at TIMESTAMP,
-                    card_type TEXT DEFAULT 'standard'  -- Vulnerability: No validation on card type
+                    card_type TEXT DEFAULT 'standard',  -- Vulnerability: No validation on card type
+                    wallet_currency TEXT DEFAULT 'NGN'  -- Vulnerability: No validation on currency
                 )
+            ''')
+
+            # Ensure currency column exists for older deployments
+            cursor.execute('''
+                ALTER TABLE virtual_cards
+                ADD COLUMN IF NOT EXISTS wallet_currency TEXT DEFAULT 'NGN'
             ''')
 
             # Create virtual card transactions table
@@ -182,6 +189,70 @@ def init_db():
                     description TEXT
                 )
             ''')
+
+            # Create beneficiaries table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS beneficiaries (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    account_number TEXT NOT NULL,  -- Vulnerability: No encryption or masking
+                    beneficiary_name TEXT,
+                    nickname TEXT,
+                    transfer_limit DECIMAL(15, 2) DEFAULT 5000.0,  -- Vulnerability: No validation
+                    is_verified BOOLEAN DEFAULT FALSE,
+                    otp_code TEXT,  -- Vulnerability: OTP stored in plaintext
+                    verified_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # Create wallets table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS wallets (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    currency TEXT NOT NULL,  -- Vulnerability: No strict enum validation
+                    balance DECIMAL(15, 2) DEFAULT 0.0,
+                    is_active BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, currency)
+                )
+            ''')
+
+            # Create exchange rates table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS exchange_rates (
+                    id SERIAL PRIMARY KEY,
+                    currency_code TEXT NOT NULL UNIQUE,
+                    rate_to_ngn DECIMAL(18, 6) NOT NULL,  -- Vulnerability: No range validation
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_by TEXT
+                )
+            ''')
+
+            # Insert default exchange rates
+            cursor.execute("""
+                INSERT INTO exchange_rates (currency_code, rate_to_ngn, updated_by)
+                VALUES
+                    ('NGN', 1, 'system'),
+                    ('USD', 1600, 'system'),
+                    ('GBP', 2050, 'system'),
+                    ('INR', 19, 'system'),
+                    ('JPY', 11, 'system')
+                ON CONFLICT (currency_code) DO NOTHING
+            """)
+
+            # Backfill default wallet (USD) for existing users
+            cursor.execute("""
+                INSERT INTO wallets (user_id, currency, balance, is_active)
+                SELECT
+                    u.id,
+                    'USD',
+                    0.0,
+                    TRUE
+                FROM users u
+                ON CONFLICT (user_id, currency) DO NOTHING
+            """)
 
             # Insert default bill categories
             cursor.execute("""

@@ -22,6 +22,10 @@
                 <span class="nav-link-icon">👤</span>
                 Profile
             </a>
+            <a href="#wallets" class="nav-link" onclick="setActiveLink(this)">
+                <span class="nav-link-icon">💱</span>
+                Wallets
+            </a>
             <a href="#transfers" class="nav-link" onclick="setActiveLink(this)">
                 <span class="nav-link-icon">↗️</span>
                 Money Transfer
@@ -84,6 +88,11 @@
                 <div class="action-title">Send Money</div>
                 <div class="action-description">Transfer money to another account quickly and securely.</div>
             </div>
+            <div class="action-card" onclick="document.querySelector('.nav-link[href=\'#wallets\']').click()">
+                <div class="action-icon">💱</div>
+                <div class="action-title">Wallets</div>
+                <div class="action-description">Switch accounts, convert balances and transfer between wallets.</div>
+            </div>
             <div class="action-card" onclick="document.querySelector('.nav-link[href=\'#loans\']').click()">
                 <div class="action-icon">💰</div>
                 <div class="action-title">Request Loan</div>
@@ -126,29 +135,200 @@
                     </form>
                     <div id="upload-message" ></div>
         </div>
+
+        <!-- Wallets section -->
+        <div class="dashboard-section" id="wallets">
+            <div class="section-header">
+                <h2 class="section-title">Wallet Accounts</h2>
+            </div>
+            <div class="wallet-grid">
+                <div class="wallet-block">
+                    <h3>Account Switching</h3>
+                    <div class="wallet-main-balance">
+                        Main Balance: <strong id="wallet-main-balance">${{ balance }}</strong>
+                    </div>
+                    <div class="form-group">
+                        <label for="wallet-switch-select">Active Wallet</label>
+                        <select id="wallet-switch-select"></select>
+                    </div>
+                    <button type="button" id="switchWalletBtn">Switch Account</button>
+                    <div id="wallet-active-summary" class="wallet-summary-text"></div>
+                </div>
+
+                <div class="wallet-block">
+                    <h3>Create Wallet</h3>
+                    <form id="createWalletForm" class="form-section">
+                        <div class="form-group">
+                            <label for="create_wallet_currency">Currency</label>
+                            <select id="create_wallet_currency" name="currency" required>
+                                <option value="NGN">NGN</option>
+                                <option value="USD">USD</option>
+                                <option value="GBP">GBP</option>
+                                <option value="INR">Rupees (INR)</option>
+                                <option value="JPY">Yen (JPY)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="create_wallet_active">Set as Active Wallet</label>
+                            <select id="create_wallet_active" name="is_active">
+                                <option value="false">No</option>
+                                <option value="true">Yes</option>
+                            </select>
+                        </div>
+                        <button type="submit">Create Wallet</button>
+                    </form>
+                </div>
+
+                <div class="wallet-block">
+                    <h3>Convert Main Balance to Wallet</h3>
+                    <form id="convertWalletForm" class="form-section">
+                        <div class="form-group">
+                            <label for="convert_wallet_id">Wallet</label>
+                            <select id="convert_wallet_id" name="wallet_id" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="convert_amount">Amount (Main Balance)</label>
+                            <input type="number" id="convert_amount" name="amount" step="0.01" required>
+                        </div>
+                        <button type="submit">Convert</button>
+                    </form>
+                </div>
+
+                <div class="wallet-block">
+                    <h3>Internal Wallet Transfer</h3>
+                    <form id="internalTransferForm" class="form-section">
+                        <div class="form-group">
+                            <label for="from_wallet_id">From Wallet</label>
+                            <select id="from_wallet_id" name="from_wallet_id" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="to_wallet_id">To Wallet</label>
+                            <select id="to_wallet_id" name="to_wallet_id" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="internal_transfer_amount">Amount</label>
+                            <input type="number" id="internal_transfer_amount" name="amount" step="0.01" required>
+                        </div>
+                        <button type="submit">Transfer</button>
+                    </form>
+                </div>
+
+                <div class="wallet-block">
+                    <h3>Transfer to Any Wallet</h3>
+                    <form id="walletP2PTransferForm" class="form-section">
+                        <div class="form-group">
+                            <label for="wallet_destination_id">Destination Wallet ID</label>
+                            <input type="number" id="wallet_destination_id" name="destination_wallet_id" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="wallet_transfer_source_wallet_id">Transfer Source</label>
+                            <select id="wallet_transfer_source_wallet_id" name="source_wallet_id">
+                                <option value="">Main Balance (NGN)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="wallet_transfer_amount">Amount</label>
+                            <input type="number" id="wallet_transfer_amount" name="amount" step="0.01" required>
+                        </div>
+                        <button type="submit">Transfer to Wallet</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="wallet-list" class="wallet-list">
+                <p style="text-align: center; padding: 1rem;">Loading wallets...</p>
+            </div>
+
+            <div id="exchange-rate-view" class="wallet-rates">
+                <p style="text-align: center; padding: 1rem;">Loading exchange rates...</p>
+            </div>
+        </div>
         
         <!-- Money transfer section -->
         <div class="dashboard-section" id="transfers">
             <div class="section-header">
                 <h2 class="section-title">Money Transfer</h2>
             </div>
-            <!-- Vulnerability: No CSRF protection -->
-            <!-- Vulnerability: No amount validation -->
-            <form id="transferForm" class="form-section">
-                <div class="form-group">
-                    <label for="to_account">Recipient Account Number</label>
-                    <input type="text" id="to_account" name="to_account" placeholder="Enter recipient's account number" required>
+            <div class="transfer-beneficiary-grid">
+                <div class="transfer-pane">
+                    <!-- Vulnerability: No CSRF protection -->
+                    <!-- Vulnerability: No amount validation -->
+                    <form id="transferForm" class="form-section">
+                        <div class="form-group">
+                            <label for="selected_beneficiary">Select Beneficiary</label>
+                            <select id="selected_beneficiary" name="selected_beneficiary">
+                                <option value="">Manual Account Transfer</option>
+                            </select>
+                        </div>
+                        <div class="beneficiary-transfer-meta" id="beneficiary-transfer-meta">
+                            No beneficiary selected.
+                        </div>
+                        <div class="form-group">
+                            <label for="to_account">Recipient Account Number</label>
+                            <input type="text" id="to_account" name="to_account" placeholder="Enter recipient's account number" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="amount">Amount</label>
+                            <input type="number" id="amount" name="amount" placeholder="Enter amount to transfer" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="description">Description (optional)</label>
+                            <textarea id="description" name="description" placeholder="Add a note about this transfer" rows="3"></textarea>
+                        </div>
+                        <button type="submit">Send Money</button>
+                    </form>
                 </div>
-                <div class="form-group">
-                    <label for="amount">Amount</label>
-                    <input type="number" id="amount" name="amount" placeholder="Enter amount to transfer" step="0.01" required>
+
+                <div class="beneficiary-pane">
+                    <h3 class="beneficiary-title">Beneficiaries</h3>
+                    <form id="beneficiaryForm" class="form-section">
+                        <div class="form-group">
+                            <label for="beneficiary_account_number">Account Number</label>
+                            <input type="text" id="beneficiary_account_number" name="account_number" placeholder="Enter account number" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="beneficiary_nickname">Nickname</label>
+                                <input type="text" id="beneficiary_nickname" name="nickname" placeholder="e.g. Mom, Landlord">
+                            </div>
+                            <div class="form-group">
+                                <label for="beneficiary_transfer_limit">Transfer Limit</label>
+                                <input type="number" id="beneficiary_transfer_limit" name="transfer_limit" value="5000" step="0.01">
+                            </div>
+                        </div>
+                        <div class="beneficiary-form-actions">
+                            <button type="button" onclick="runBeneficiaryNameEnquiry()">Name Enquiry</button>
+                            <button type="submit">Add Beneficiary</button>
+                        </div>
+                    </form>
+
+                    <div id="beneficiary-name-enquiry" class="beneficiary-name-enquiry"></div>
+                    <div id="beneficiary-list" class="beneficiary-list">
+                        <p style="text-align: center; padding: 1rem;">Loading beneficiaries...</p>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="description">Description (optional)</label>
-                    <textarea id="description" name="description" placeholder="Add a note about this transfer" rows="3"></textarea>
+            </div>
+
+            <div id="beneficiaryOtpModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Verify Beneficiary</h3>
+                        <button class="modal-close" onclick="hideBeneficiaryOtpModal()">&times;</button>
+                    </div>
+                    <input type="hidden" id="otp_beneficiary_id">
+                    <div id="beneficiary-otp-info" class="beneficiary-otp-info"></div>
+                    <form id="beneficiaryOtpForm">
+                        <div class="form-group">
+                            <label for="beneficiary_otp">OTP</label>
+                            <input type="text" id="beneficiary_otp" name="otp" placeholder="Enter OTP code" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit">Submit OTP</button>
+                            <button type="button" onclick="hideBeneficiaryOtpModal()">Cancel</button>
+                        </div>
+                    </form>
                 </div>
-                <button type="submit">Send Money</button>
-            </form>
+            </div>
         </div>
 
         <!-- Loan request section -->
@@ -237,6 +417,16 @@
                             <select id="card_type" name="card_type" required>
                                 <option value="standard">Standard</option>
                                 <option value="premium">Premium</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="card_currency">Currency</label>
+                            <select id="card_currency" name="currency" required>
+                                <option value="NGN">NGN</option>
+                                <option value="USD">USD</option>
+                                <option value="GBP">GBP</option>
+                                <option value="INR">Rupees (INR)</option>
+                                <option value="JPY">Yen (JPY)</option>
                             </select>
                         </div>
                         <div class="modal-footer">

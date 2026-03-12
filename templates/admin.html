@@ -97,6 +97,30 @@
         </div>
 
         <div class="section">
+            <h2>Exchange Rates</h2>
+            <form id="exchangeRateForm">
+                <div class="form-group">
+                    <label for="rate_currency">Currency</label>
+                    <select id="rate_currency" name="currency_code" required>
+                        <option value="NGN">NGN</option>
+                        <option value="USD">USD</option>
+                        <option value="GBP">GBP</option>
+                        <option value="INR">Rupees (INR)</option>
+                        <option value="JPY">Yen (JPY)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="rate_to_ngn">Rate to NGN</label>
+                    <input type="number" id="rate_to_ngn" name="rate_to_ngn" step="0.000001" required>
+                </div>
+                <button type="submit">Update Exchange Rate</button>
+            </form>
+            <div id="exchangeRatesList" style="margin-top: 1rem;">
+                <p>Loading exchange rates...</p>
+            </div>
+        </div>
+
+        <div class="section">
             <h2>Pending Loan Applications</h2>
             <!-- Vulnerability: No validation of loan approval -->
             <table>
@@ -171,7 +195,110 @@
             });
 
             document.getElementById('createAdminForm').addEventListener('submit', handleCreateAdmin);
+            document.getElementById('exchangeRateForm').addEventListener('submit', handleExchangeRateUpdate);
+            loadExchangeRates();
         });
+
+        async function executeWalletGraphQLAdmin(query, variables = {}) {
+            const response = await fetch('/graphql/wallets', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query: query,
+                    variables: variables
+                })
+            });
+
+            return response.json();
+        }
+
+        async function loadExchangeRates() {
+            try {
+                const response = await executeWalletGraphQLAdmin(`
+                    query ExchangeRates {
+                        exchangeRates {
+                            currency_code
+                            rate_to_ngn
+                            updated_at
+                            updated_by
+                        }
+                    }
+                `);
+
+                const rates = (response.data && response.data.exchangeRates) ? response.data.exchangeRates : [];
+                const container = document.getElementById('exchangeRatesList');
+                if (!rates.length) {
+                    container.innerHTML = '<p>No exchange rates found</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Currency</th>
+                                <th>Rate to NGN</th>
+                                <th>Updated At</th>
+                                <th>Updated By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rates.map(rate => `
+                                <tr>
+                                    <td>${rate.currency_code}</td>
+                                    <td>${rate.rate_to_ngn}</td>
+                                    <td>${rate.updated_at || '-'}</td>
+                                    <td>${rate.updated_by || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                document.getElementById('exchangeRatesList').innerHTML = '<p>Failed to load exchange rates</p>';
+            }
+        }
+
+        async function handleExchangeRateUpdate(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const input = {
+                currency_code: formData.get('currency_code'),
+                rate_to_ngn: parseFloat(formData.get('rate_to_ngn'))
+            };
+
+            try {
+                const response = await executeWalletGraphQLAdmin(`
+                    mutation UpdateExchangeRate($input: ExchangeRateInput) {
+                        updateExchangeRate(input: $input) {
+                            exchange_rate {
+                                currency_code
+                                rate_to_ngn
+                            }
+                        }
+                    }
+                `, { input: input });
+
+                if (response.data && response.data.updateExchangeRate) {
+                    document.getElementById('message').innerHTML = 'Exchange rate updated successfully';
+                    document.getElementById('message').style.color = 'green';
+                    document.getElementById('message').className = 'success';
+                    await loadExchangeRates();
+                    return;
+                }
+
+                document.getElementById('message').innerHTML = 'Failed to update exchange rate';
+                document.getElementById('message').style.color = 'red';
+                document.getElementById('message').className = 'error';
+            } catch (error) {
+                document.getElementById('message').innerHTML = 'Failed to update exchange rate';
+                document.getElementById('message').style.color = 'red';
+                document.getElementById('message').className = 'error';
+            }
+        }
 
         async function handleDeleteAccount(event) {
             event.preventDefault();
