@@ -348,23 +348,33 @@ tr:hover td { background: var(--surface-2); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ================================================
-   THEME TOGGLE
+   THEME TOGGLE (iOS-style switch with icons)
    ================================================ */
 .theme-toggle {
-  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
-  border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border-2);
-  color: var(--text-1); cursor: pointer; transition: all var(--dur-fast) ease;
+  width: 70px; height: 28px; position: relative;
+  background: var(--border-2); border-radius: var(--r-full);
+  cursor: pointer; transition: background var(--dur-mid) ease;
+  border: none; padding: 0;
 }
-.theme-toggle:hover { background: var(--surface-2); border-color: var(--brand); }
-[data-theme="dark"] .theme-toggle { background: var(--surface-2); border-color: var(--border-2); }
-[data-theme="dark"] .theme-toggle:hover { background: var(--surface-3); border-color: var(--brand-light); }
-.theme-toggle svg { width: 20px; height: 20px; }
-.theme-toggle .icon-sun  { display: none; }
-.theme-toggle .icon-moon { display: block; }
-[data-theme="dark"] .theme-toggle .icon-sun  { display: block; }
-[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
-
-/* ================================================
+.theme-toggle:hover { background: var(--border); }
+.theme-toggle .toggle-icon {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-size: 14px; z-index: 1; pointer-events: none;
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-full);
+}
+.theme-toggle .toggle-icon-sun { left: 4px; background: #FFA500; }
+.theme-toggle .toggle-icon-moon { right: 4px; background: #1E3A5F; color: #E8ECF1; }
+.theme-toggle .toggle-slider {
+  position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px;
+  background: #fff; border-radius: var(--r-full);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: transform var(--dur-mid) ease; z-index: 2;
+}
+[data-theme="dark"] .theme-toggle { background: var(--brand); }
+[data-theme="dark"] .theme-toggle:hover { background: var(--brand-dark); }
+[data-theme="dark"] .theme-toggle .toggle-slider { transform: translateX(42px); }/* ================================================
    UTILITIES
    ================================================ */
 .text-center { text-align: center; }

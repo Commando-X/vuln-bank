@@ -255,6 +255,9 @@
             .features-grid { grid-template-columns: repeat(2, 1fr); }
             .social-proof-inner { grid-template-columns: repeat(2, 1fr); }
             .hiw-steps::before { display: none; }
+            .mobile-inner { grid-template-columns: 1fr; text-align: center; gap: 2.5rem; }
+            .mobile-content { order: 2; }
+            .mobile-visual { order: 1; }
         }
         @media (max-width: 768px) {
             .navbar-links { display: none; }
@@ -269,6 +272,8 @@
             .hiw-steps { grid-template-columns: 1fr; gap: 2rem; }
             .dash-preview { padding: 2.5rem 1.5rem; }
             .dash-mockup { height: 240px; }
+            .mobile-app { padding: 2.5rem 1.5rem; }
+            .phone-frame { width: 240px; height: 480px; }
             .footer-inner { grid-template-columns: 1fr 1fr; }
             .cta { padding: 2.5rem 1.5rem; }
             .cta-inner { padding: 2.5rem 1.5rem; }
@@ -281,7 +286,43 @@
             .footer-inner { grid-template-columns: 1fr; }
             .footer-bottom { flex-direction: column; gap: 1rem; text-align: center; }
             .dm-cards { display: none; }
+            .phone-frame { width: 220px; height: 440px; }
+            .mobile-content h2 { font-size: 2rem; }
         }
+
+        /* ---- MOBILE APP SECTION ---- */
+        .mobile-app { padding: 4rem 2.5rem; background: var(--surface-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); transition: background var(--dur-mid) ease, border-color var(--dur-mid) ease; }
+        .mobile-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+        .mobile-content h2 { font-family: var(--font-display); font-size: 2.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 1rem; }
+        .mobile-content > p { font-size: 1.0625rem; color: var(--text-3); line-height: 1.7; margin-bottom: 1.75rem; }
+        .section-badge { display: inline-flex; align-items: center; padding: 0.375rem 1rem; background: var(--brand-light, #4FC3F7); color: var(--navy-950); border-radius: var(--r-full); font-size: 0.75rem; font-weight: 700; margin-bottom: 1rem; }
+        .mobile-visual { display: flex; justify-content: center; align-items: center; }
+        .phone-mockup { position: relative; width: 280px; }
+        .phone-frame {
+            width: 260px; height: 520px; background: var(--navy-950); border-radius: 42px;
+            border: 8px solid #1a1a1a; box-shadow: 0 25px 80px rgba(0,0,0,0.35), inset 0 0 0 2px rgba(255,255,255,0.05);
+            position: relative; overflow: hidden;
+        }
+        .phone-notch {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            width: 100px; height: 28px; background: #000; border-radius: 14px;
+            z-index: 2;
+        }
+        .phone-screen {
+            width: 100%; height: 100%; background: linear-gradient(180deg, #0a1929 0%, #1a2332 100%);
+            display: flex; flex-direction: column; padding: 52px 1.25rem 1.25rem;
+        }
+        .app-header { text-align: center; padding: 1.5rem 0; }
+        .app-balance { font-family: var(--font-mono); font-size: 1.75rem; font-weight: 700; color: #fff; }
+        .app-card {
+            background: linear-gradient(135deg, #1D4ED8 0%, #1E3A8A 100%);
+            border-radius: var(--r-lg); padding: 1.25rem; margin-bottom: 1.25rem;
+            box-shadow: 0 8px 24px rgba(0,123,255,0.25); display: flex; flex-direction: column; gap: 0.5rem;
+        }
+        .app-card-label { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.4); }
+        .app-card-number { font-family: var(--font-mono); font-size: 1.0625rem; font-weight: 600; color: #fff; letter-spacing: 0.05em; }
+        .app-actions { display: flex; gap: 1rem; justify-content: center; }
+        .app-action { width: 48px; height: 48px; background: rgba(255,255,255,0.08); border-radius: var(--r-lg); }
 
         .lr { opacity: 0; transform: translateY(24px); transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1); }
         .lr.vis { opacity: 1; transform: translateY(0); }
@@ -302,8 +343,9 @@
         </div>
         <div class="navbar-actions">
             <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
-                <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5373 21.3065 11.4608 21.0672 11.8568C19.9289 13.7406 17.8615 15 15.5 15C11.9101 15 9 12.0899 9 8.5C9 6.13845 10.2594 4.07105 12.1432 2.93276C12.5392 2.69347 12.4627 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/></svg>
-                <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <span class="toggle-icon toggle-icon-sun">☀️</span>
+                <span class="toggle-slider"></span>
+                <span class="toggle-icon toggle-icon-moon">🌙</span>
             </button>
             <a href="{{ url_for('login') }}" class="btn btn-ghost" style="font-weight:600;font-size:0.875rem;">Sign In</a>
             <a href="{{ url_for('register') }}" class="btn btn-accent" style="font-size:0.875rem;padding:0.5rem 1.25rem;">Open Account</a>
@@ -436,6 +478,39 @@
         </div>
     </section>
 
+    <!-- Mobile App -->
+    <section class="mobile-app" id="mobile-app">
+        <div class="mobile-inner lr">
+            <div class="mobile-content">
+                <div class="section-badge">Mobile App</div>
+                <h2>Banking in Your Pocket</h2>
+                <p>Experience the future of mobile banking with our cutting-edge vulnerable android app. Access all your banking needs on-the-go. Transfer money, pay bills, and manage your finances with just a few taps. Security and convenience, redefined.</p>
+                <a href="https://github.com/Commando-X/vuln-bank-mobile" target="_blank" rel="noopener noreferrer" class="btn btn-accent btn-lg">Download App</a>
+            </div>
+            <div class="mobile-visual lr" style="transition-delay:0.2s;">
+                <div class="phone-mockup">
+                    <div class="phone-frame">
+                        <div class="phone-notch"></div>
+                        <div class="phone-screen">
+                            <div class="app-header">
+                                <span class="app-balance">$12,740.55</span>
+                            </div>
+                            <div class="app-card">
+                                <span class="app-card-label">Virtual Card</span>
+                                <span class="app-card-number">**** 3291</span>
+                            </div>
+                            <div class="app-actions">
+                                <div class="app-action"></div>
+                                <div class="app-action"></div>
+                                <div class="app-action"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- CTA -->
     <section class="cta" id="cta">
         <div class="cta-inner lr">
@@ -455,19 +530,27 @@
                 </div>
                 <p class="footer-brand-text">Modern banking for a modern world. Manage your money with confidence.</p>
             </div>
-            <div class="footer-col"><h4>Product</h4><a href="#features">Features</a><a href="#">Pricing</a><a href="/static/openapi.json" target="_blank">API Docs</a></div>
+            <div class="footer-col"><h4>Product</h4><a href="#features">Features</a><a href="#">Pricing</a><a href="/api/docs/" target="_blank">API Docs</a></div>
             <div class="footer-col"><h4>Company</h4><a href="#">About</a><a href="{{ url_for('careers') }}">Careers</a><a href="{{ url_for('blog') }}">Blog</a></div>
             <div class="footer-col"><h4>Legal</h4><a href="{{ url_for('privacy') }}">Privacy Policy</a><a href="{{ url_for('terms') }}">Terms of Service</a><a href="{{ url_for('compliance') }}">Compliance</a></div>
         </div>
         <div class="footer-bottom">
-            <span>&copy; 2026 VulnBank. All rights reserved.</span>
-            <div style="display:flex;gap:0.75rem;">
-                <a href="https://github.com/commando-x/vuln-bank" target="_blank" rel="noopener noreferrer" aria-label="GitHub" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);border-radius:var(--r-full);color:rgba(255,255,255,0.4);transition:all var(--dur-fast) ease;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            <div style="display:flex;flex-direction:column;gap:0.5rem;">
+                <span style="font-size:0.8125rem;color:rgba(255,255,255,0.5);">Vulnerable Bank | Made for Security Engineers to practice Application Security</span>
+                <span style="font-size:0.75rem;color:rgba(255,255,255,0.4);">&copy; 2026 VulnBank. All rights reserved.</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+                <span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">Connect with Al-Amir Badmus:</span>
+                <a href="https://www.linkedin.com/in/badmus-al-amir/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);border-radius:var(--r-full);color:rgba(255,255,255,0.4);transition:all var(--dur-fast) ease;">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"></path></svg>
+                </a>
+                <a href="https://x.com/commando_skiipz" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);border-radius:var(--r-full);color:rgba(255,255,255,0.4);transition:all var(--dur-fast) ease;">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"></path></svg>
+                </a>
+                <a href="https://github.com/Commando-X" target="_blank" rel="noopener noreferrer" aria-label="GitHub" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);border-radius:var(--r-full);color:rgba(255,255,255,0.4);transition:all var(--dur-fast) ease;">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg>
                 </a>
             </div>
-        </div>
-    </footer>
 
     <script>
         window.addEventListener('scroll', () => { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20); });
