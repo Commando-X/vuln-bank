@@ -647,6 +647,32 @@ def upload_profile_picture_url(current_user):
             'message': str(e)
         }), 500
 
+# Update user bio (Stored XSS vulnerability - no input sanitization)
+@app.route('/update_bio', methods=['POST'])
+@token_required
+def update_bio(current_user):
+    try:
+        data = request.get_json() or {}
+        bio = data.get('bio', '')
+
+        # Store bio without ANY sanitization - Stored XSS vulnerability
+        execute_query(
+            "UPDATE users SET bio = %s WHERE id = %s",
+            (bio, current_user['user_id']),
+            fetch=False
+        )
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Bio updated successfully',
+            'bio': bio  # Echo back the unsanitized input
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 # INTERNAL-ONLY ENDPOINTS FOR SSRF DEMO (INTENTIONALLY SENSITIVE)
 def _is_loopback_request():
     try:

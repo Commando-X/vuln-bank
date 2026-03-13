@@ -44,6 +44,26 @@ body { background: var(--bg); }
 .admin-section table button { padding: 0.375rem 0.875rem; font-size: 0.75rem; }
 .admin-section form { max-width: 480px; margin: 0 auto; }
 
+.admin-search input {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.625rem 0.875rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: 0.9375rem;
+  color: var(--text-1);
+  transition: border-color var(--dur-fast) ease;
+}
+.admin-search input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+.admin-search input::placeholder {
+  color: var(--text-4);
+}
+
+
 .delete-account-form { display: inline; }
 .delete-account-form button { background: var(--red); color: #fff; }
 .delete-account-form button:hover { background: #DC2626; }

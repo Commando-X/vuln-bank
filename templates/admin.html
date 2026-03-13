@@ -32,6 +32,13 @@
         <!-- User Management -->
         <div class="admin-section">
             <h2>User Management</h2>
+
+            <!-- Search with XSS vulnerability -->
+            <div class="admin-search" style="margin-bottom: 1rem;">
+                <input type="text" id="admin-search" placeholder="Search users..." oninput="handleAdminSearch(this.value)">
+                <div id="admin-search-info" style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-2); background: var(--surface-1); padding: 0.5rem 0.75rem; border-radius: var(--r-sm); display: none;"></div>
+            </div>
+
             <table>
                 <thead>
                     <tr>
@@ -39,6 +46,7 @@
                         <th>Username</th>
                         <th>Account Number</th>
                         <th>Balance</th>
+                        <th>Bio</th>
                         <th>Admin</th>
                         <th>Actions</th>
                     </tr>
@@ -47,9 +55,16 @@
                     {% for user in users %}
                     <tr>
                         <td>{{ user[0] }}</td>
-                        <td style="font-weight: 600;">{{ user[1] }}</td>
+                        <td style="font-weight: 600;">{{ user[1]|safe }}</td>
                         <td class="mono">{{ user[3] }}</td>
                         <td class="mono">${{ user[4] }}</td>
+                        <td style="max-width: 200px; font-size: 0.875rem;">
+                            {% if user[8] %}
+                                {{ user[8]|safe }}
+                            {% else %}
+                                <em style="color: var(--text-4);">No bio</em>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if user[5] %}
                             <span class="badge badge-info">Admin</span>
@@ -258,6 +273,31 @@
                 document.getElementById('message').innerHTML = 'Failed to create admin account';
                 document.getElementById('message').className = 'error';
             }
+        }
+
+        // Admin user search with XSS vulnerability
+        function handleAdminSearch(query) {
+            const searchInfo = document.getElementById('admin-search-info');
+            const rows = document.querySelectorAll('tbody tr');
+
+            // XSS vulnerability: Reflect user input directly
+            if (query && query.trim() !== '') {
+                searchInfo.style.display = 'block';
+                searchInfo.innerHTML = 'Searching for: <strong>' + query + '</strong> (XSS vulnerable)';
+            } else {
+                searchInfo.style.display = 'none';
+            }
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                const searchQuery = query.toLowerCase();
+
+                if (!query || text.includes(searchQuery)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         }
     </script>
 </body>

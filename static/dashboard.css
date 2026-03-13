@@ -326,8 +326,11 @@
    ================================================ */
 .modal {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
-  display: none; justify-content: center; align-items: center; z-index: 2000;
+  display: none; justify-content: center; align-items: center; z-index: 100000;
   padding: 1.5rem;
+}
+.modal.visible {
+  display: flex;
 }
 .modal-content {
   background: var(--surface); border-radius: var(--r-xl); width: 100%; max-width: 480px;
@@ -335,6 +338,7 @@
   box-shadow: var(--shadow-xl); animation: modalIn var(--dur-mid) var(--ease);
   border: 1px solid var(--border);
   margin: auto;
+  position: relative;
 }
 @keyframes modalIn { from { opacity:0; transform:scale(0.96) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
 .modal-header {
@@ -351,6 +355,12 @@
 .modal-footer {
   display: flex; justify-content: flex-end; gap: 0.75rem;
   margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);
+}
+
+/* Ensure modals always appear on top */
+.modal,
+.modal.visible {
+  isolation: isolate;
 }
 
 /* ================================================
