@@ -12,6 +12,7 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 from database import init_connection_pool, init_db, execute_query, execute_transaction
 from ai_agent_deepseek import ai_agent
+from transaction_graphql import transaction_graphql_schema
 import time
 from functools import wraps
 from collections import defaultdict
@@ -186,6 +187,63 @@ def generate_cvv():
     """Generate a 3-digit CVV"""
     # Vulnerability: Predictable CVV generation
     return ''.join(random.choices(string.digits, k=3))
+
+@app.route('/graphql', methods=['GET'])
+def graphql_info():
+    return jsonify({
+        'message': 'Send authenticated POST requests to /graphql to query transaction analytics.',
+        'introspection': 'disabled',
+        'examples': [
+            'graphql/transaction-summary.graphql',
+            'graphql/admin-transaction-overview.graphql'
+        ]
+    })
+
+@app.route('/graphql', methods=['POST'])
+@token_required
+def graphql_endpoint(current_user):
+    payload = request.get_json(silent=True) or {}
+    query = payload.get('query', '')
+    variables = payload.get('variables') or {}
+    operation_name = payload.get('operationName')
+
+    if not query:
+        return jsonify({
+            'errors': [{
+                'message': 'A GraphQL query is required.'
+            }]
+        }), 400
+
+    if '__schema' in query or '__type' in query:
+        return jsonify({
+            'errors': [{
+                'message': 'Schema introspection is disabled on this endpoint.'
+            }]
+        }), 403
+
+    result = transaction_graphql_schema.execute(
+        query,
+        variable_values=variables,
+        operation_name=operation_name,
+        context_value={'current_user': current_user}
+    )
+
+    response = {}
+    status_code = 200
+
+    if result.errors:
+        response['errors'] = []
+        for error in result.errors:
+            formatted_error = {'message': str(error)}
+            if getattr(error, 'path', None):
+                formatted_error['path'] = error.path
+            response['errors'].append(formatted_error)
+        status_code = 400
+
+    if result.data is not None:
+        response['data'] = result.data
+
+    return jsonify(response), status_code
 
 @app.route('/')
 def index():

@@ -29,6 +29,53 @@
             <h2>System Administrator</h2>
         </div>
 
+        <div class="admin-section">
+            <div class="admin-section-head">
+                <h2>Transaction Analytics</h2>
+            </div>
+            <p class="graphql-intro">
+                Live aggregate metrics for platform transactions, including volume, inflow, outflow, and recent money movement.
+            </p>
+
+            <div class="graphql-metrics">
+                <div class="graphql-metric-card metric-transactions">
+                    <span>Total Transactions</span>
+                    <strong id="graphql-total-transactions">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-volume">
+                    <span>Total Volume</span>
+                    <strong id="graphql-total-volume">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-inflow">
+                    <span>Inflow</span>
+                    <strong id="graphql-inflow">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-outflow">
+                    <span>Outflow</span>
+                    <strong id="graphql-outflow">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-netflow">
+                    <span>Net Flow</span>
+                    <strong id="graphql-net-flow">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-largest">
+                    <span>Largest Transaction</span>
+                    <strong id="graphql-largest-transaction">--</strong>
+                </div>
+            </div>
+
+            <div class="graphql-panels">
+                <div class="graphql-panel">
+                    <div class="graphql-panel-title">Type Breakdown</div>
+                    <div id="graphql-breakdown" class="graphql-list graphql-loading">Loading analytics...</div>
+                </div>
+                <div class="graphql-panel">
+                    <div class="graphql-panel-title">Recent Activity</div>
+                    <div id="graphql-recent-transactions" class="graphql-list graphql-loading">Loading recent transactions...</div>
+                </div>
+            </div>
+        </div>
+
         <!-- User Management -->
         <div class="admin-section">
             <h2>User Management</h2>
@@ -191,6 +238,7 @@
             });
 
             document.getElementById('createAdminForm').addEventListener('submit', handleCreateAdmin);
+            fetchGraphqlTransactionSummary();
         });
 
         async function handleDeleteAccount(event) {
@@ -273,6 +321,140 @@
                 document.getElementById('message').innerHTML = 'Failed to create admin account';
                 document.getElementById('message').className = 'error';
             }
+        }
+
+        async function fetchGraphqlTransactionSummary() {
+            const query = `
+                query AdminTransactionOverview($limit: Int!) {
+                    transactionSummary(limit: $limit) {
+                        scope
+                        accountNumber
+                        totalTransactions
+                        totalVolume
+                        inflowTotal
+                        outflowTotal
+                        netFlow
+                        largestTransaction
+                        byType {
+                            transactionType
+                            count
+                            totalAmount
+                        }
+                        recentTransactions {
+                            id
+                            fromAccount
+                            fromUsername
+                            toAccount
+                            toUsername
+                            amount
+                            transactionType
+                            timestamp
+                            description
+                        }
+                    }
+                }
+            `;
+
+            try {
+                const response = await fetch('/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query,
+                        variables: { limit: 6 }
+                    })
+                });
+
+                const payload = await response.json();
+                if (!response.ok || payload.errors) {
+                    const message = payload.errors && payload.errors.length
+                        ? payload.errors[0].message
+                        : 'Unable to load transaction analytics.';
+                    throw new Error(message);
+                }
+
+                renderGraphqlSummary(payload.data.transactionSummary);
+            } catch (error) {
+                document.getElementById('graphql-breakdown').innerHTML = `
+                    <div class="graphql-empty">Failed to load analytics: ${escapeHtml(error.message)}</div>
+                `;
+                document.getElementById('graphql-recent-transactions').innerHTML = `
+                    <div class="graphql-empty">Try again after creating a few transfers.</div>
+                `;
+            }
+        }
+
+        function renderGraphqlSummary(summary) {
+            if (!summary) {
+                return;
+            }
+
+            document.getElementById('graphql-total-transactions').textContent = summary.totalTransactions ?? '--';
+            document.getElementById('graphql-total-volume').textContent = formatCurrency(summary.totalVolume);
+            document.getElementById('graphql-inflow').textContent = formatCurrency(summary.inflowTotal);
+            document.getElementById('graphql-outflow').textContent = formatCurrency(summary.outflowTotal);
+            document.getElementById('graphql-net-flow').textContent = formatCurrency(summary.netFlow);
+            document.getElementById('graphql-largest-transaction').textContent = formatCurrency(summary.largestTransaction);
+
+            const breakdownContainer = document.getElementById('graphql-breakdown');
+            if (!summary.byType || summary.byType.length === 0) {
+                breakdownContainer.innerHTML = '<div class="graphql-empty">No transactions available yet.</div>';
+            } else {
+                breakdownContainer.innerHTML = summary.byType.map(item => `
+                    <div class="graphql-list-item">
+                        <div>
+                            <strong>${escapeHtml(item.transactionType || 'unknown')}</strong>
+                            <div class="graphql-subtle">${item.count} recorded transaction(s)</div>
+                        </div>
+                        <span class="badge badge-neutral">${formatCurrency(item.totalAmount)}</span>
+                    </div>
+                `).join('');
+            }
+
+            const recentContainer = document.getElementById('graphql-recent-transactions');
+            if (!summary.recentTransactions || summary.recentTransactions.length === 0) {
+                recentContainer.innerHTML = '<div class="graphql-empty">Recent transactions will appear here.</div>';
+            } else {
+                recentContainer.innerHTML = summary.recentTransactions.map(item => `
+                    <div class="graphql-list-item">
+                        <div>
+                            <strong>${escapeHtml(item.transactionType || 'transfer')}</strong>
+                            <div class="graphql-subtle">${formatAccountIdentity(item.fromUsername, item.fromAccount)} → ${formatAccountIdentity(item.toUsername, item.toAccount)}</div>
+                            <div class="graphql-subtle">${escapeHtml(item.timestamp)}</div>
+                        </div>
+                        <span class="badge badge-info">${formatCurrency(item.amount)}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function formatCurrency(value) {
+            const numericValue = Number(value || 0);
+            return '$' + numericValue.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatAccountIdentity(username, accountNumber) {
+            const safeAccount = escapeHtml(accountNumber || 'Unknown account');
+            if (!username) {
+                return safeAccount;
+            }
+
+            return `${escapeHtml(username)} (${safeAccount})`;
         }
 
         // Admin user search with XSS vulnerability

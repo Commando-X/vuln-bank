@@ -1,0 +1,26 @@
+query MyTransactionSummary($limit: Int!) {
+  transactionSummary(limit: $limit) {
+    scope
+    accountNumber
+    totalTransactions
+    totalVolume
+    inflowTotal
+    outflowTotal
+    netFlow
+    largestTransaction
+    byType {
+      transactionType
+      count
+      totalAmount
+    }
+    recentTransactions {
+      id
+      fromAccount
+      toAccount
+      amount
+      transactionType
+      timestamp
+      description
+    }
+  }
+}

@@ -1,0 +1,26 @@
+query AdminTransactionOverview($limit: Int!, $accountNumber: String) {
+  transactionSummary(limit: $limit, accountNumber: $accountNumber) {
+    scope
+    accountNumber
+    totalTransactions
+    totalVolume
+    inflowTotal
+    outflowTotal
+    netFlow
+    largestTransaction
+    byType {
+      transactionType
+      count
+      totalAmount
+    }
+    recentTransactions {
+      id
+      fromAccount
+      toAccount
+      amount
+      transactionType
+      timestamp
+      description
+    }
+  }
+}

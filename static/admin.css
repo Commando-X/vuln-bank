@@ -40,9 +40,123 @@ body { background: var(--bg); }
   color: var(--text-1); margin-bottom: 1rem; padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border);
 }
+.admin-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.admin-section-head h2 {
+  margin-bottom: 0;
+  flex: 1;
+}
 .admin-section table { border-radius: var(--r-md); overflow: hidden; }
 .admin-section table button { padding: 0.375rem 0.875rem; font-size: 0.75rem; }
 .admin-section form { max-width: 480px; margin: 0 auto; }
+
+.graphql-intro {
+  margin: 0 0 1.25rem;
+  color: var(--text-3);
+}
+
+.graphql-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.graphql-metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.graphql-metric-card span {
+  display: block;
+  color: var(--text-3);
+  font-size: 0.8125rem;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.graphql-metric-card strong {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-1);
+}
+
+.metric-transactions strong { color: #1d4ed8; }
+.metric-volume strong { color: #6d28d9; }
+.metric-inflow strong { color: #047857; }
+.metric-outflow strong { color: #c2410c; }
+.metric-netflow strong { color: #15803d; }
+.metric-largest strong { color: #be123c; }
+
+.graphql-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.graphql-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.graphql-panel-title {
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 0.75rem;
+}
+
+.graphql-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.graphql-list-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  border-left: 5px solid #2563eb;
+  box-shadow: var(--shadow-sm);
+}
+
+#graphql-breakdown .graphql-list-item:nth-child(2n) { border-left-color: #7c3aed; }
+#graphql-breakdown .graphql-list-item:nth-child(3n) { border-left-color: #db2777; }
+#graphql-breakdown .graphql-list-item:nth-child(4n) { border-left-color: #ea580c; }
+#graphql-recent-transactions .graphql-list-item:nth-child(2n) { border-left-color: #059669; }
+#graphql-recent-transactions .graphql-list-item:nth-child(3n) { border-left-color: #dc2626; }
+#graphql-recent-transactions .graphql-list-item:nth-child(4n) { border-left-color: #0891b2; }
+
+.graphql-subtle {
+  color: var(--text-3);
+  font-size: 0.8125rem;
+  margin-top: 0.2rem;
+}
+
+.graphql-empty,
+.graphql-loading {
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px dashed rgba(37, 99, 235, 0.35);
+  border-radius: var(--r-sm);
+  padding: 1rem;
+}
 
 .admin-search input {
   width: 100%;
@@ -76,4 +190,6 @@ body { background: var(--bg); }
   .admin-header { padding: 1.5rem; }
   .admin-title { font-size: 1.375rem; }
   .admin-section table { display: block; overflow-x: auto; }
+  .admin-section-head { flex-direction: column; align-items: flex-start; }
+  .graphql-list-item { flex-direction: column; }
 }
