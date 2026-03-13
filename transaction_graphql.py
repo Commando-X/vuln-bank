@@ -31,14 +31,18 @@ class TransactionSummaryType(graphene.ObjectType):
     outflow_total = graphene.Float()
     net_flow = graphene.Float()
     largest_transaction = graphene.Float()
+    total_loans_given = graphene.Float()
+    pending_loans_count = graphene.Int()
+    pending_loans_total = graphene.Float()
+    bill_payment_total = graphene.Float()
+    bill_payments_count = graphene.Int()
     by_type = graphene.List(TransactionTypeAggregate)
     recent_transactions = graphene.List(TransactionRecordType)
 
 
 def _load_user_actor(user_id):
     rows = execute_query(
-        "SELECT id, username, account_number, is_admin FROM users WHERE id = %s",
-        (user_id,)
+        f"SELECT id, username, account_number, is_admin FROM users WHERE id = {user_id}"
     )
 
     if not rows:
@@ -56,13 +60,32 @@ def _load_user_actor(user_id):
 def _resolve_scope(actor, requested_account_number):
     if requested_account_number:
         if actor['is_admin'] or requested_account_number == actor['account_number']:
-            return requested_account_number, 'account'
+            scoped_actor = _load_actor_by_account_number(requested_account_number)
+            if not scoped_actor:
+                raise GraphQLError('Account not found.')
+            return scoped_actor['account_number'], 'account', scoped_actor['id']
         raise GraphQLError('You can only query your own transaction summary.')
 
     if actor['is_admin']:
-        return None, 'global'
+        return None, 'global', None
 
-    return actor['account_number'], 'account'
+    return actor['account_number'], 'account', actor['id']
+
+
+def _load_actor_by_account_number(account_number):
+    rows = execute_query(
+        f"SELECT id, username, account_number, is_admin FROM users WHERE account_number = '{account_number}'"
+    )
+    if not rows:
+        return None
+
+    actor = rows[0]
+    return {
+        'id': actor[0],
+        'username': actor[1],
+        'account_number': actor[2],
+        'is_admin': bool(actor[3])
+    }
 
 
 def _load_transactions(scoped_account_number):
@@ -77,27 +100,64 @@ def _load_transactions(scoped_account_number):
             description
         FROM transactions
     """
-    params = None
 
     if scoped_account_number:
-        query += " WHERE from_account = %s OR to_account = %s"
-        params = (scoped_account_number, scoped_account_number)
+        query += f" WHERE from_account = '{scoped_account_number}' OR to_account = '{scoped_account_number}'"
 
     query += " ORDER BY timestamp DESC"
-    return execute_query(query, params)
+    return execute_query(query)
 
 
 def _load_account_name_map():
     users = execute_query("SELECT account_number, username FROM users")
-    return {
+    billers = execute_query("SELECT account_number, name FROM billers")
+
+    account_name_map = {
         user[0]: user[1]
         for user in users
     }
+    for biller in billers:
+        account_name_map.setdefault(biller[0], biller[1])
+
+    return account_name_map
 
 
-def _build_transaction_summary(rows, scoped_account_number, scope, limit):
+def _load_lending_and_bill_metrics(scoped_user_id):
+    loan_query = """
+        SELECT
+            COALESCE(SUM(CASE WHEN status = 'approved' THEN amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0)
+        FROM loans
+    """
+    bill_query = """
+        SELECT
+            COALESCE(SUM(bp.amount), 0),
+            COALESCE(COUNT(*), 0)
+        FROM bill_payments bp
+        WHERE 1 = 1
+    """
+
+    if scoped_user_id is not None:
+        loan_query += f" WHERE user_id = {scoped_user_id}"
+        bill_query += f" AND bp.user_id = {scoped_user_id}"
+
+    loan_metrics = execute_query(loan_query)[0]
+    bill_metrics = execute_query(bill_query)[0]
+
+    return {
+        'total_loans_given': round(float(loan_metrics[0] or 0), 2),
+        'pending_loans_total': round(float(loan_metrics[1] or 0), 2),
+        'pending_loans_count': int(loan_metrics[2] or 0),
+        'bill_payment_total': round(float(bill_metrics[0] or 0), 2),
+        'bill_payments_count': int(bill_metrics[1] or 0)
+    }
+
+
+def _build_transaction_summary(rows, scoped_account_number, scope, scoped_user_id, limit):
     safe_limit = min(max(limit or 5, 1), 15)
     account_name_map = _load_account_name_map()
+    finance_metrics = _load_lending_and_bill_metrics(scoped_user_id)
     inflow_total = 0.0
     outflow_total = 0.0
     total_volume = 0.0
@@ -161,6 +221,11 @@ def _build_transaction_summary(rows, scoped_account_number, scope, limit):
         'outflow_total': round(outflow_total, 2),
         'net_flow': round(inflow_total - outflow_total, 2),
         'largest_transaction': round(largest_transaction, 2),
+        'total_loans_given': finance_metrics['total_loans_given'],
+        'pending_loans_count': finance_metrics['pending_loans_count'],
+        'pending_loans_total': finance_metrics['pending_loans_total'],
+        'bill_payment_total': finance_metrics['bill_payment_total'],
+        'bill_payments_count': finance_metrics['bill_payments_count'],
         'by_type': ordered_breakdown,
         'recent_transactions': recent_transactions
     }
@@ -179,9 +244,9 @@ class Query(graphene.ObjectType):
             raise GraphQLError('Authentication required.')
 
         actor = _load_user_actor(current_user['user_id'])
-        scoped_account_number, scope = _resolve_scope(actor, account_number)
+        scoped_account_number, scope, scoped_user_id = _resolve_scope(actor, account_number)
         rows = _load_transactions(scoped_account_number)
-        return _build_transaction_summary(rows, scoped_account_number, scope, limit)
+        return _build_transaction_summary(rows, scoped_account_number, scope, scoped_user_id, limit)
 
 
 transaction_graphql_schema = graphene.Schema(query=Query)

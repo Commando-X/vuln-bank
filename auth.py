@@ -109,6 +109,7 @@ def init_auth_routes(app):
     @app.route('/api/login', methods=['POST'])
     def api_login():
         auth = request.get_json()
+        suspension_message = 'Your account has been suspended, contact support or walk in to any of our branch to resolve the issue'
         
         if not auth or not auth.get('username') or not auth.get('password'):
             return jsonify({'error': 'Missing credentials'}), 401
@@ -123,6 +124,9 @@ def init_auth_routes(app):
         
         if not user:
             return jsonify({'error': 'Invalid credentials'}), 401
+
+        if len(user) > 9 and user[9]:
+            return jsonify({'error': suspension_message}), 403
             
         # Generate token
         token = generate_token(user[0], user[1], user[5])

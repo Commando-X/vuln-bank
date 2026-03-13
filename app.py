@@ -192,7 +192,7 @@ def generate_cvv():
 def graphql_info():
     return jsonify({
         'message': 'Send authenticated POST requests to /graphql to query transaction analytics.',
-        'introspection': 'disabled',
+        'introspection': 'enabled',
         'examples': [
             'graphql/transaction-summary.graphql',
             'graphql/admin-transaction-overview.graphql'
@@ -213,13 +213,6 @@ def graphql_endpoint(current_user):
                 'message': 'A GraphQL query is required.'
             }]
         }), 400
-
-    if '__schema' in query or '__type' in query:
-        return jsonify({
-            'errors': [{
-                'message': 'Schema introspection is disabled on this endpoint.'
-            }]
-        }), 403
 
     result = transaction_graphql_schema.execute(
         query,
@@ -356,6 +349,7 @@ def login():
             data = request.get_json()
             username = data.get('username')
             password = data.get('password')
+            suspension_message = 'Your account has been suspended, contact support or walk in to any of our branch to resolve the issue'
             
             print(f"Login attempt - Username: {username}")  # Debug print
             
@@ -369,6 +363,12 @@ def login():
             if user and len(user) > 0:
                 user = user[0]  # Get first row
                 print(f"Debug - Found user: {user}")  # Debug print
+
+                if len(user) > 9 and user[9]:
+                    return jsonify({
+                        'status': 'error',
+                        'message': suspension_message
+                    }), 403
                 
                 # Generate JWT token instead of using session
                 token = generate_token(user[0], user[1], user[5])
@@ -1033,6 +1033,57 @@ def delete_account(current_user, user_id):
         
     except Exception as e:
         print(f"Delete account error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/admin/toggle_suspension/<int:user_id>', methods=['POST'])
+@token_required
+def toggle_account_suspension(current_user, user_id):
+    if not current_user.get('is_admin'):
+        return jsonify({'error': 'Access Denied'}), 403
+
+    try:
+        if user_id == current_user.get('user_id'):
+            return jsonify({
+                'status': 'error',
+                'message': 'You cannot suspend your own account'
+            }), 400
+
+        user = execute_query(
+            "SELECT id, username, is_suspended, is_admin FROM users WHERE id = %s",
+            (user_id,)
+        )
+
+        if not user:
+            return jsonify({
+                'status': 'error',
+                'message': 'User not found'
+            }), 404
+
+        user = user[0]
+        new_status = not bool(user[2])
+
+        execute_query(
+            "UPDATE users SET is_suspended = %s WHERE id = %s",
+            (new_status, user_id),
+            fetch=False
+        )
+
+        return jsonify({
+            'status': 'success',
+            'message': f"Account {'suspended' if new_status else 'unsuspended'} successfully",
+            'user': {
+                'id': user_id,
+                'username': user[1],
+                'is_suspended': new_status,
+                'role': 'Admin' if user[3] else 'User'
+            }
+        })
+
+    except Exception as e:
+        print(f"Toggle suspension error: {str(e)}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -1789,6 +1840,38 @@ def create_bill_payment(current_user):
         amount = float(data.get('amount'))
         payment_method = data.get('payment_method')
         card_id = data.get('card_id') if payment_method == 'virtual_card' else None
+
+        payer_query = f"""
+            SELECT id, username, account_number, balance
+            FROM users
+            WHERE id = {current_user['user_id']}
+        """
+        payer = execute_query(payer_query)
+
+        biller_query = f"""
+            SELECT
+                b.account_number,
+                b.name,
+                bc.name
+            FROM billers b
+            JOIN bill_categories bc ON b.category_id = bc.id
+            WHERE b.id = {biller_id}
+        """
+        biller = execute_query(biller_query)
+
+        if not payer or not biller:
+            return jsonify({
+                'status': 'error',
+                'message': 'Biller or user account not found'
+            }), 404
+
+        payer = payer[0]
+        biller = biller[0]
+        payer_account_number = payer[2]
+        payer_balance = float(payer[3])
+        biller_account_number = biller[0]
+        biller_name = biller[1]
+        category_name = biller[2]
         
         # Vulnerability: No input validation
         # Vulnerability: No amount validation
@@ -1819,13 +1902,7 @@ def create_bill_payment(current_user):
         elif payment_method == 'balance':
             # Check user balance
             # Vulnerability: Race condition possible
-            user_query = f"""
-                SELECT balance FROM users
-                WHERE id = {current_user['user_id']}
-            """
-            user_balance = float(execute_query(user_query)[0][0])
-            
-            if amount > user_balance:
+            if amount > payer_balance:
                 return jsonify({
                     'status': 'error',
                     'message': 'Insufficient balance'
@@ -1854,6 +1931,23 @@ def create_bill_payment(current_user):
             data.get('description', 'Bill Payment')
         )
         queries.append((payment_query, payment_values))
+
+        transaction_query = """
+            INSERT INTO transactions
+            (from_account, to_account, amount, transaction_type, description)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        transaction_description = data.get('description') or f"{category_name} payment to {biller_name}"
+        queries.append((
+            transaction_query,
+            (
+                payer_account_number,
+                biller_account_number,
+                amount,
+                category_name,
+                transaction_description
+            )
+        ))
         
         # Update balance based on payment method
         if payment_method == 'virtual_card':

@@ -34,7 +34,7 @@
                 <h2>Transaction Analytics</h2>
             </div>
             <p class="graphql-intro">
-                Live aggregate metrics for platform transactions, including volume, inflow, outflow, and recent money movement.
+                Live aggregate metrics for platform transactions, lending activity, bill payments, and recent money movement.
             </p>
 
             <div class="graphql-metrics">
@@ -62,6 +62,20 @@
                     <span>Largest Transaction</span>
                     <strong id="graphql-largest-transaction">--</strong>
                 </div>
+                <div class="graphql-metric-card metric-loans">
+                    <span>Total Loans Given</span>
+                    <strong id="graphql-total-loans-given">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-pending">
+                    <span>Pending Loans</span>
+                    <strong id="graphql-pending-loans">--</strong>
+                    <div class="graphql-metric-meta" id="graphql-pending-loans-meta">--</div>
+                </div>
+                <div class="graphql-metric-card metric-bills">
+                    <span>Bill Payments</span>
+                    <strong id="graphql-bill-payments">--</strong>
+                    <div class="graphql-metric-meta" id="graphql-bill-payments-meta">--</div>
+                </div>
             </div>
 
             <div class="graphql-panels">
@@ -83,18 +97,17 @@
             <!-- Search with XSS vulnerability -->
             <div class="admin-search" style="margin-bottom: 1rem;">
                 <input type="text" id="admin-search" placeholder="Search users..." oninput="handleAdminSearch(this.value)">
-                <div id="admin-search-info" style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-2); background: var(--surface-1); padding: 0.5rem 0.75rem; border-radius: var(--r-sm); display: none;"></div>
+                <div id="admin-search-info" style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-2); background: var(--surface-2); padding: 0.5rem 0.75rem; border-radius: var(--r-sm); display: none;"></div>
             </div>
 
-            <table>
+            <table id="user-management-table">
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>Username</th>
                         <th>Account Number</th>
                         <th>Balance</th>
-                        <th>Bio</th>
-                        <th>Admin</th>
+                        <th>Role</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -106,23 +119,34 @@
                         <td class="mono">{{ user[3] }}</td>
                         <td class="mono">${{ user[4] }}</td>
                         <td style="max-width: 200px; font-size: 0.875rem;">
-                            {% if user[8] %}
-                                {{ user[8]|safe }}
-                            {% else %}
-                                <em style="color: var(--text-4);">No bio</em>
-                            {% endif %}
+                            <div class="role-stack">
+                                {% if user[5] %}
+                                <span class="badge badge-info">Admin</span>
+                                {% else %}
+                                <span class="badge badge-neutral">User</span>
+                                {% endif %}
+                                {% if user[9] %}
+                                <span class="badge badge-warning suspended-badge">Suspended</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td>
-                            {% if user[5] %}
-                            <span class="badge badge-info">Admin</span>
-                            {% else %}
-                            <span class="badge badge-neutral">User</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <form class="delete-account-form" data-user-id="{{ user[0] }}">
-                                <button type="submit" class="btn-danger btn-sm">Delete</button>
-                            </form>
+                            <details class="action-menu"
+                                data-user-id="{{ user[0] }}"
+                                data-username="{{ user[1]|e }}"
+                                data-account-number="{{ user[3] }}"
+                                data-balance="{{ user[4] }}"
+                                data-role="{{ 'Admin' if user[5] else 'User' }}"
+                                data-suspended="{{ 'true' if user[9] else 'false' }}">
+                                <summary class="action-menu-trigger">Actions</summary>
+                                <div class="action-menu-dropdown">
+                                    <button type="button" class="action-option" data-action="view">View</button>
+                                    <button type="button" class="action-option" data-action="toggle-suspension">
+                                        {{ 'Unsuspend' if user[9] else 'Suspend' }}
+                                    </button>
+                                    <button type="button" class="action-option danger" data-action="delete">Delete</button>
+                                </div>
+                            </details>
                         </td>
                     </tr>
                     {% endfor %}
@@ -220,6 +244,16 @@
         </div>
     </div>
 
+    <div id="userDetailsModal" class="admin-modal" aria-hidden="true">
+        <div class="admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="user-details-title">
+            <div class="admin-modal-header">
+                <h3 id="user-details-title">User Details</h3>
+                <button type="button" class="admin-modal-close" onclick="closeUserDetailsModal()" aria-label="Close">&times;</button>
+            </div>
+            <div id="userDetailsContent" class="admin-modal-body"></div>
+        </div>
+    </div>
+
     <script>
         // Vulnerability: Token stored in localStorage
         document.addEventListener('DOMContentLoaded', function() {
@@ -229,8 +263,16 @@
                 return;
             }
 
-            document.querySelectorAll('.delete-account-form').forEach(form => {
-                form.addEventListener('submit', handleDeleteAccount);
+            document.querySelectorAll('.action-menu').forEach(menu => {
+                menu.addEventListener('toggle', () => {
+                    if (menu.hasAttribute('open')) {
+                        closeActionMenus(menu);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.action-option').forEach(button => {
+                button.addEventListener('click', handleAdminAction);
             });
 
             document.querySelectorAll('.approve-loan-form').forEach(form => {
@@ -241,9 +283,37 @@
             fetchGraphqlTransactionSummary();
         });
 
-        async function handleDeleteAccount(event) {
+        function closeActionMenus(exceptMenu = null) {
+            document.querySelectorAll('.action-menu[open]').forEach(menu => {
+                if (menu !== exceptMenu) {
+                    menu.removeAttribute('open');
+                }
+            });
+        }
+
+        async function handleAdminAction(event) {
             event.preventDefault();
-            const userId = event.target.getAttribute('data-user-id');
+            const action = event.currentTarget.getAttribute('data-action');
+            const menu = event.currentTarget.closest('.action-menu');
+            menu.removeAttribute('open');
+
+            if (action === 'view') {
+                openUserDetailsModal(menu);
+                return;
+            }
+
+            if (action === 'toggle-suspension') {
+                await handleToggleSuspension(menu);
+                return;
+            }
+
+            if (action === 'delete') {
+                await handleDeleteAccount(menu);
+            }
+        }
+
+        async function handleDeleteAccount(menu) {
+            const userId = menu.getAttribute('data-user-id');
             try {
                 const response = await fetch(`/admin/delete_account/${userId}`, {
                     method: 'POST',
@@ -256,7 +326,7 @@
                 if (data.status === 'success') {
                     document.getElementById('message').innerHTML = 'Account deleted successfully!';
                     document.getElementById('message').className = 'success';
-                    event.target.closest('tr').remove();
+                    menu.closest('tr').remove();
                 } else {
                     document.getElementById('message').innerHTML = data.message;
                     document.getElementById('message').className = 'error';
@@ -266,6 +336,113 @@
                 document.getElementById('message').className = 'error';
             }
         }
+
+        async function handleToggleSuspension(menu) {
+            const userId = menu.getAttribute('data-user-id');
+            try {
+                const response = await fetch(`/admin/toggle_suspension/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    document.getElementById('message').innerHTML = data.message;
+                    document.getElementById('message').className = 'success';
+                    updateSuspensionState(menu, data.user.is_suspended);
+                } else {
+                    document.getElementById('message').innerHTML = data.message;
+                    document.getElementById('message').className = 'error';
+                }
+            } catch (error) {
+                document.getElementById('message').innerHTML = 'Failed to update suspension status.';
+                document.getElementById('message').className = 'error';
+            }
+        }
+
+        function updateSuspensionState(menu, isSuspended) {
+            menu.setAttribute('data-suspended', isSuspended ? 'true' : 'false');
+            const toggleButton = menu.querySelector('[data-action="toggle-suspension"]');
+            toggleButton.textContent = isSuspended ? 'Unsuspend' : 'Suspend';
+
+            const roleStack = menu.closest('tr').querySelector('.role-stack');
+            let suspendedBadge = roleStack.querySelector('.suspended-badge');
+
+            if (isSuspended && !suspendedBadge) {
+                suspendedBadge = document.createElement('span');
+                suspendedBadge.className = 'badge badge-warning suspended-badge';
+                suspendedBadge.textContent = 'Suspended';
+                roleStack.appendChild(suspendedBadge);
+            }
+
+            if (!isSuspended && suspendedBadge) {
+                suspendedBadge.remove();
+            }
+        }
+
+        function openUserDetailsModal(menu) {
+            const modal = document.getElementById('userDetailsModal');
+            const content = document.getElementById('userDetailsContent');
+            const isSuspended = menu.getAttribute('data-suspended') === 'true';
+
+            content.innerHTML = `
+                <div class="admin-detail-grid">
+                    <div class="admin-detail-item">
+                        <span>Username</span>
+                        <strong>${escapeHtml(menu.getAttribute('data-username'))}</strong>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span>Account Number</span>
+                        <strong class="mono">${escapeHtml(menu.getAttribute('data-account-number'))}</strong>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span>Balance</span>
+                        <strong>${formatCurrency(menu.getAttribute('data-balance'))}</strong>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span>Role</span>
+                        <strong>${escapeHtml(menu.getAttribute('data-role'))}</strong>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span>Status</span>
+                        <strong>${isSuspended ? 'Suspended' : 'Active'}</strong>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span>User ID</span>
+                        <strong>${escapeHtml(menu.getAttribute('data-user-id'))}</strong>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.add('open');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeUserDetailsModal() {
+            const modal = document.getElementById('userDetailsModal');
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        window.addEventListener('click', function(event) {
+            if (event.target.id === 'userDetailsModal') {
+                closeUserDetailsModal();
+                return;
+            }
+
+            if (!event.target.closest('.action-menu')) {
+                closeActionMenus();
+            }
+        });
+
+        window.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeActionMenus();
+                closeUserDetailsModal();
+            }
+        });
 
         async function handleLoanApproval(event) {
             event.preventDefault();
@@ -335,6 +512,11 @@
                         outflowTotal
                         netFlow
                         largestTransaction
+                        totalLoansGiven
+                        pendingLoansCount
+                        pendingLoansTotal
+                        billPaymentTotal
+                        billPaymentsCount
                         byType {
                             transactionType
                             count
@@ -398,6 +580,11 @@
             document.getElementById('graphql-outflow').textContent = formatCurrency(summary.outflowTotal);
             document.getElementById('graphql-net-flow').textContent = formatCurrency(summary.netFlow);
             document.getElementById('graphql-largest-transaction').textContent = formatCurrency(summary.largestTransaction);
+            document.getElementById('graphql-total-loans-given').textContent = formatCurrency(summary.totalLoansGiven);
+            document.getElementById('graphql-pending-loans').textContent = formatCount(summary.pendingLoansCount, 'loan');
+            document.getElementById('graphql-pending-loans-meta').textContent = `${formatCurrency(summary.pendingLoansTotal)} awaiting approval`;
+            document.getElementById('graphql-bill-payments').textContent = formatCurrency(summary.billPaymentTotal);
+            document.getElementById('graphql-bill-payments-meta').textContent = `${formatCount(summary.billPaymentsCount, 'payment')} logged`;
 
             const breakdownContainer = document.getElementById('graphql-breakdown');
             if (!summary.byType || summary.byType.length === 0) {
@@ -448,6 +635,11 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function formatCount(value, noun) {
+            const numericValue = Number(value || 0);
+            return `${numericValue} ${noun}${numericValue === 1 ? '' : 's'}`;
+        }
+
         function formatAccountIdentity(username, accountNumber) {
             const safeAccount = escapeHtml(accountNumber || 'Unknown account');
             if (!username) {
@@ -460,7 +652,7 @@
         // Admin user search with XSS vulnerability
         function handleAdminSearch(query) {
             const searchInfo = document.getElementById('admin-search-info');
-            const rows = document.querySelectorAll('tbody tr');
+            const rows = document.querySelectorAll('#user-management-table tbody tr');
 
             // XSS vulnerability: Reflect user input directly
             if (query && query.trim() !== '') {

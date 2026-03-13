@@ -828,6 +828,7 @@ async function handleBillPayment(event) {
             hidePayBillModal();
             showSuccess('Bill payment successful!', 'Payment Complete');
             await loadPaymentHistory();
+            await fetchTransactions();
 
             // Refresh balances if necessary
             if (jsonData.payment_method === 'virtual_card') {

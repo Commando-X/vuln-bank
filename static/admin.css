@@ -54,6 +54,16 @@ body { background: var(--bg); }
 .admin-section table button { padding: 0.375rem 0.875rem; font-size: 0.75rem; }
 .admin-section form { max-width: 480px; margin: 0 auto; }
 
+#user-management-table {
+  overflow: visible;
+}
+
+.role-stack {
+  display: grid;
+  gap: 0.4rem;
+  justify-content: start;
+}
+
 .graphql-intro {
   margin: 0 0 1.25rem;
   color: var(--text-3);
@@ -72,6 +82,9 @@ body { background: var(--bg); }
   border-radius: var(--r-md);
   padding: 1rem;
   box-shadow: var(--shadow-sm);
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
 }
 
 .graphql-metric-card span {
@@ -90,12 +103,23 @@ body { background: var(--bg); }
   color: var(--text-1);
 }
 
+.graphql-metric-meta {
+  margin-top: auto;
+  padding-top: 0.65rem;
+  min-height: 3.2rem;
+  color: var(--text-3);
+  font-size: 0.8125rem;
+}
+
 .metric-transactions strong { color: #1d4ed8; }
 .metric-volume strong { color: #6d28d9; }
 .metric-inflow strong { color: #047857; }
 .metric-outflow strong { color: #c2410c; }
 .metric-netflow strong { color: #15803d; }
 .metric-largest strong { color: #be123c; }
+.metric-loans strong { color: #7c2d12; }
+.metric-pending strong { color: #b45309; }
+.metric-bills strong { color: #0f766e; }
 
 .graphql-panels {
   display: grid;
@@ -185,6 +209,187 @@ body { background: var(--bg); }
 .approve-loan-form button { background: var(--green); color: #fff; }
 .approve-loan-form button:hover { background: #059669; }
 
+.action-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.action-menu[open] {
+  z-index: 30;
+}
+
+.action-menu summary {
+  list-style: none;
+}
+
+.action-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.action-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 118px;
+  padding: 0.5rem 0.8rem;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.action-menu-trigger::after {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+  transition: transform var(--dur-fast) ease;
+}
+
+.action-menu[open] .action-menu-trigger,
+.action-menu-trigger:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+
+.action-menu[open] .action-menu-trigger::after {
+  transform: rotate(-135deg) translateY(-1px);
+}
+
+.action-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  min-width: 180px;
+  padding: 0.4rem;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  z-index: 20;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.action-option {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.action-option:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+  transform: none;
+  box-shadow: none;
+}
+
+.action-option.danger {
+  color: var(--red);
+}
+
+.action-option.danger:hover {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(8, 14, 24, 0.55);
+  z-index: 100;
+}
+
+.admin-modal.open {
+  display: flex;
+}
+
+.admin-modal-dialog {
+  width: min(520px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+}
+
+.admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-modal-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.admin-modal-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.admin-modal-close:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+  transform: none;
+  box-shadow: none;
+}
+
+.admin-modal-body {
+  padding: 1.25rem;
+}
+
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.admin-detail-item {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.9rem;
+}
+
+.admin-detail-item span {
+  display: block;
+  color: var(--text-3);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.35rem;
+}
+
+.admin-detail-item strong {
+  color: var(--text-1);
+  font-size: 0.95rem;
+}
+
 @media (max-width: 768px) {
   .admin-container { padding: 1rem; }
   .admin-header { padding: 1.5rem; }
@@ -192,4 +397,18 @@ body { background: var(--bg); }
   .admin-section table { display: block; overflow-x: auto; }
   .admin-section-head { flex-direction: column; align-items: flex-start; }
   .graphql-list-item { flex-direction: column; }
+  .action-menu {
+    width: 100%;
+  }
+  .action-menu-trigger {
+    width: 100%;
+    justify-content: center;
+  }
+  .action-menu-dropdown {
+    position: static;
+    min-width: 0;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  .admin-detail-grid { grid-template-columns: 1fr; }
 }

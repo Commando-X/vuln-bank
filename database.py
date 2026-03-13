@@ -73,13 +73,19 @@ def init_db():
                     is_admin BOOLEAN DEFAULT FALSE,
                     profile_picture TEXT,
                     reset_pin TEXT,  -- Vulnerability: Reset PINs stored in plaintext
-                    bio TEXT  -- Vulnerability: Stored XSS - User bio without sanitization
+                    bio TEXT,  -- Vulnerability: Stored XSS - User bio without sanitization
+                    is_suspended BOOLEAN DEFAULT FALSE
                 )
             ''')
 
             # Migration: Add bio column if it doesn't exist (for existing databases)
             try:
                 cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
+            except Exception:
+                pass  # Column already exists or error adding it
+
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT FALSE")
             except Exception:
                 pass  # Column already exists or error adding it
             

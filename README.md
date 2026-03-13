@@ -24,6 +24,7 @@ This project is a simple banking application with multiple security vulnerabilit
 - 📝 Loan Requests
 - 👤 Profile Picture Upload
 - 📊 Transaction History
+- 📈 Transaction Analytics Dashboard (GraphQL-backed)
 - 🔑 Password Reset System (3-digit PIN)
 - 💳 Virtual Cards Management
 - 📱 Bill Payments System
@@ -114,6 +115,14 @@ This project is a simple banking application with multiple security vulnerabilit
    - Context Injection vulnerabilities
    - AI-assisted unauthorized data access
    - Exposed AI system prompts and configurations
+
+10. **GraphQL Vulnerabilities**
+   - Enabled schema introspection on the transaction analytics endpoint
+   - Weak JWT-based authentication inherited by `/graphql`
+   - SQL injection in GraphQL resolver query construction
+   - Missing GraphQL depth / complexity controls
+   - Raw GraphQL error disclosure
+   - Transaction analytics exposure through admin-scoped queries
 
 ## Installation & Setup 🚀
 
@@ -229,6 +238,8 @@ The application uses PostgreSQL. The database will be automatically initialized 
 ### Accessing the Application
 - Main application: `http://localhost:5000`
 - API documentation: `http://localhost:5000/api/docs`
+- GraphQL analytics endpoint: `http://localhost:5000/graphql`
+- Admin analytics view: available from the admin dashboard after login as an admin user
 
 ### Common Issues & Solutions
 
@@ -345,6 +356,13 @@ curl -s -X POST http://localhost:5000/upload_profile_picture_url \
 2. BOLA/BOPLA in API endpoints
 3. Information disclosure
 4. Error message analysis
+
+### GraphQL Testing
+1. Run schema introspection against `/graphql`
+2. Manipulate JWT claims to reach admin-scoped analytics
+3. Test SQL injection through GraphQL resolver inputs such as `accountNumber`
+4. Observe GraphQL error messages and path disclosure
+5. Test large or nested queries for missing depth / complexity controls
 
 ### Virtual Card Testing
 
