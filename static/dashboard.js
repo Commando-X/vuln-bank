@@ -86,7 +86,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (profileUrlBtn) {
         profileUrlBtn.addEventListener('click', handleProfileUrlImport);
     }
-    
+
+    // Add bio form event listener (Stored XSS vulnerability)
+    const bioForm = document.getElementById('bioForm');
+    if (bioForm) {
+        bioForm.addEventListener('submit', handleBioUpdate);
+    }
+
     // Add virtual cards event listener
     document.getElementById('createCardForm').addEventListener('submit', handleCreateCard);
     
@@ -311,6 +317,43 @@ async function handleProfileUrlImport() {
     } catch (error) {
         document.getElementById('upload-message').innerText = 'Import failed';
         document.getElementById('upload-message').style.color = 'red';
+    }
+}
+
+// Update user bio (Stored XSS vulnerability - no sanitization on display)
+async function handleBioUpdate(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const bio = formData.get('bio');
+
+    try {
+        const response = await fetch('/update_bio', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ bio: bio })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            // Update the bio display immediately with user input (XSS vulnerability)
+            const bioDisplay = document.getElementById('user-bio-display');
+            if (bioDisplay) {
+                bioDisplay.innerHTML = bio; // Direct innerHTML assignment - XSS!
+            }
+
+            document.getElementById('bio-message').innerText = 'Bio updated successfully!';
+            document.getElementById('bio-message').style.color = 'green';
+        } else {
+            document.getElementById('bio-message').innerText = data.message || 'Update failed';
+            document.getElementById('bio-message').style.color = 'red';
+        }
+    } catch (error) {
+        document.getElementById('bio-message').innerText = 'Update failed';
+        document.getElementById('bio-message').style.color = 'red';
     }
 }
 

@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>document.documentElement.setAttribute("data-theme", localStorage.getItem("vb-theme") || "light");</script>
+    <script src="{{ url_for('static', filename='vuln-disclaimer.js') }}" defer></script>
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -155,6 +156,25 @@
                 <button type="button" class="btn-ghost btn-sm" id="profileUrlButton">Import from URL</button>
             </form>
             <div id="upload-message" aria-live="polite"></div>
+
+            <!-- Stored XSS Vulnerability: User Bio -->
+            <div style="margin-top:2rem;padding-top:2rem;border-top:1px solid var(--border);">
+                <h3 style="font-size:1.125rem;font-weight:600;margin-bottom:1rem;">Your Bio</h3>
+                {% if user_bio %}
+                <div style="background:var(--surface-1);padding:1rem;border-radius:var(--r-sm);margin-bottom:1rem;">
+                    <div style="font-size:0.875rem;color:var(--text-3);margin-bottom:0.5rem;">Current bio:</div>
+                    <div id="user-bio-display">{{ user_bio|safe }}</div>
+                </div>
+                {% endif %}
+                <form id="bioForm" style="margin-top:1rem;">
+                    <div class="form-group">
+                        <label for="bio_input">Update your bio (HTML allowed):</label>
+                        <textarea id="bio_input" name="bio" rows="3" placeholder="Tell us about yourself... HTML tags are supported!"></textarea>
+                    </div>
+                    <button type="submit" class="btn-accent btn-sm">Update Bio</button>
+                </form>
+                <div id="bio-message" aria-live="polite"></div>
+            </div>
         </div>
 
         <!-- Money Transfer -->
