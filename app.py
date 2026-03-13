@@ -191,6 +191,26 @@ def generate_cvv():
 def index():
     return render_template('index.html')
 
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
+
+@app.route('/compliance')
+def compliance():
+    return render_template('compliance.html')
+
+@app.route('/careers')
+def careers():
+    return render_template('careers.html')
+
+@app.route('/blog')
+def blog():
+    return render_template('blog.html')
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -622,6 +642,32 @@ def upload_profile_picture_url(current_user):
         })
     except Exception as e:
         print(f"URL image import error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+# Update user bio (Stored XSS vulnerability - no input sanitization)
+@app.route('/update_bio', methods=['POST'])
+@token_required
+def update_bio(current_user):
+    try:
+        data = request.get_json() or {}
+        bio = data.get('bio', '')
+
+        # Store bio without ANY sanitization - Stored XSS vulnerability
+        execute_query(
+            "UPDATE users SET bio = %s WHERE id = %s",
+            (bio, current_user['user_id']),
+            fetch=False
+        )
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Bio updated successfully',
+            'bio': bio  # Echo back the unsanitized input
+        })
+    except Exception as e:
         return jsonify({
             'status': 'error',
             'message': str(e)

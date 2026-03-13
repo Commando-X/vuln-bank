@@ -72,9 +72,16 @@ def init_db():
                     balance DECIMAL(15, 2) DEFAULT 1000.0,
                     is_admin BOOLEAN DEFAULT FALSE,
                     profile_picture TEXT,
-                    reset_pin TEXT  -- Vulnerability: Reset PINs stored in plaintext
+                    reset_pin TEXT,  -- Vulnerability: Reset PINs stored in plaintext
+                    bio TEXT  -- Vulnerability: Stored XSS - User bio without sanitization
                 )
             ''')
+
+            # Migration: Add bio column if it doesn't exist (for existing databases)
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
+            except Exception:
+                pass  # Column already exists or error adding it
             
             # Create loans table
             cursor.execute('''

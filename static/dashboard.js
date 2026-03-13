@@ -1,3 +1,66 @@
+// ================================================
+// TOAST NOTIFICATIONS
+// ================================================
+function showToast(type, title, message, duration = 5000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+
+    const icons = {
+        success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+        error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+        warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+    };
+
+    toast.innerHTML = `
+        <div class="toast-icon">${icons[type] || icons.success}</div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="dismissToast(this.parentElement)" aria-label="Close notification">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+    `;
+
+    container.appendChild(toast);
+
+    // Auto-dismiss after duration
+    setTimeout(() => {
+        if (toast.parentElement) {
+            dismissToast(toast);
+        }
+    }, duration);
+}
+
+function dismissToast(toast) {
+    if (!toast.parentElement) return;
+    toast.classList.add('toast-removing');
+    toast.addEventListener('animationend', () => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    });
+}
+
+function showSuccess(message, title = 'Success') {
+    showToast('success', title, message);
+}
+
+function showError(message, title = 'Error') {
+    showToast('error', title, message);
+}
+
+function showWarning(message, title = 'Warning') {
+    showToast('warning', title, message);
+}
+
+// ================================================
+// END TOAST NOTIFICATIONS
+// ================================================
+
 // Set current date
 document.addEventListener('DOMContentLoaded', function() {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -23,7 +86,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (profileUrlBtn) {
         profileUrlBtn.addEventListener('click', handleProfileUrlImport);
     }
-    
+
+    // Add bio form event listener (Stored XSS vulnerability)
+    const bioForm = document.getElementById('bioForm');
+    if (bioForm) {
+        bioForm.addEventListener('submit', handleBioUpdate);
+    }
+
     // Add virtual cards event listener
     document.getElementById('createCardForm').addEventListener('submit', handleCreateCard);
     
@@ -108,23 +177,20 @@ async function handleTransfer(event) {
 
         const data = await response.json();
         if (data.status === 'success') {
-            // Update message and balance
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'green';
+            // Update balance
             document.getElementById('balance').textContent = data.new_balance;
-            
+            showSuccess(data.message, 'Transfer Successful');
+
             // Refresh transactions
             fetchTransactions();
             
             // Clear form
             event.target.reset();
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Transfer Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Transfer failed';
-        document.getElementById('message').style.color = 'red';
+        showError('Transfer failed. Please try again.', 'Transfer Failed');
     }
 }
 
@@ -147,9 +213,8 @@ async function handleLoanRequest(event) {
 
         const data = await response.json();
         if (data.status === 'success') {
-            document.getElementById('message').innerHTML = 'Loan requested successfully, our staff will review and approve!';
-            document.getElementById('message').style.color = 'green';
-            
+            showSuccess('Loan requested successfully, our staff will review and approve!', 'Loan Requested');
+
             // Check if loans section exists, if not create it
             let loansSection = document.querySelector('.loans-section');
             if (!loansSection) {
@@ -185,12 +250,10 @@ async function handleLoanRequest(event) {
             // Clear form
             event.target.reset();
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Loan Request Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Loan request failed';
-        document.getElementById('message').style.color = 'red';
+        showError('Loan request failed. Please try again.', 'Loan Request Failed');
     }
 }
 
@@ -254,6 +317,43 @@ async function handleProfileUrlImport() {
     } catch (error) {
         document.getElementById('upload-message').innerText = 'Import failed';
         document.getElementById('upload-message').style.color = 'red';
+    }
+}
+
+// Update user bio (Stored XSS vulnerability - no sanitization on display)
+async function handleBioUpdate(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const bio = formData.get('bio');
+
+    try {
+        const response = await fetch('/update_bio', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ bio: bio })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            // Update the bio display immediately with user input (XSS vulnerability)
+            const bioDisplay = document.getElementById('user-bio-display');
+            if (bioDisplay) {
+                bioDisplay.innerHTML = bio; // Direct innerHTML assignment - XSS!
+            }
+
+            document.getElementById('bio-message').innerText = 'Bio updated successfully!';
+            document.getElementById('bio-message').style.color = 'green';
+        } else {
+            document.getElementById('bio-message').innerText = data.message || 'Update failed';
+            document.getElementById('bio-message').style.color = 'red';
+        }
+    } catch (error) {
+        document.getElementById('bio-message').innerText = 'Update failed';
+        document.getElementById('bio-message').style.color = 'red';
     }
 }
 
@@ -439,16 +539,13 @@ async function handleCreateCard(event) {
         if (data.status === 'success') {
             hideCreateCardModal();
             await fetchVirtualCards();
-            
-            document.getElementById('message').innerHTML = 'Virtual card created successfully!';
-            document.getElementById('message').style.color = 'green';
+
+            showSuccess('Virtual card created successfully!', 'Card Created');
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Card Creation Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Failed to create virtual card';
-        document.getElementById('message').style.color = 'red';
+        showError('Failed to create virtual card. Please try again.', 'Card Creation Failed');
     }
 }
 
@@ -465,12 +562,10 @@ async function toggleCardFreeze(cardId) {
         if (data.status === 'success') {
             await fetchVirtualCards();
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Action Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Failed to freeze/unfreeze card';
-        document.getElementById('message').style.color = 'red';
+        showError('Failed to freeze/unfreeze card. Please try again.', 'Action Failed');
     }
 }
 
@@ -510,12 +605,10 @@ async function showTransactionHistory(cardId) {
             
             modal.style.display = 'flex';
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Failed to Load History');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Failed to load transaction history';
-        document.getElementById('message').style.color = 'red';
+        showError('Failed to load transaction history. Please try again.', 'Failed to Load History');
     }
 }
 
@@ -569,17 +662,14 @@ async function handleCardUpdate(event, cardId) {
         if (data.status === 'success') {
             await fetchVirtualCards();
             hideCardDetailsModal();
-            document.getElementById('message').innerHTML = 'Card limit updated successfully';
-            document.getElementById('message').style.color = 'green';
+            showSuccess('Card limit updated successfully', 'Limit Updated');
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Update Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Error updating card limit';
-        document.getElementById('message').style.color = 'red';
+        showError('Error updating card limit. Please try again.', 'Update Failed');
     }
-    
+
     return false; // Prevent form submission
 }
 
@@ -736,10 +826,9 @@ async function handleBillPayment(event) {
         const data = await response.json();
         if (data.status === 'success') {
             hidePayBillModal();
-            document.getElementById('message').innerHTML = 'Bill payment successful!';
-            document.getElementById('message').style.color = 'green';
+            showSuccess('Bill payment successful!', 'Payment Complete');
             await loadPaymentHistory();
-            
+
             // Refresh balances if necessary
             if (jsonData.payment_method === 'virtual_card') {
                 await fetchVirtualCards();
@@ -750,12 +839,10 @@ async function handleBillPayment(event) {
                 balanceElement.textContent = (currentBalance - jsonData.amount).toFixed(2);
             }
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Payment Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Payment failed';
-        document.getElementById('message').style.color = 'red';
+        showError('Payment failed. Please try again.', 'Payment Failed');
     }
 }
 

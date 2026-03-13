@@ -1,292 +1,79 @@
-:root {
-    --primary-dark: #002147;
-    --sidebar-width: 250px;
-    --header-height: 70px;
-}
+/* ============================================
+   Admin Panel — v2
+   ============================================ */
+body { background: var(--bg); }
 
-body {
-    background-color: var(--background-color);
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-}
+.admin-container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
 
-.container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 2rem;
-}
-
-/* Admin Header */
 .admin-header {
-    background: linear-gradient(140deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-    color: white;
-    border-radius: 15px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: relative;
-    overflow: hidden;
+  background: linear-gradient(135deg, var(--navy-700) 0%, var(--navy-900) 100%);
+  color: #fff; border-radius: var(--r-xl); padding: 2rem 2.25rem;
+  margin-bottom: 1.5rem; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: space-between;
 }
-
 .admin-header::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
-    transform: rotate(30deg);
-    pointer-events: none;
+  content: ''; position: absolute; top: -60%; right: -20%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(0,123,255,0.06) 0%, transparent 70%);
+  pointer-events: none;
 }
-
 .admin-title {
-    margin: 0;
-    font-size: 2.2rem;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    position: relative;
-    z-index: 1;
+  margin: 0; font-family: var(--font-display); font-size: 1.75rem;
+  font-weight: 800; letter-spacing: -0.03em; position: relative; z-index: 1; color: #fff;
+}
+.admin-header .btn { position: relative; z-index: 1; }
+
+.admin-profile { text-align: center; margin-bottom: 1.5rem; }
+.admin-profile .profile-picture {
+  width: 80px; height: 80px; border-radius: var(--r-full); object-fit: cover;
+  border: 3px solid var(--border); box-shadow: var(--shadow-md); margin-bottom: 0.75rem;
+}
+.admin-profile h2 { font-size: 1.125rem; font-weight: 700; margin-bottom: 0; }
+
+.admin-section {
+  background: var(--surface); border-radius: var(--r-lg); border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm); padding: 1.5rem; margin-bottom: 1.5rem;
+  transition: background var(--dur-mid) ease, border-color var(--dur-mid) ease;
+}
+.admin-section h2 {
+  font-family: var(--font-display); font-size: 1.125rem; font-weight: 700;
+  color: var(--text-1); margin-bottom: 1rem; padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.admin-section table { border-radius: var(--r-md); overflow: hidden; }
+.admin-section table button { padding: 0.375rem 0.875rem; font-size: 0.75rem; }
+.admin-section form { max-width: 480px; margin: 0 auto; }
+
+.admin-search input {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.625rem 0.875rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: 0.9375rem;
+  color: var(--text-1);
+  transition: border-color var(--dur-fast) ease;
+}
+.admin-search input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+.admin-search input::placeholder {
+  color: var(--text-4);
 }
 
-/* Profile section */
-.profile-section {
-    text-align: center;
-    margin: 20px auto 40px;
-}
 
-.profile-picture {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 4px solid var(--primary-color);
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-    margin: 0 auto 1rem;
-}
+.delete-account-form { display: inline; }
+.delete-account-form button { background: var(--red); color: #fff; }
+.delete-account-form button:hover { background: #DC2626; }
+.approve-loan-form { display: inline; }
+.approve-loan-form button { background: var(--green); color: #fff; }
+.approve-loan-form button:hover { background: #059669; }
 
-/* Admin Sections */
-.section {
-    background-color: white;
-    border-radius: 15px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-}
-
-.section h2 {
-    margin-top: 0;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.75rem;
-    font-size: 1.5rem;
-    color: var(--text-dark);
-}
-
-/* Tables */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-th, td {
-    padding: 1rem;
-    text-align: left;
-    border: none;
-}
-
-th {
-    background-color: #f5f7fa;
-    font-weight: 600;
-    color: var(--text-dark);
-}
-
-tr:nth-child(even) {
-    background-color: #f9fafc;
-}
-
-tr:hover {
-    background-color: #f0f4f9;
-}
-
-/* Pagination */
-.pagination {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-top: 0.5rem;
-}
-
-.page-summary {
-    color: var(--text-light);
-    font-weight: 500;
-}
-
-.page-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.page-link {
-    padding: 0.5rem 0.9rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background-color: #f5f7fa;
-    color: var(--text-dark);
-    font-weight: 600;
-    text-decoration: none;
-    transition: background-color 0.2s ease, transform 0.2s ease;
-}
-
-.page-link:hover {
-    background-color: white;
-    transform: translateY(-1px);
-}
-
-.page-info {
-    font-weight: 600;
-    color: var(--text-dark);
-}
-
-/* Forms */
-form {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: var(--text-dark);
-}
-
-input[type="text"],
-input[type="password"],
-input[type="number"],
-select,
-textarea {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background-color: #fafafa;
-    font-family: inherit;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-}
-
-input[type="text"]:focus,
-input[type="password"]:focus,
-input[type="number"]:focus,
-select:focus,
-textarea:focus {
-    border-color: var(--primary-color);
-    background-color: white;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 84, 166, 0.1);
-}
-
-/* Buttons */
-.button, button {
-    display: inline-block;
-    padding: 0.75rem 1.5rem;
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 500;
-    text-decoration: none;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.2s;
-}
-
-.button:hover, button:hover {
-    background-color: var(--primary-dark);
-    transform: translateY(-2px);
-}
-
-button[type="submit"] {
-    margin-right: 1rem;
-}
-
-table button {
-    padding: 0.5rem 1rem;
-    margin: 0;
-    min-width: auto;
-    font-size: 0.9rem;
-}
-
-/* Delete button */
-form.delete-account-form button {
-    background-color: var(--danger-color);
-}
-
-form.delete-account-form button:hover {
-    background-color: #d32f2f;
-}
-
-/* Approve button */
-form.approve-loan-form button {
-    background-color: var(--success-color);
-}
-
-form.approve-loan-form button:hover {
-    background-color: #2e7d32;
-}
-
-/* Message Notification */
-#message {
-    padding: 1rem;
-    margin: 1rem 0;
-    border-radius: 8px;
-    text-align: center;
-    font-weight: 500;
-}
-
-#message.success {
-    background-color: #e8f5e9;
-    color: var(--success-color);
-    border-left: 4px solid var(--success-color);
-}
-
-#message.error {
-    background-color: #fdedeb;
-    color: var(--danger-color);
-    border-left: 4px solid var(--danger-color);
-}
-
-/* Back button */
-a.button {
-    display: inline-block;
-    text-align: center;
-}
-
-/* Responsive adjustments */
 @media (max-width: 768px) {
-    .container {
-        padding: 1rem;
-    }
-    
-    table {
-        display: block;
-        overflow-x: auto;
-    }
-    
-    .admin-header {
-        padding: 1.5rem;
-    }
+  .admin-container { padding: 1rem; }
+  .admin-header { padding: 1.5rem; }
+  .admin-title { font-size: 1.375rem; }
+  .admin-section table { display: block; overflow-x: auto; }
 }

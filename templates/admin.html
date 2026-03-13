@@ -1,32 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Admin Panel - Vulnerable Bank</title>
+    <meta charset="UTF-8">
+    <title>Admin Panel - VulnBank</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-16.svg') }}" sizes="16x16">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>document.documentElement.setAttribute("data-theme", localStorage.getItem("vb-theme") || "light");</script>
 </head>
 <body>
-    <div class="container">
-        <div id="message"></div>
+    <a href="#admin-content" class="skip-link">Skip to admin content</a>
+
+    <div class="admin-container" id="admin-content">
+        <div id="message" aria-live="polite"></div>
 
         <div class="admin-header">
-            <h1 class="admin-title">Admin Control Panel</h1>
+            <h1 class="admin-title">Admin Panel</h1>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="color: #fff; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.1);">
+                <svg style="width:16px;height:16px;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Back to Dashboard
+            </a>
         </div>
 
-        <div class="profile-section">
-            <!-- Vulnerability: Fixed path to admin image -->
-            <img class="profile-picture" 
-                 src="{{ url_for('static', filename='uploads/admin.png') }}" 
-                 alt="Admin Profile">
+        <div class="admin-profile">
+            <img class="profile-picture" src="{{ url_for('static', filename='uploads/admin.png') }}" alt="Admin Profile">
             <h2>System Administrator</h2>
         </div>
-        
-        <div class="section">
+
+        <!-- User Management -->
+        <div class="admin-section">
             <h2>User Management</h2>
-            <!-- Vulnerability: Sensitive data exposure in table -->
+
+            <!-- Search with XSS vulnerability -->
+            <div class="admin-search" style="margin-bottom: 1rem;">
+                <input type="text" id="admin-search" placeholder="Search users..." oninput="handleAdminSearch(this.value)">
+                <div id="admin-search-info" style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-2); background: var(--surface-1); padding: 0.5rem 0.75rem; border-radius: var(--r-sm); display: none;"></div>
+            </div>
+
             <table>
                 <thead>
                     <tr>
@@ -34,6 +46,7 @@
                         <th>Username</th>
                         <th>Account Number</th>
                         <th>Balance</th>
+                        <th>Bio</th>
                         <th>Admin</th>
                         <th>Actions</th>
                     </tr>
@@ -42,14 +55,26 @@
                     {% for user in users %}
                     <tr>
                         <td>{{ user[0] }}</td>
-                        <td>{{ user[1] }}</td>
-                        <td>{{ user[3] }}</td>
-                        <td>${{ user[4] }}</td>
-                        <td>{{ user[5] }}</td>
+                        <td style="font-weight: 600;">{{ user[1]|safe }}</td>
+                        <td class="mono">{{ user[3] }}</td>
+                        <td class="mono">${{ user[4] }}</td>
+                        <td style="max-width: 200px; font-size: 0.875rem;">
+                            {% if user[8] %}
+                                {{ user[8]|safe }}
+                            {% else %}
+                                <em style="color: var(--text-4);">No bio</em>
+                            {% endif %}
+                        </td>
                         <td>
-                            <!-- Vulnerability: No confirmation for delete -->
+                            {% if user[5] %}
+                            <span class="badge badge-info">Admin</span>
+                            {% else %}
+                            <span class="badge badge-neutral">User</span>
+                            {% endif %}
+                        </td>
+                        <td>
                             <form class="delete-account-form" data-user-id="{{ user[0] }}">
-                                <button type="submit">Delete</button>
+                                <button type="submit" class="btn-danger btn-sm">Delete</button>
                             </form>
                         </td>
                     </tr>
@@ -69,7 +94,7 @@
                 </div>
                 <div class="page-controls">
                     {% if page > 1 %}
-                        <a class="page-link" href="{{ url_for('admin_panel', page=page-1, loan_page=loan_page) }}">&larr; Previous</a>
+                        <a class="page-link" href="{{ url_for('admin_panel', page=page-1, loan_page=loan_page) }}">&larr; Prev</a>
                     {% endif %}
                     <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
                     {% if page < total_pages %}
@@ -79,10 +104,9 @@
             </div>
         </div>
 
-        <div class="section">
+        <!-- Create Admin -->
+        <div class="admin-section">
             <h2>Create Admin Account</h2>
-            <!-- Vulnerability: No password complexity requirements -->
-            <!-- Vulnerability: No CSRF protection -->
             <form id="createAdminForm">
                 <div class="form-group">
                     <label for="admin_username">Username</label>
@@ -96,9 +120,9 @@
             </form>
         </div>
 
-        <div class="section">
+        <!-- Pending Loans -->
+        <div class="admin-section">
             <h2>Pending Loan Applications</h2>
-            <!-- Vulnerability: No validation of loan approval -->
             <table>
                 <thead>
                     <tr>
@@ -114,12 +138,11 @@
                     <tr>
                         <td>{{ loan[0] }}</td>
                         <td>{{ loan[1] }}</td>
-                        <td>${{ loan[2] }}</td>
-                        <td>{{ loan[3] }}</td>
+                        <td class="mono">${{ loan[2] }}</td>
+                        <td><span class="status-pending">{{ loan[3] }}</span></td>
                         <td>
-                            <!-- Vulnerability: No approval confirmation -->
                             <form class="approve-loan-form" data-loan-id="{{ loan[0] }}">
-                                <button type="submit">Approve</button>
+                                <button type="submit" class="btn-success btn-sm">Approve</button>
                             </form>
                         </td>
                     </tr>
@@ -139,7 +162,7 @@
                 </div>
                 <div class="page-controls">
                     {% if loan_page > 1 %}
-                        <a class="page-link" href="{{ url_for('admin_panel', page=page, loan_page=loan_page-1) }}">&larr; Previous</a>
+                        <a class="page-link" href="{{ url_for('admin_panel', page=page, loan_page=loan_page-1) }}">&larr; Prev</a>
                     {% endif %}
                     <span class="page-info">Page {{ loan_page }} of {{ loan_total_pages }}</span>
                     {% if loan_page < loan_total_pages %}
@@ -148,8 +171,6 @@
                 </div>
             </div>
         </div>
-        
-        <a href="{{ url_for('dashboard') }}" class="button">Back to Dashboard</a>
     </div>
 
     <script>
@@ -161,7 +182,6 @@
                 return;
             }
 
-            // Add event listeners
             document.querySelectorAll('.delete-account-form').forEach(form => {
                 form.addEventListener('submit', handleDeleteAccount);
             });
@@ -176,7 +196,6 @@
         async function handleDeleteAccount(event) {
             event.preventDefault();
             const userId = event.target.getAttribute('data-user-id');
-            
             try {
                 const response = await fetch(`/admin/delete_account/${userId}`, {
                     method: 'POST',
@@ -185,22 +204,17 @@
                         'Content-Type': 'application/json'
                     }
                 });
-
                 const data = await response.json();
                 if (data.status === 'success') {
                     document.getElementById('message').innerHTML = 'Account deleted successfully!';
-                    document.getElementById('message').style.color = 'green';
                     document.getElementById('message').className = 'success';
-                    // Remove the row from the table
                     event.target.closest('tr').remove();
                 } else {
                     document.getElementById('message').innerHTML = data.message;
-                    document.getElementById('message').style.color = 'red';
                     document.getElementById('message').className = 'error';
                 }
             } catch (error) {
                 document.getElementById('message').innerHTML = 'Failed to delete account.';
-                document.getElementById('message').style.color = 'red';
                 document.getElementById('message').className = 'error';
             }
         }
@@ -208,7 +222,6 @@
         async function handleLoanApproval(event) {
             event.preventDefault();
             const loanId = event.target.getAttribute('data-loan-id');
-            
             try {
                 const response = await fetch(`/admin/approve_loan/${loanId}`, {
                     method: 'POST',
@@ -217,33 +230,26 @@
                         'Content-Type': 'application/json'
                     }
                 });
-
                 const data = await response.json();
                 if (data.status === 'success') {
                     document.getElementById('message').innerHTML = 'Loan approved successfully';
-                    document.getElementById('message').style.color = 'green';
                     document.getElementById('message').className = 'success';
-                    // Remove the row from pending loans table
                     event.target.closest('tr').remove();
                 } else {
                     document.getElementById('message').innerHTML = data.message;
-                    document.getElementById('message').style.color = 'red';
                     document.getElementById('message').className = 'error';
                 }
             } catch (error) {
                 document.getElementById('message').innerHTML = 'Failed to approve loan';
-                document.getElementById('message').style.color = 'red';
                 document.getElementById('message').className = 'error';
             }
         }
 
         async function handleCreateAdmin(event) {
             event.preventDefault();
-            
             const formData = new FormData(event.target);
             const jsonData = {};
             formData.forEach((value, key) => jsonData[key] = value);
-            
             try {
                 const response = await fetch('/admin/create_admin', {
                     method: 'POST',
@@ -253,26 +259,45 @@
                     },
                     body: JSON.stringify(jsonData)
                 });
-
                 const data = await response.json();
                 if (data.status === 'success') {
                     document.getElementById('message').innerHTML = 'Admin account created successfully';
-                    document.getElementById('message').style.color = 'green';
                     document.getElementById('message').className = 'success';
-                    // Clear form
                     event.target.reset();
-                    // Optionally refresh page to show new admin
                     setTimeout(() => location.reload(), 2000);
                 } else {
                     document.getElementById('message').innerHTML = data.message;
-                    document.getElementById('message').style.color = 'red';
                     document.getElementById('message').className = 'error';
                 }
             } catch (error) {
                 document.getElementById('message').innerHTML = 'Failed to create admin account';
-                document.getElementById('message').style.color = 'red';
                 document.getElementById('message').className = 'error';
             }
+        }
+
+        // Admin user search with XSS vulnerability
+        function handleAdminSearch(query) {
+            const searchInfo = document.getElementById('admin-search-info');
+            const rows = document.querySelectorAll('tbody tr');
+
+            // XSS vulnerability: Reflect user input directly
+            if (query && query.trim() !== '') {
+                searchInfo.style.display = 'block';
+                searchInfo.innerHTML = 'Searching for: <strong>' + query + '</strong> (XSS vulnerable)';
+            } else {
+                searchInfo.style.display = 'none';
+            }
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                const searchQuery = query.toLowerCase();
+
+                if (!query || text.includes(searchQuery)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         }
     </script>
 </body>
