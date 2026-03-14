@@ -30,7 +30,7 @@
                                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
                             </svg>
                         </div>
-                        <h3 id="disclaimer-title">⚠️ Security Training Environment</h3>
+                        <h3 id="disclaimer-title"> Heads up!</h3>
                         <button class="vuln-disclaimer-close" aria-label="Close" onclick="dismissVulnDisclaimer()">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -39,20 +39,13 @@
                         </button>
                     </div>
                     <div class="vuln-disclaimer-body">
-                        <p><strong>This is a deliberately vulnerable application</strong> for <strong>educational purposes only</strong>.</p>
-                        <p class="vuln-disclaimer-subtext">Contains intentional security vulnerabilities including XSS, CSRF, SQL Injection, and auth bypasses.</p>
-                        <p class="vuln-disclaimer-warning"><strong>⚠️ WARNING:</strong> Do NOT enter real passwords or personal data. This is NOT a real bank.</p>
-                        <div class="vuln-disclaimer-links">
-                            <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>
-                            <span class="vuln-disclaimer-links-separator">•</span>
-                            <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
-                            <span class="vuln-disclaimer-links-separator">•</span>
-                            <a href="/compliance" target="_blank" rel="noopener noreferrer">Compliance</a>
-                        </div>
+                        <p>This isn't a real bank. VulnBank was built with intentional security flaws for learning and practice.</p>
+                        <p class="vuln-disclaimer-subtext">You'll find things like XSS, CSRF, SQL injection, and broken authentication—all on purpose.</p>
+                        <p class="vuln-disclaimer-warning">Don't use any real passwords or personal info here.</p>
                     </div>
                     <div class="vuln-disclaimer-actions">
-                        <button id="disclaimer-acknowledge" class="vuln-disclaimer-btn vuln-disclaimer-btn-primary">I Understand</button>
-                        <button onclick="dismissVulnDisclaimer()" class="vuln-disclaimer-btn vuln-disclaimer-btn-secondary">Remind Me Later</button>
+                        <button id="disclaimer-acknowledge" class="vuln-disclaimer-btn vuln-disclaimer-btn-primary">Got it</button>
+                        <button onclick="dismissVulnDisclaimer()" class="vuln-disclaimer-btn vuln-disclaimer-btn-secondary">Remind me later</button>
                     </div>
                 </div>
             </div>
@@ -123,7 +116,7 @@
                 flex-shrink: 0;
                 width: 40px;
                 height: 40px;
-                background: rgba(196, 248, 52, 0.15);
+                background: rgba(0, 123, 255, 0.15);
                 border-radius: 10px;
                 display: flex;
                 align-items: center;
@@ -132,7 +125,7 @@
             .vuln-disclaimer-icon svg {
                 width: 22px;
                 height: 22px;
-                color: #c4f834;
+                color: #007BFF;
             }
             .vuln-disclaimer-header h3 {
                 flex: 1;
@@ -176,30 +169,6 @@
                 border-radius: 6px;
                 margin: 0;
             }
-            .vuln-disclaimer-links {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 0.5rem;
-                margin-top: 1rem;
-                flex-wrap: wrap;
-            }
-            .vuln-disclaimer-links a {
-                color: var(--brand, #c4f834);
-                text-decoration: none;
-                font-size: 0.8125rem;
-                font-weight: 500;
-                padding: 0.25rem 0.5rem;
-                border-radius: 4px;
-                transition: background 0.2s;
-            }
-            .vuln-disclaimer-links a:hover {
-                background: rgba(196, 248, 52, 0.1);
-                text-decoration: underline;
-            }
-            .vuln-disclaimer-links-separator {
-                color: var(--text-3, rgba(255,255,255,0.3));
-            }
             .vuln-disclaimer-actions {
                 display: flex;
                 gap: 0.75rem;
@@ -216,11 +185,11 @@
                 border: none;
             }
             .vuln-disclaimer-btn-primary {
-                background: #c4f834;
-                color: #1a1f2e;
+                background: #007BFF;
+                color: #fff;
             }
             .vuln-disclaimer-btn-primary:hover {
-                background: #b4e824;
+                background: #0062CC;
             }
             .vuln-disclaimer-btn-secondary {
                 background: transparent;
@@ -236,13 +205,6 @@
                 }
                 .vuln-disclaimer-content {
                     padding: 0 1rem 1rem;
-                }
-                .vuln-disclaimer-links {
-                    flex-direction: column;
-                    gap: 0.25rem;
-                }
-                .vuln-disclaimer-links-separator {
-                    display: none;
                 }
                 .vuln-disclaimer-actions {
                     flex-direction: column;

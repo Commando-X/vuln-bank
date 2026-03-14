@@ -43,6 +43,13 @@
         .hero {
             min-height: calc(100vh - 4rem); display: flex; align-items: center;
             max-width: 1280px; margin: 0 auto; padding: 4.5rem 2.5rem 2rem; gap: 2.5rem;
+            position: relative;
+        }
+        .hero::before {
+            content: ''; position: absolute; inset: -50%;
+            background-image: radial-gradient(circle, var(--text-4) 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: 0.4; pointer-events: none; z-index: -1;
         }
         .hero-content { flex: 1.1; }
         .hero-visual { flex: 1; display: flex; justify-content: flex-end; }
@@ -62,6 +69,10 @@
         }
         .hero h1 .accent { color: var(--brand); }
         [data-theme="dark"] .hero h1 .accent { color: var(--brand-light); }
+        [data-theme="dark"] .hero::before {
+            background-image: radial-gradient(circle, var(--navy-600) 1px, transparent 1px);
+            opacity: 0.3;
+        }
 
         .hero-desc {
             font-size: 1.125rem; color: var(--text-3); line-height: 1.7;
@@ -138,10 +149,10 @@
         .feature-icon svg { width: 24px; height: 24px; }
         .feature-icon.a1 { background: rgba(0,123,255,0.1); color: var(--brand); }
         .feature-icon.a2 { background: rgba(0,123,255,0.1); color: var(--brand); }
-        .feature-icon.a3 { background: rgba(139,92,246,0.1); color: #8B5CF6; }
+        .feature-icon.a3 { background: rgba(16,185,129,0.1); color: var(--green); }
         .feature-icon.a4 { background: rgba(245,158,11,0.1); color: var(--amber); }
-        .feature-icon.a5 { background: rgba(236,72,153,0.1); color: #EC4899; }
-        .feature-icon.a6 { background: rgba(16,185,129,0.1); color: var(--green); }
+        .feature-icon.a5 { background: rgba(139,92,246,0.1); color: #8B5CF6; }
+        .feature-icon.a6 { background: rgba(236,72,153,0.1); color: #EC4899; }
         [data-theme="dark"] .feature-icon.a1 { background: rgba(0,123,255,0.12); color: var(--brand-light); }
         .feature-card h3 { font-family: var(--font-display); font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.5rem; }
         .feature-card p { font-size: 0.875rem; color: var(--text-3); line-height: 1.6; }
@@ -230,6 +241,14 @@
         .cta-inner h2 { font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 0.75rem; position: relative; z-index: 1; }
         .cta-inner p { font-size: 1.0625rem; color: rgba(255,255,255,0.55); margin-bottom: 2rem; position: relative; z-index: 1; }
         .cta-inner .btn-accent { position: relative; z-index: 1; padding: 0.75rem 2rem; font-size: 1rem; font-weight: 700; }
+
+        /* ---- MOBILE APP SECTION ---- */
+        .mobile-app-section { padding: 4rem 2.5rem; background: var(--surface-2); }
+        .mobile-app-inner { max-width: 1280px; margin: 0 auto; }
+        .mobile-app-content { text-align: center; max-width: 700px; margin: 0 auto; }
+        .mobile-app-content h2 { font-family: var(--font-display); font-size: 2rem; font-weight: 800; margin-bottom: 1rem; }
+        .mobile-app-content > p:first-of-type { font-size: 1.125rem; color: var(--brand); font-weight: 600; margin-bottom: 1rem; }
+        .mobile-app-desc { font-size: 1rem; color: var(--text-3); line-height: 1.7; margin-bottom: 2rem; }
 
         /* ---- FOOTER ---- */
         .landing-footer { background: var(--navy-950); color: rgba(255,255,255,0.4); padding: 3rem 2.5rem 2rem; }
@@ -357,11 +376,11 @@
     <section class="hero" id="hero">
         <div class="hero-content lr">
             <div class="hero-badge"><span class="hero-badge-dot"></span> The future of personal banking</div>
-            <h1>Your money,<br>one dashboard,<br>zero <span class="accent">friction.</span></h1>
-            <p class="hero-desc">Send money, manage virtual cards, pay bills, and apply for loans. All from a single, modern dashboard built for the way you bank today.</p>
+            <h1>Banking Made Simple<br>& <span class="accent">InSecure</span></h1>
+            <p class="hero-desc">This is an intentionally vulnerable application, designed for everyone to practice application security.</p>
             <div class="hero-buttons">
-                <a href="{{ url_for('register') }}" class="btn btn-accent btn-lg">Get Started &rarr;</a>
-                <a href="#features" class="btn btn-secondary btn-lg">Learn More</a>
+                <a href="{{ url_for('register') }}" class="btn btn-accent btn-lg">Register</a>
+                <a href="{{ url_for('login') }}" class="btn btn-secondary btn-lg">Login</a>
             </div>
         </div>
         <div class="hero-visual lr" style="transition-delay:0.2s;">
@@ -373,7 +392,7 @@
                 <div class="hero-card-balance">$ 12,740.55</div>
                 <div class="hero-card-number">4817 &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; 3291</div>
                 <div class="hero-card-row">
-                    <span>Jane Cooper</span>
+                    <span>Mr Robot</span>
                     <span>Exp 11/28</span>
                 </div>
             </div>
@@ -394,34 +413,45 @@
     <section class="features" id="features">
         <div class="features-inner">
             <div class="features-header lr">
-                <h2>Everything you need,<br>nothing you don't</h2>
-                <p>A complete suite of tools and resources to help you manage your finances more effectively.</p>
+                <h2>Our Features</h2>
             </div>
             <div class="features-grid">
                 <div class="feature-card lr">
                     <div class="feature-icon a1"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></div>
-                    <h3>Instant Transfers</h3><p>Send money to any account in seconds with real-time tracking and notifications.</p>
+                    <h3>Money Transfers</h3><p>Send money instantly to any account within our banking system.</p>
                 </div>
                 <div class="feature-card lr">
                     <div class="feature-icon a2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg></div>
-                    <h3>Virtual Cards</h3><p>Create disposable cards for online purchases. Freeze and set spending limits instantly.</p>
+                    <h3>Virtual Cards</h3><p>Create and manage virtual payment cards for secure online transactions.</p>
                 </div>
                 <div class="feature-card lr">
-                    <div class="feature-icon a3"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div>
-                    <h3>Loans and Credits</h3><p>Apply for a loan in one click. Transparent rates, fast approval, funds deposited directly.</p>
+                    <div class="feature-icon a3"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+                    <h3>Loan Services</h3><p>Apply for loans with quick approval process.</p>
                 </div>
                 <div class="feature-card lr">
-                    <div class="feature-icon a4"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></div>
-                    <h3>Bill Payments</h3><p>Pay utilities, subscriptions, and services from one place. Schedule recurring payments.</p>
+                    <div class="feature-icon a4"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></div>
+                    <h3>Bill Payments</h3><p>Pay your utility bills, subscriptions, and services directly from your account.</p>
                 </div>
                 <div class="feature-card lr">
-                    <div class="feature-icon a5"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
-                    <h3>Security</h3><p>256-bit encryption, secure authentication, and real-time fraud monitoring at every step.</p>
+                    <div class="feature-icon a5"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7H9V5.73C8.4 5.39 8 4.74 8 4a2 2 0 0 1 2-2z"></path><circle cx="9" cy="12" r="1"></circle><circle cx="15" cy="12" r="1"></circle></svg></div>
+                    <h3>AI Customer Support</h3><p>Get instant help from our intelligent AI assistant for all your banking needs.</p>
                 </div>
                 <div class="feature-card lr">
-                    <div class="feature-icon a6"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
-                    <h3>AI Support</h3><p>Get instant help with your account from our built-in AI assistant, available around the clock.</p>
+                    <div class="feature-icon a6"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div>
+                    <h3>Mobile App</h3><p>Access your account anytime, anywhere with our insecure mobile banking application.</p>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Banking in Your Pocket -->
+    <section class="mobile-app-section" id="mobile-app">
+        <div class="mobile-app-inner">
+            <div class="mobile-app-content lr">
+                <h2>Banking in Your Pocket</h2>
+                <p>Experience the future of mobile banking with our cutting-edge vulnerable android app</p>
+                <p class="mobile-app-desc">Access all your banking needs on-the-go. Transfer money, pay bills, and manage your finances with just a few taps. Security and convenience, redefined.</p>
+                <a href="#" class="btn btn-accent btn-lg">Download</a>
             </div>
         </div>
     </section>

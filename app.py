@@ -1317,6 +1317,43 @@ def api_v3_forgot_password():
             'message': str(e)
         }), 500
 
+# API endpoint to get user details (for admin modal)
+@app.route('/api/v3/user/<int:user_id>', methods=['GET'])
+@token_required
+def api_v3_get_user(current_user, user_id):
+    """Get user details by ID - Vulnerable to IDOR"""
+    try:
+        # Vulnerability: No authorization check - any user can fetch any user's details
+        # This is an IDOR (Insecure Direct Object Reference) vulnerability
+        user = execute_query(
+            "SELECT * FROM users WHERE id = %s",
+            (user_id,)
+        )
+
+        if user:
+            user_data = user[0]
+            return jsonify({
+                'status': 'success',
+                'user': {
+                    'id': user_data[0],
+                    'username': user_data[1],
+                    'account_number': user_data[3],
+                    'balance': float(user_data[4]) if user_data[4] else 0,
+                    'is_admin': user_data[5],
+                    'bio': user_data[8] if len(user_data) > 8 else None
+                }
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'User not found'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 # V1 API for reset password
 @app.route('/api/v1/reset-password', methods=['POST'])
 def api_v1_reset_password():
