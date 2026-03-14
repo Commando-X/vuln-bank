@@ -235,15 +235,20 @@ body {
 }
 
 #message {
-  padding: 0 2rem;
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  pointer-events: none;
 }
 
 .message {
   padding: 1rem 1.5rem;
   border-radius: 12px;
-  margin-bottom: 1.5rem;
   font-size: 0.9375rem;
-  display: inline-block;
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
 }
 
 .message-success {
@@ -837,6 +842,22 @@ body {
   border-bottom: 1px solid var(--admin-border);
 }
 
+.user-modal-message {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--admin-border);
+  font-size: 0.875rem;
+}
+
+.user-modal-message-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--admin-success);
+}
+
+.user-modal-message-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--admin-danger);
+}
+
 .user-modal-header h2 {
   margin: 0;
   font-size: 1.25rem;
@@ -867,6 +888,18 @@ body {
 
 .user-modal-body {
   padding: 1.5rem;
+}
+
+.user-modal-actions {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--admin-border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal-delete-form {
+  display: inline;
 }
 
 .user-detail-row {

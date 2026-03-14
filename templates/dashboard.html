@@ -234,6 +234,7 @@
                 <h3 class="modal-title">Create Virtual Card</h3>
                 <button class="modal-close" onclick="hideCreateCardModal()" aria-label="Close">&times;</button>
             </div>
+            <div id="createCardModal-message" class="modal-message" style="display: none;"></div>
             <form id="createCardForm">
                 <div class="form-group">
                     <label for="card_limit">Card Limit</label>
@@ -268,7 +269,7 @@
         </div>
     </div>
 
-    <div id="cardDetailsModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 class="modal-title">Card Details</h3><button class="modal-close" onclick="hideCardDetailsModal()" aria-label="Close">&times;</button></div><div id="cardDetailsContent"></div><div class="modal-footer"><button class="btn-ghost" onclick="hideCardDetailsModal()">Close</button></div></div></div>
+    <div id="cardDetailsModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 class="modal-title">Card Details</h3><button class="modal-close" onclick="hideCardDetailsModal()" aria-label="Close">&times;</button></div><div id="cardDetailsModal-message" class="modal-message" style="display: none;"></div><div id="cardDetailsContent"></div><div class="modal-footer"><button class="btn-ghost" onclick="hideCardDetailsModal()">Close</button></div></div></div>
 
     <div id="fundCardModal" class="modal">
         <div class="modal-content">
@@ -276,6 +277,7 @@
                 <h3 class="modal-title">Fund Virtual Card</h3>
                 <button class="modal-close" onclick="hideFundCardModal()" aria-label="Close">&times;</button>
             </div>
+            <div id="fundCardModal-message" class="modal-message" style="display: none;"></div>
             <form id="fundCardForm">
                 <input type="hidden" id="fund_card_id" name="card_id">
                 <div class="form-group">
@@ -299,7 +301,7 @@
         </div>
     </div>
 
-    <div id="payBillModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 class="modal-title">Pay Bill</h3><button class="modal-close" onclick="hidePayBillModal()" aria-label="Close">&times;</button></div><form id="payBillForm"><div class="form-group"><label for="billCategory">Bill Category</label><select id="billCategory" onchange="loadBillers(this.value)" required><option value="">Select Category</option></select></div><div class="form-group"><label for="biller">Biller</label><select id="biller" name="biller_id" required disabled><option value="">Select Biller</option></select></div><div class="form-group"><label for="bill_amount">Amount</label><input type="number" id="bill_amount" name="amount" step="0.01" placeholder="0.00" required></div><div class="form-group"><label for="payment_method">Payment Method</label><select id="payment_method" name="payment_method" onchange="toggleCardSelection(this.value)" required><option value="balance">Account Balance</option><option value="virtual_card">Virtual Card</option></select></div><div class="form-group" id="cardSelection" style="display:none;"><label for="card_id">Select Card</label><select id="card_id" name="card_id"><option value="">Select Card</option></select></div><div class="form-group"><label for="bill_description">Description (Optional)</label><input type="text" id="bill_description" name="description" placeholder="Payment note"></div><div class="modal-footer"><button type="button" class="btn-ghost" onclick="hidePayBillModal()">Cancel</button><button type="submit">Pay Now</button></div></form></div></div>
+    <div id="payBillModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 class="modal-title">Pay Bill</h3><button class="modal-close" onclick="hidePayBillModal()" aria-label="Close">&times;</button></div><div id="payBillModal-message" class="modal-message" style="display: none;"></div><form id="payBillForm"><div class="form-group"><label for="billCategory">Bill Category</label><select id="billCategory" onchange="loadBillers(this.value)" required><option value="">Select Category</option></select></div><div class="form-group"><label for="biller">Biller</label><select id="biller" name="biller_id" required disabled><option value="">Select Biller</option></select></div><div class="form-group"><label for="bill_amount">Amount</label><input type="number" id="bill_amount" name="amount" step="0.01" placeholder="0.00" required></div><div class="form-group"><label for="payment_method">Payment Method</label><select id="payment_method" name="payment_method" onchange="toggleCardSelection(this.value)" required><option value="balance">Account Balance</option><option value="virtual_card">Virtual Card</option></select></div><div class="form-group" id="cardSelection" style="display:none;"><label for="card_id">Select Card</label><select id="card_id" name="card_id"><option value="">Select Card</option></select></div><div class="form-group"><label for="bill_description">Description (Optional)</label><input type="text" id="bill_description" name="description" placeholder="Payment note"></div><div class="modal-footer"><button type="button" class="btn-ghost" onclick="hidePayBillModal()">Cancel</button><button type="submit">Pay Now</button></div></form></div></div>
 
     <!-- Toast Notifications Container -->
     <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>

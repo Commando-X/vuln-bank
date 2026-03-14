@@ -379,6 +379,27 @@
   margin-bottom: 1.5rem; padding-bottom: 0.875rem; border-bottom: 1px solid var(--border);
 }
 .modal-title { font-family: var(--font-display); font-size: 1.125rem; font-weight: 700; color: var(--text-1); margin: 0; }
+.modal-message {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--r-md);
+  font-size: 0.875rem;
+}
+.modal-message-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.modal-message-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.modal-message-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
 .modal-close {
   width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
   background: var(--surface-2); border: none; border-radius: var(--r-sm);

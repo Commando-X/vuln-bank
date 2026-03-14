@@ -385,6 +385,7 @@
                 <h2>User Profile</h2>
                 <button class="user-modal-close" onclick="closeUserModal()" aria-label="Close modal">&times;</button>
             </div>
+            <div id="user-modal-message" class="user-modal-message" style="display: none;"></div>
             <div class="user-modal-body" id="user-modal-body">
                 Loading user details...
             </div>
@@ -519,10 +520,21 @@
         }
 
         function showMessage(text, type) {
-            const msgDiv = document.getElementById('message');
-            msgDiv.innerHTML = `<div class="message message-${type}">${text}</div>`;
-            msgDiv.style.display = 'block';
-            setTimeout(() => msgDiv.style.display = 'none', 5000);
+            // If modal is open, show message in modal
+            const modal = document.getElementById('user-modal');
+            if (modal && modal.style.display !== 'none') {
+                const modalMsg = document.getElementById('user-modal-message');
+                modalMsg.className = `user-modal-message user-modal-message-${type}`;
+                modalMsg.textContent = text;
+                modalMsg.style.display = 'block';
+                setTimeout(() => modalMsg.style.display = 'none', 5000);
+            } else {
+                // Otherwise show toast notification
+                const msgDiv = document.getElementById('message');
+                msgDiv.innerHTML = `<div class="message message-${type}">${text}</div>`;
+                msgDiv.style.display = 'block';
+                setTimeout(() => msgDiv.style.display = 'none', 5000);
+            }
         }
 
         async function fetchGraphqlTransactionSummary() {
@@ -747,7 +759,15 @@
                 <div class="user-detail-bio">
                     ${user.bio ? user.bio : '<em style="color: var(--text-4);">No bio provided</em>'}
                 </div>
+                <div class="user-modal-actions">
+                    <form class="modal-delete-form" data-user-id="${user.id}">
+                        <button type="submit" class="btn-text btn-delete">Delete User</button>
+                    </form>
+                </div>
             `;
+
+            // Attach delete handler to the new button
+            document.querySelector('.modal-delete-form').addEventListener('submit', handleDeleteAccount);
         }
 
         // Close modal on Escape key
