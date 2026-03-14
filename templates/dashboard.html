@@ -228,9 +228,76 @@
     </main>
 
     <!-- Modals (placed outside main for proper positioning) -->
-    <div id="createCardModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 class="modal-title">Create Virtual Card</h3><button class="modal-close" onclick="hideCreateCardModal()" aria-label="Close">&times;</button></div><form id="createCardForm"><div class="form-group"><label for="card_limit">Card Limit</label><input type="number" id="card_limit" name="card_limit" placeholder="0.00" step="0.01" required></div><div class="form-group"><label for="card_type">Card Type</label><select id="card_type" name="card_type" required><option value="standard">Standard</option><option value="premium">Premium</option></select></div><div class="modal-footer"><button type="button" class="btn-ghost" onclick="hideCreateCardModal()">Cancel</button><button type="submit">Create Card</button></div></form></div></div>
+    <div id="createCardModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Create Virtual Card</h3>
+                <button class="modal-close" onclick="hideCreateCardModal()" aria-label="Close">&times;</button>
+            </div>
+            <form id="createCardForm">
+                <div class="form-group">
+                    <label for="card_limit">Card Limit</label>
+                    <input type="number" id="card_limit" name="card_limit" placeholder="0.00" step="0.00000001" required>
+                    <div id="cardLimitHelper" class="form-helper">Limits are stored in the selected card currency.</div>
+                </div>
+                <div class="form-group">
+                    <label for="card_currency">Card Currency</label>
+                    <select id="card_currency" name="currency" required>
+                        <option value="USD">USD</option>
+                        <option value="GBP">GBP</option>
+                        <option value="NGN">NGN</option>
+                        <option value="JPY">JPY</option>
+                        <option value="EUR">EUR</option>
+                        <option value="QAR">QAR</option>
+                        <option value="BTC">BTC</option>
+                        <option value="ETH">ETH</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="card_type">Card Type</label>
+                    <select id="card_type" name="card_type" required>
+                        <option value="standard">Standard</option>
+                        <option value="premium">Premium</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" onclick="hideCreateCardModal()">Cancel</button>
+                    <button type="submit">Create Card</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <div id="cardDetailsModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 class="modal-title">Card Details</h3><button class="modal-close" onclick="hideCardDetailsModal()" aria-label="Close">&times;</button></div><div id="cardDetailsContent"></div><div class="modal-footer"><button class="btn-ghost" onclick="hideCardDetailsModal()">Close</button></div></div></div>
+
+    <div id="fundCardModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Fund Virtual Card</h3>
+                <button class="modal-close" onclick="hideFundCardModal()" aria-label="Close">&times;</button>
+            </div>
+            <form id="fundCardForm">
+                <input type="hidden" id="fund_card_id" name="card_id">
+                <div class="form-group">
+                    <label>Funding Source</label>
+                    <div class="funding-source-note">Main Balance (USD)</div>
+                </div>
+                <div class="form-group">
+                    <label>Selected Card</label>
+                    <div id="fundCardSummary" class="funding-source-note">No card selected</div>
+                </div>
+                <div class="form-group">
+                    <label for="fund_amount">Amount to Convert from Main Balance</label>
+                    <input type="number" id="fund_amount" name="amount" placeholder="0.00" step="0.01" min="0.01" required>
+                    <div id="fundingPreview" class="form-helper">Enter a USD amount to preview the converted card value.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" onclick="hideFundCardModal()">Cancel</button>
+                    <button type="submit">Fund Card</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <div id="payBillModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 class="modal-title">Pay Bill</h3><button class="modal-close" onclick="hidePayBillModal()" aria-label="Close">&times;</button></div><form id="payBillForm"><div class="form-group"><label for="billCategory">Bill Category</label><select id="billCategory" onchange="loadBillers(this.value)" required><option value="">Select Category</option></select></div><div class="form-group"><label for="biller">Biller</label><select id="biller" name="biller_id" required disabled><option value="">Select Biller</option></select></div><div class="form-group"><label for="bill_amount">Amount</label><input type="number" id="bill_amount" name="amount" step="0.01" placeholder="0.00" required></div><div class="form-group"><label for="payment_method">Payment Method</label><select id="payment_method" name="payment_method" onchange="toggleCardSelection(this.value)" required><option value="balance">Account Balance</option><option value="virtual_card">Virtual Card</option></select></div><div class="form-group" id="cardSelection" style="display:none;"><label for="card_id">Select Card</label><select id="card_id" name="card_id"><option value="">Select Card</option></select></div><div class="form-group"><label for="bill_description">Description (Optional)</label><input type="text" id="bill_description" name="description" placeholder="Payment note"></div><div class="modal-footer"><button type="button" class="btn-ghost" onclick="hidePayBillModal()">Cancel</button><button type="submit">Pay Now</button></div></form></div></div>
 

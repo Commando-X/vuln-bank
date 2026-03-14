@@ -95,6 +95,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add virtual cards event listener
     document.getElementById('createCardForm').addEventListener('submit', handleCreateCard);
+    document.getElementById('fundCardForm').addEventListener('submit', handleFundCard);
+    document.getElementById('card_currency').addEventListener('change', updateCardLimitHelper);
+    document.getElementById('fund_amount').addEventListener('input', updateFundingPreview);
+    updateCardLimitHelper();
     
     // Load virtual cards
     fetchVirtualCards();
@@ -178,7 +182,7 @@ async function handleTransfer(event) {
         const data = await response.json();
         if (data.status === 'success') {
             // Update balance
-            document.getElementById('balance').textContent = data.new_balance;
+            setMainBalanceValue(data.new_balance);
             showSuccess(data.message, 'Transfer Successful');
 
             // Refresh transactions
@@ -409,6 +413,48 @@ async function fetchTransactions() {
 // Virtual Cards Management
 let virtualCards = [];
 
+const CARD_CURRENCY_META = {
+    USD: { symbol: '$', precision: 2, rate: 1.0 },
+    GBP: { symbol: '£', precision: 2, rate: 0.79 },
+    NGN: { symbol: 'NGN ', precision: 2, rate: 1550.0 },
+    JPY: { symbol: '¥', precision: 2, rate: 149.5 },
+    EUR: { symbol: '€', precision: 2, rate: 0.92 },
+    QAR: { symbol: 'QAR ', precision: 2, rate: 3.64 },
+    BTC: { symbol: 'BTC ', precision: 8, rate: 0.000014 },
+    ETH: { symbol: 'ETH ', precision: 8, rate: 0.0004 }
+};
+
+function getCardCurrencyMeta(currency) {
+    return CARD_CURRENCY_META[String(currency || 'USD').toUpperCase()] || CARD_CURRENCY_META.USD;
+}
+
+function getCardInputStep(currency) {
+    return getCardCurrencyMeta(currency).precision === 8 ? '0.00000001' : '0.01';
+}
+
+function formatCurrencyAmount(amount, currency = 'USD') {
+    const numericAmount = Number(amount || 0);
+    const meta = getCardCurrencyMeta(currency);
+    const minimumFractionDigits = meta.precision === 8 ? 4 : 2;
+    return `${meta.symbol}${numericAmount.toLocaleString('en-US', {
+        minimumFractionDigits,
+        maximumFractionDigits: meta.precision
+    })}`;
+}
+
+function convertUsdToCardCurrency(amount, currency) {
+    return Number(amount || 0) * getCardCurrencyMeta(currency).rate;
+}
+
+function getMainBalanceValue() {
+    const balanceText = document.getElementById('balance').textContent || '0';
+    return parseFloat(balanceText.replace(/[^0-9.-]/g, '')) || 0;
+}
+
+function setMainBalanceValue(amount) {
+    document.getElementById('balance').textContent = formatCurrencyAmount(amount, 'USD');
+}
+
 async function fetchVirtualCards() {
     try {
         const response = await fetch('/api/virtual-cards', {
@@ -439,15 +485,21 @@ function renderVirtualCards() {
     // Vulnerability: XSS possible in card rendering
     container.innerHTML = virtualCards.map(card => `
         <div class="virtual-card ${card.is_frozen ? 'frozen' : ''}" id="card-${card.id}">
-            <div class="card-type">${card.card_type.toUpperCase()}</div>
+            <div class="card-topline">
+                <div class="card-type">${card.card_type.toUpperCase()}</div>
+                <div class="card-currency-badge">${card.currency || 'USD'}</div>
+            </div>
             <div class="card-number">${formatCardNumber(card.card_number)}</div>
             <div class="card-details">
                 <div>Exp: ${card.expiry_date}</div>
                 <div>CVV: ${card.cvv}</div>
             </div>
-            <div>Limit: $${card.limit}</div>
-            <div>Balance: $${card.balance}</div>
+            <div class="card-balance-lines">
+                <div><span>Limit</span>${formatCurrencyAmount(card.limit, card.currency)}</div>
+                <div><span>Balance</span>${formatCurrencyAmount(card.balance, card.currency)}</div>
+            </div>
             <div class="card-actions">
+                <button onclick="showFundCardModal(${card.id})">Fund</button>
                 <button onclick="toggleCardFreeze(${card.id})">${card.is_frozen ? 'Unfreeze' : 'Freeze'}</button>
                 <button onclick="showCardDetails(${card.id})">Details</button>
                 <button onclick="showTransactionHistory(${card.id})">History</button>
@@ -463,11 +515,13 @@ function formatCardNumber(number) {
 
 function showCreateCardModal() {
     document.getElementById('createCardModal').style.display = 'flex';
+    updateCardLimitHelper();
 }
 
 function hideCreateCardModal() {
     document.getElementById('createCardModal').style.display = 'none';
     document.getElementById('createCardForm').reset();
+    updateCardLimitHelper();
 }
 
 function showCardDetails(cardId) {
@@ -495,12 +549,16 @@ function showCardDetails(cardId) {
             <p>${card.card_type}</p>
         </div>
         <div class="form-group">
+            <label>Currency</label>
+            <p>${card.currency || 'USD'}</p>
+        </div>
+        <div class="form-group">
             <label>Current Limit</label>
-            <p>$${card.limit}</p>
+            <p>${formatCurrencyAmount(card.limit, card.currency)}</p>
         </div>
         <div class="form-group">
             <label>Current Balance</label>
-            <p>$${card.balance}</p>
+            <p>${formatCurrencyAmount(card.balance, card.currency)}</p>
         </div>
         <div class="form-group">
             <label>Status</label>
@@ -517,6 +575,14 @@ function showCardDetails(cardId) {
 
 function hideCardDetailsModal() {
     document.getElementById('cardDetailsModal').style.display = 'none';
+}
+
+function updateCardLimitHelper() {
+    const currency = document.getElementById('card_currency').value || 'USD';
+    const helper = document.getElementById('cardLimitHelper');
+    const limitInput = document.getElementById('card_limit');
+    helper.textContent = `Limits are stored in ${currency}. Funding still comes from your USD main balance.`;
+    limitInput.step = getCardInputStep(currency);
 }
 
 async function handleCreateCard(event) {
@@ -546,6 +612,81 @@ async function handleCreateCard(event) {
         }
     } catch (error) {
         showError('Failed to create virtual card. Please try again.', 'Card Creation Failed');
+    }
+}
+
+function showFundCardModal(cardId) {
+    const card = virtualCards.find(c => c.id === cardId);
+    if (!card) return;
+
+    const modal = document.getElementById('fundCardModal');
+    modal.dataset.currency = card.currency || 'USD';
+    modal.dataset.cardId = String(cardId);
+    document.getElementById('fund_card_id').value = cardId;
+    document.getElementById('fund_amount').value = '';
+    document.getElementById('fundCardSummary').textContent =
+        `${(card.currency || 'USD')} ${card.card_type} card ending in ${card.card_number.slice(-4)} | ` +
+        `Balance ${formatCurrencyAmount(card.balance, card.currency)} | Limit ${formatCurrencyAmount(card.limit, card.currency)}`;
+    updateFundingPreview();
+    modal.style.display = 'flex';
+}
+
+function hideFundCardModal() {
+    const modal = document.getElementById('fundCardModal');
+    modal.style.display = 'none';
+    modal.dataset.currency = 'USD';
+    modal.dataset.cardId = '';
+    document.getElementById('fundCardForm').reset();
+    document.getElementById('fundingPreview').textContent = 'Enter a USD amount to preview the converted card value.';
+}
+
+function updateFundingPreview() {
+    const modal = document.getElementById('fundCardModal');
+    const currency = modal.dataset.currency || 'USD';
+    const usdAmount = parseFloat(document.getElementById('fund_amount').value) || 0;
+    const preview = document.getElementById('fundingPreview');
+
+    if (usdAmount <= 0) {
+        preview.textContent = 'Enter a USD amount to preview the converted card value.';
+        return;
+    }
+
+    const convertedAmount = convertUsdToCardCurrency(usdAmount, currency);
+    preview.textContent =
+        `${formatCurrencyAmount(usdAmount, 'USD')} from your main balance converts to ` +
+        `${formatCurrencyAmount(convertedAmount, currency)} on this ${currency} card.`;
+}
+
+async function handleFundCard(event) {
+    event.preventDefault();
+    const cardId = document.getElementById('fund_card_id').value;
+    const usdAmount = parseFloat(document.getElementById('fund_amount').value);
+
+    try {
+        const response = await fetch(`/api/virtual-cards/${cardId}/fund`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ amount: usdAmount })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            hideFundCardModal();
+            setMainBalanceValue(data.funding.main_balance_after);
+            await fetchVirtualCards();
+            await fetchTransactions();
+            showSuccess(
+                `${formatCurrencyAmount(data.funding.converted_amount, data.funding.card_currency)} added to your card from ${formatCurrencyAmount(data.funding.usd_amount, 'USD')}.`,
+                'Card Funded'
+            );
+        } else {
+            showError(data.message, 'Funding Failed');
+        }
+    } catch (error) {
+        showError('Failed to fund virtual card. Please try again.', 'Funding Failed');
     }
 }
 
@@ -597,7 +738,7 @@ async function showTransactionHistory(cardId) {
                                 <div class="transaction-account">${t.merchant}</div>
                                 <div class="transaction-date">${new Date(t.timestamp).toLocaleString()}</div>
                             </div>
-                            <div class="transaction-amount">${t.amount}</div>
+                            <div class="transaction-amount">${formatCurrencyAmount(t.amount, t.currency)}</div>
                         </div>
                     `).join('')}
                 </div>
@@ -624,8 +765,8 @@ async function showUpdateLimit(cardId) {
         <h4>Update Card Limit</h4>
         <form id="updateCardForm" onsubmit="return handleCardUpdate(event, ${cardId})">
             <div class="form-group">
-                <label for="card_limit_update">Card Limit</label>
-                <input type="number" id="card_limit_update" name="card_limit" value="${card.limit}" step="0.01" required>
+                <label for="card_limit_update">Card Limit (${card.currency || 'USD'})</label>
+                <input type="number" id="card_limit_update" name="card_limit" value="${card.limit}" step="${getCardInputStep(card.currency)}" required>
             </div>
             <div class="modal-footer">
                 <button type="submit">Update Limit</button>
@@ -788,7 +929,7 @@ async function loadVirtualCardsForPayment() {
                 ${data.cards.filter(card => !card.is_frozen).map(card => `
                     <option value="${card.id}">
                         Card ending in ${card.card_number.slice(-4)} 
-                        (Balance: $${card.balance})
+                        (${card.currency}: ${formatCurrencyAmount(card.balance, card.currency)})
                     </option>
                 `).join('')}
             `;
@@ -835,9 +976,7 @@ async function handleBillPayment(event) {
                 await fetchVirtualCards();
             } else {
                 // Update account balance
-                const balanceElement = document.getElementById('balance');
-                const currentBalance = parseFloat(balanceElement.textContent);
-                balanceElement.textContent = (currentBalance - jsonData.amount).toFixed(2);
+                setMainBalanceValue(getMainBalanceValue() - jsonData.amount);
             }
         } else {
             showError(data.message, 'Payment Failed');

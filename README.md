@@ -26,7 +26,8 @@ This project is a simple banking application with multiple security vulnerabilit
 - 📊 Transaction History
 - 📈 Transaction Analytics Dashboard (GraphQL-backed)
 - 🔑 Password Reset System (3-digit PIN)
-- 💳 Virtual Cards Management
+- 💳 Multi-Currency Virtual Cards Management
+- 💱 Virtual Card Funding from Main USD Balance with built-in currency conversion (`USD`, `GBP`, `NGN`, `JPY`, `EUR`, `QAR`, `BTC`, `ETH`)
 - 📱 Bill Payments System
 - 🤖 AI Customer Support Agent (Real LLM with DeepSeek API / Mock Mode)
 
@@ -84,6 +85,7 @@ This project is a simple banking application with multiple security vulnerabilit
 
 7. **Virtual Card Vulnerabilities**
    - Mass Assignment in card limit updates
+   - Mass Assignment in card funding exchange-rate handling
    - Predictable card number generation
    - Plaintext storage of card details
    - No validation on card limits
@@ -92,6 +94,7 @@ This project is a simple banking application with multiple security vulnerabilit
    - Card detail information disclosure
    - No transaction verification
    - Lack of card activity monitoring
+   - Client-controlled currency conversion during card funding
 
 8. **Bill Payment Vulnerabilities**
    - No validation on payment amounts
@@ -367,11 +370,12 @@ curl -s -X POST http://localhost:5000/upload_profile_picture_url \
 ### Virtual Card Testing
 
 1. Exploit mass assignment in card limit updates
-2. Analyze card number generation patterns
-3. Access unauthorized card details
-4. Test card freezing bypasses
-5. Transaction history manipulation
-6. Card limit validation bypass
+2. Manipulate `exchange_rate` in `/api/virtual-cards/<card_id>/fund` to over-credit a card during USD conversion
+3. Analyze card number generation patterns
+4. Access unauthorized card details
+5. Test card freezing bypasses
+6. Transaction history manipulation
+7. Card limit validation bypass
 
 ### Bill Payment Testing
 
