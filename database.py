@@ -73,13 +73,19 @@ def init_db():
                     is_admin BOOLEAN DEFAULT FALSE,
                     profile_picture TEXT,
                     reset_pin TEXT,  -- Vulnerability: Reset PINs stored in plaintext
-                    bio TEXT  -- Vulnerability: Stored XSS - User bio without sanitization
+                    bio TEXT,  -- Vulnerability: Stored XSS - User bio without sanitization
+                    is_suspended BOOLEAN DEFAULT FALSE
                 )
             ''')
 
             # Migration: Add bio column if it doesn't exist (for existing databases)
             try:
                 cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
+            except Exception:
+                pass  # Column already exists or error adding it
+
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT FALSE")
             except Exception:
                 pass  # Column already exists or error adding it
             
@@ -114,13 +120,14 @@ def init_db():
                     card_number TEXT NOT NULL UNIQUE,  -- Vulnerability: Card numbers stored in plaintext
                     cvv TEXT NOT NULL,  -- Vulnerability: CVV stored in plaintext
                     expiry_date TEXT NOT NULL,
-                    card_limit DECIMAL(15, 2) DEFAULT 1000.0,
-                    current_balance DECIMAL(15, 2) DEFAULT 0.0,
+                    card_limit NUMERIC(20, 8) DEFAULT 1000.0,
+                    current_balance NUMERIC(20, 8) DEFAULT 0.0,
                     is_frozen BOOLEAN DEFAULT FALSE,
                     is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_used_at TIMESTAMP,
-                    card_type TEXT DEFAULT 'standard'  -- Vulnerability: No validation on card type
+                    card_type TEXT DEFAULT 'standard',  -- Vulnerability: No validation on card type
+                    currency TEXT DEFAULT 'USD'
                 )
             ''')
 
@@ -129,7 +136,7 @@ def init_db():
                 CREATE TABLE IF NOT EXISTS card_transactions (
                     id SERIAL PRIMARY KEY,
                     card_id INTEGER REFERENCES virtual_cards(id) ON DELETE CASCADE,
-                    amount DECIMAL(15, 2) NOT NULL,
+                    amount NUMERIC(20, 8) NOT NULL,
                     merchant_name TEXT,  -- Vulnerability: No input validation
                     transaction_type TEXT NOT NULL,
                     status TEXT DEFAULT 'pending',
@@ -137,6 +144,18 @@ def init_db():
                     description TEXT
                 )
             ''')
+
+            try:
+                cursor.execute("ALTER TABLE virtual_cards ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'")
+            except Exception:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE virtual_cards ALTER COLUMN card_limit TYPE NUMERIC(20, 8)")
+                cursor.execute("ALTER TABLE virtual_cards ALTER COLUMN current_balance TYPE NUMERIC(20, 8)")
+                cursor.execute("ALTER TABLE card_transactions ALTER COLUMN amount TYPE NUMERIC(20, 8)")
+            except Exception:
+                pass
             
             # Create default admin account if it doesn't exist
             cursor.execute("SELECT * FROM users WHERE username='admin'")

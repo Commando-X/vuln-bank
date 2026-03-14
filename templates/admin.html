@@ -11,395 +11,246 @@
     <script>document.documentElement.setAttribute("data-theme", localStorage.getItem("vb-theme") || "light");</script>
 </head>
 <body>
-    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <a href="#admin-content" class="skip-link">Skip to admin content</a>
 
-    <div class="admin-layout">
-        <!-- Sidebar -->
-        <aside class="admin-sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-logo">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                    </svg>
-                    <span class="sidebar-logo-text">VulnBank</span>
-                    <span class="sidebar-badge">Admin</span>
+    <div class="admin-container" id="admin-content">
+        <div id="message" aria-live="polite"></div>
+
+        <div class="admin-header">
+            <h1 class="admin-title">Admin Panel</h1>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="color: #fff; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.1);">
+                <svg style="width:16px;height:16px;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Back to Dashboard
+            </a>
+        </div>
+
+        <div class="admin-profile">
+            <img class="profile-picture" src="{{ url_for('static', filename='uploads/admin.png') }}" alt="Admin Profile">
+            <h2>System Administrator</h2>
+        </div>
+
+        <div class="admin-section">
+            <div class="admin-section-head">
+                <h2>Transaction Analytics</h2>
+            </div>
+            <p class="graphql-intro">
+                Live aggregate metrics for platform transactions, lending activity, bill payments, and recent money movement.
+            </p>
+
+            <div class="graphql-metrics">
+                <div class="graphql-metric-card metric-transactions">
+                    <span>Total Transactions</span>
+                    <strong id="graphql-total-transactions">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-volume">
+                    <span>Total Volume</span>
+                    <strong id="graphql-total-volume">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-inflow">
+                    <span>Inflow</span>
+                    <strong id="graphql-inflow">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-outflow">
+                    <span>Outflow</span>
+                    <strong id="graphql-outflow">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-netflow">
+                    <span>Net Flow</span>
+                    <strong id="graphql-net-flow">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-largest">
+                    <span>Largest Transaction</span>
+                    <strong id="graphql-largest-transaction">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-loans">
+                    <span>Total Loans Given</span>
+                    <strong id="graphql-total-loans-given">--</strong>
+                </div>
+                <div class="graphql-metric-card metric-pending">
+                    <span>Pending Loans</span>
+                    <strong id="graphql-pending-loans">--</strong>
+                    <div class="graphql-metric-meta" id="graphql-pending-loans-meta">--</div>
+                </div>
+                <div class="graphql-metric-card metric-bills">
+                    <span>Bill Payments</span>
+                    <strong id="graphql-bill-payments">--</strong>
+                    <div class="graphql-metric-meta" id="graphql-bill-payments-meta">--</div>
                 </div>
             </div>
 
-            <nav class="sidebar-nav">
-                <a href="#overview" class="sidebar-nav-item active" data-section="overview">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
-                    </svg>
-                    <span>Overview</span>
-                </a>
-                <a href="#users" class="sidebar-nav-item" data-section="users">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                    <span>Users</span>
-                </a>
-                <a href="#loans" class="sidebar-nav-item" data-section="loans">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                    </svg>
-                    <span>Loans</span>
-                </a>
-                <a href="#settings" class="sidebar-nav-item" data-section="settings">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0-9 19.4a1.65 1.65 0 0 0-1 1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0 .33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                    <span>Settings</span>
-                </a>
-            </nav>
-
-            <div class="sidebar-footer">
-                <a href="{{ url_for('dashboard') }}" class="sidebar-back-link">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="19" y1="12" x2="5" y2="12"></line>
-                        <polyline points="12 19 5 12 12 5"></polyline>
-                    </svg>
-                    <span>Back to Dashboard</span>
-                </a>
-                <button class="theme-toggle-sidebar" onclick="toggleTheme()" aria-label="Toggle dark mode">
-                    <span class="toggle-icon toggle-icon-sun">☀️</span>
-                    <span class="toggle-icon toggle-icon-moon">🌙</span>
-                </button>
+            <div class="graphql-panels">
+                <div class="graphql-panel">
+                    <div class="graphql-panel-title">Type Breakdown</div>
+                    <div id="graphql-breakdown" class="graphql-list graphql-loading">Loading analytics...</div>
+                </div>
+                <div class="graphql-panel">
+                    <div class="graphql-panel-title">Recent Activity</div>
+                    <div id="graphql-recent-transactions" class="graphql-list graphql-loading">Loading recent transactions...</div>
+                </div>
             </div>
-        </aside>
+        </div>
 
-        <!-- Main Content -->
-        <main class="admin-main" id="main-content">
-            <!-- Top Bar -->
-            <header class="admin-topbar">
-                <h1 class="admin-page-title">Overview</h1>
-                <div class="admin-profile-mini">
-                    <span class="admin-name">System Administrator</span>
-                    <img src="{{ url_for('static', filename='uploads/admin.png') }}" alt="Admin">
+        <!-- User Management -->
+        <div class="admin-section">
+            <h2>User Management</h2>
+
+            <!-- Search with XSS vulnerability -->
+            <div class="admin-search" style="margin-bottom: 1rem;">
+                <input type="text" id="admin-search" placeholder="Search users..." oninput="handleAdminSearch(this.value)">
+                <div id="admin-search-info" style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-2); background: var(--surface-2); padding: 0.5rem 0.75rem; border-radius: var(--r-sm); display: none;"></div>
+            </div>
+
+            <table id="user-management-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Account Number</th>
+                        <th>Balance</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user[0] }}</td>
+                        <td style="font-weight: 600;">{{ user[1]|safe }}</td>
+                        <td class="mono">{{ user[3] }}</td>
+                        <td class="mono">${{ user[4] }}</td>
+                        <td style="max-width: 200px; font-size: 0.875rem;">
+                            <div class="role-stack">
+                                {% if user[5] %}
+                                <span class="badge badge-info">Admin</span>
+                                {% else %}
+                                <span class="badge badge-neutral">User</span>
+                                {% endif %}
+                                {% if user[9] %}
+                                <span class="badge badge-warning suspended-badge">Suspended</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <details class="action-menu"
+                                data-user-id="{{ user[0] }}"
+                                data-username="{{ user[1]|e }}"
+                                data-account-number="{{ user[3] }}"
+                                data-balance="{{ user[4] }}"
+                                data-role="{{ 'Admin' if user[5] else 'User' }}"
+                                data-suspended="{{ 'true' if user[9] else 'false' }}">
+                                <summary class="action-menu-trigger">Actions</summary>
+                                <div class="action-menu-dropdown">
+                                    <button type="button" class="action-option" data-action="view">View</button>
+                                    <button type="button" class="action-option" data-action="toggle-suspension">
+                                        {{ 'Unsuspend' if user[9] else 'Suspend' }}
+                                    </button>
+                                    <button type="button" class="action-option danger" data-action="delete">Delete</button>
+                                </div>
+                            </details>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="pagination">
+                <div class="page-summary">
+                    {% if total_users > 0 %}
+                        {% set start_user = ((page - 1) * per_page) + 1 %}
+                        {% set end_user = [page * per_page, total_users] | min %}
+                        Showing {{ start_user }}-{{ end_user }} of {{ total_users }} users
+                    {% else %}
+                        No users found
+                    {% endif %}
                 </div>
-            </header>
-
-            <!-- Messages -->
-            <div id="message" aria-live="polite"></div>
-
-            <!-- Overview Section -->
-            <section class="admin-section" id="overview-section">
-                <div class="section-header">
-                    <h2>Transaction Analytics</h2>
-                    <p class="section-subtitle">Live metrics and recent activity</p>
+                <div class="page-controls">
+                    {% if page > 1 %}
+                        <a class="page-link" href="{{ url_for('admin_panel', page=page-1, loan_page=loan_page) }}">&larr; Prev</a>
+                    {% endif %}
+                    <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+                    {% if page < total_pages %}
+                        <a class="page-link" href="{{ url_for('admin_panel', page=page+1, loan_page=loan_page) }}">Next &rarr;</a>
+                    {% endif %}
                 </div>
+            </div>
+        </div>
 
-                <div class="metrics-grid">
-                    <div class="metric-card metric-primary">
-                        <div class="metric-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                            </svg>
-                        </div>
-                        <div class="metric-content">
-                            <span class="metric-label">Total Transactions</span>
-                            <strong class="metric-value" id="graphql-total-transactions">--</strong>
-                        </div>
-                    </div>
-                    <div class="metric-card metric-success">
-                        <div class="metric-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="12" y1="1" x2="12" y2="23"></line>
-                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                            </svg>
-                        </div>
-                        <div class="metric-content">
-                            <span class="metric-label">Total Volume</span>
-                            <strong class="metric-value" id="graphql-total-volume">--</strong>
-                        </div>
-                    </div>
-                    <div class="metric-card metric-info">
-                        <div class="metric-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 19V5M5 12l7-7 7 7"></path>
-                            </svg>
-                        </div>
-                        <div class="metric-content">
-                            <span class="metric-label">Inflow</span>
-                            <strong class="metric-value" id="graphql-inflow">--</strong>
-                        </div>
-                    </div>
-                    <div class="metric-card metric-warning">
-                        <div class="metric-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 19V5M5 12l7-7 7 7"></path>
-                                <path d="M19 12l-7 7-7-7"></path>
-                            </svg>
-                        </div>
-                        <div class="metric-content">
-                            <span class="metric-label">Outflow</span>
-                            <strong class="metric-value" id="graphql-outflow">--</strong>
-                        </div>
-                    </div>
-                    <div class="metric-card metric-purple">
-                        <div class="metric-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                            </svg>
-                        </div>
-                        <div class="metric-content">
-                            <span class="metric-label">Net Flow</span>
-                            <strong class="metric-value" id="graphql-net-flow">--</strong>
-                        </div>
-                    </div>
-                    <div class="metric-card metric-danger">
-                        <div class="metric-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-                            </svg>
-                        </div>
-                        <div class="metric-content">
-                            <span class="metric-label">Largest Transaction</span>
-                            <strong class="metric-value" id="graphql-largest-transaction">--</strong>
-                        </div>
-                    </div>
+        <!-- Create Admin -->
+        <div class="admin-section">
+            <h2>Create Admin Account</h2>
+            <form id="createAdminForm">
+                <div class="form-group">
+                    <label for="admin_username">Username</label>
+                    <input type="text" id="admin_username" name="username" placeholder="Enter admin username" required>
                 </div>
-
-                <div class="analytics-grid">
-                    <div class="analytics-card">
-                        <h3>Type Breakdown</h3>
-                        <div id="graphql-breakdown" class="analytics-list graphql-loading">Loading...</div>
-                    </div>
-                    <div class="analytics-card">
-                        <h3>Recent Activity</h3>
-                        <div id="graphql-recent-transactions" class="analytics-list graphql-loading">Loading...</div>
-                    </div>
+                <div class="form-group">
+                    <label for="admin_password">Password</label>
+                    <input type="password" id="admin_password" name="password" placeholder="Enter admin password" required>
                 </div>
-            </section>
+                <button type="submit">Create Admin</button>
+            </form>
+        </div>
 
-            <!-- Users Section -->
-            <section class="admin-section" id="users-section">
-                <div class="section-header">
-                    <h2>User Management</h2>
-                    <p class="section-subtitle">View and manage user accounts</p>
+        <!-- Pending Loans -->
+        <div class="admin-section">
+            <h2>Pending Loan Applications</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Loan ID</th>
+                        <th>User ID</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in pending_loans %}
+                    <tr>
+                        <td>{{ loan[0] }}</td>
+                        <td>{{ loan[1] }}</td>
+                        <td class="mono">${{ loan[2] }}</td>
+                        <td><span class="status-pending">{{ loan[3] }}</span></td>
+                        <td>
+                            <form class="approve-loan-form" data-loan-id="{{ loan[0] }}">
+                                <button type="submit" class="btn-success btn-sm">Approve</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="pagination">
+                <div class="page-summary">
+                    {% if total_pending_loans > 0 %}
+                        {% set loan_start = ((loan_page - 1) * loan_per_page) + 1 %}
+                        {% set loan_end = [loan_page * loan_per_page, total_pending_loans] | min %}
+                        Showing {{ loan_start }}-{{ loan_end }} of {{ total_pending_loans }} pending loans
+                    {% else %}
+                        No pending loans found
+                    {% endif %}
                 </div>
-
-                <div class="content-card">
-                    <div class="card-header">
-                        <div class="search-wrapper">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <path d="m21 21-4.35-4.35"></path>
-                            </svg>
-                            <input type="text" id="admin-search" placeholder="Search users..." oninput="handleAdminSearch(this.value)">
-                        </div>
-                    </div>
-                    <div id="admin-search-info" class="search-info" style="display: none;"></div>
-
-                    <div class="table-wrapper">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>User</th>
-                                    <th>Account</th>
-                                    <th>Balance</th>
-                                    <th>Role</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user in users %}
-                                <tr>
-                                    <td>
-                                        <div class="user-cell">
-                                            <span class="user-username">{{ user[1]|safe }}</span>
-                                            <span class="user-id">ID: {{ user[0] }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="mono">{{ user[3] }}</td>
-                                    <td class="mono balance-cell">${{ user[4] }}</td>
-                                    <td>
-                                        {% if user[5] %}
-                                        <span class="role-badge role-admin">Admin</span>
-                                        {% else %}
-                                        <span class="role-badge role-user">User</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="action-buttons">
-                                            <button type="button" class="btn-icon btn-view" data-user-id="{{ user[0] }}" title="View">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M1 12s4-8 11-8 11 8 11 8-11 11-11-11-11z"></path>
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                </svg>
-                                            </button>
-                                            <form class="delete-account-form" data-user-id="{{ user[0] }}">
-                                                <button type="submit" class="btn-icon btn-delete" title="Delete">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                                                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                                                    </svg>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="pagination">
-                        <div class="page-info">
-                            {% if total_users > 0 %}
-                                {% set start_user = ((page - 1) * per_page) + 1 %}
-                                {% set end_user = [page * per_page, total_users] | min %}
-                                Showing {{ start_user }}-{{ end_user }} of {{ total_users }}
-                            {% else %}
-                                No users found
-                            {% endif %}
-                        </div>
-                        <div class="page-controls">
-                            {% if page > 1 %}
-                            <a class="page-btn" href="{{ url_for('admin_panel', page=page-1, loan_page=loan_page) }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="15 18 9 12 15 6"></polyline>
-                                </svg>
-                            </a>
-                            {% endif %}
-                            <span class="page-number">Page {{ page }} of {{ total_pages }}</span>
-                            {% if page < total_pages %}
-                            <a class="page-btn" href="{{ url_for('admin_panel', page=page+1, loan_page=loan_page) }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </a>
-                            {% endif %}
-                        </div>
-                    </div>
+                <div class="page-controls">
+                    {% if loan_page > 1 %}
+                        <a class="page-link" href="{{ url_for('admin_panel', page=page, loan_page=loan_page-1) }}">&larr; Prev</a>
+                    {% endif %}
+                    <span class="page-info">Page {{ loan_page }} of {{ loan_total_pages }}</span>
+                    {% if loan_page < loan_total_pages %}
+                        <a class="page-link" href="{{ url_for('admin_panel', page=page, loan_page=loan_page+1) }}">Next &rarr;</a>
+                    {% endif %}
                 </div>
-            </section>
-
-            <!-- Loans Section -->
-            <section class="admin-section" id="loans-section">
-                <div class="section-header">
-                    <h2>Pending Loans</h2>
-                    <p class="section-subtitle">Review and approve loan applications</p>
-                </div>
-
-                <div class="content-card">
-                    <div class="table-wrapper">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>Loan ID</th>
-                                    <th>User ID</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for loan in pending_loans %}
-                                <tr>
-                                    <td>#{{ loan[0] }}</td>
-                                    <td>{{ loan[1] }}</td>
-                                    <td class="mono balance-cell">${{ loan[2] }}</td>
-                                    <td><span class="status-badge status-pending">{{ loan[3] }}</span></td>
-                                    <td>
-                                        <form class="approve-loan-form" data-loan-id="{{ loan[0] }}">
-                                            <button type="submit" class="btn-approve">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                                </svg>
-                                                Approve
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="pagination">
-                        <div class="page-info">
-                            {% if total_pending_loans > 0 %}
-                                {% set loan_start = ((loan_page - 1) * loan_per_page) + 1 %}
-                                {% set loan_end = [loan_page * loan_per_page, total_pending_loans] | min %}
-                                Showing {{ loan_start }}-{{ loan_end }} of {{ total_pending_loans }}
-                            {% else %}
-                                No pending loans
-                            {% endif %}
-                        </div>
-                        <div class="page-controls">
-                            {% if loan_page > 1 %}
-                            <a class="page-btn" href="{{ url_for('admin_panel', page=page, loan_page=loan_page-1) }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="15 18 9 12 15 6"></polyline>
-                                </svg>
-                            </a>
-                            {% endif %}
-                            <span class="page-number">Page {{ loan_page }} of {{ loan_total_pages }}</span>
-                            {% if loan_page < loan_total_pages %}
-                            <a class="page-btn" href="{{ url_for('admin_panel', page=page, loan_page=loan_page+1) }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </a>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Settings Section -->
-            <section class="admin-section" id="settings-section">
-                <div class="section-header">
-                    <h2>Create Admin Account</h2>
-                    <p class="section-subtitle">Add new administrator</p>
-                </div>
-
-                <div class="content-card">
-                    <form id="createAdminForm" class="settings-form">
-                        <div class="form-group">
-                            <label for="admin_username">Username</label>
-                            <input type="text" id="admin_username" name="username" placeholder="Enter admin username" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="admin_password">Password</label>
-                            <input type="password" id="admin_password" name="password" placeholder="Enter admin password" required>
-                        </div>
-                        <button type="submit" class="btn-primary">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="12" cy="7" r="4"></circle>
-                            </svg>
-                            Create Admin
-                        </button>
-                    </form>
-                </div>
-            </section>
-        </main>
+            </div>
+        </div>
     </div>
 
-    <!-- User Profile Modal -->
-    <div id="user-modal" class="user-modal" style="display: none;">
-        <div class="user-modal-backdrop" onclick="closeUserModal()"></div>
-        <div class="user-modal-content">
-            <div class="user-modal-header">
-                <h2>User Profile</h2>
-                <button class="user-modal-close" onclick="closeUserModal()" aria-label="Close modal">&times;</button>
+    <div id="userDetailsModal" class="admin-modal" aria-hidden="true">
+        <div class="admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="user-details-title">
+            <div class="admin-modal-header">
+                <h3 id="user-details-title">User Details</h3>
+                <button type="button" class="admin-modal-close" onclick="closeUserDetailsModal()" aria-label="Close">&times;</button>
             </div>
-            <div class="user-modal-body" id="user-modal-body">
-                Loading user details...
-            </div>
+            <div id="userDetailsContent" class="admin-modal-body"></div>
         </div>
     </div>
 
@@ -412,41 +263,16 @@
                 return;
             }
 
-            // Navigation
-            document.querySelectorAll('.sidebar-nav-item').forEach(item => {
-                item.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const section = this.getAttribute('data-section');
-
-                    // Update active state
-                    document.querySelectorAll('.sidebar-nav-item').forEach(i => i.classList.remove('active'));
-                    this.classList.add('active');
-
-                    // Show section
-                    document.querySelectorAll('.admin-section').forEach(s => s.style.display = 'none');
-                    const targetSection = document.getElementById(section + '-section');
-                    if (targetSection) {
-                        targetSection.style.display = 'block';
+            document.querySelectorAll('.action-menu').forEach(menu => {
+                menu.addEventListener('toggle', () => {
+                    if (menu.hasAttribute('open')) {
+                        closeActionMenus(menu);
                     }
                 });
             });
 
-            // Show only overview initially
-            document.querySelectorAll('.admin-section').forEach(s => {
-                if (s.id !== 'overview-section') {
-                    s.style.display = 'none';
-                }
-            });
-
-            document.querySelectorAll('.delete-account-form').forEach(form => {
-                form.addEventListener('submit', handleDeleteAccount);
-            });
-
-            document.querySelectorAll('.view-user-btn, .btn-view').forEach(button => {
-                button.addEventListener('click', function() {
-                    const userId = this.getAttribute('data-user-id');
-                    openUserModal(userId);
-                });
+            document.querySelectorAll('.action-option').forEach(button => {
+                button.addEventListener('click', handleAdminAction);
             });
 
             document.querySelectorAll('.approve-loan-form').forEach(form => {
@@ -457,9 +283,37 @@
             fetchGraphqlTransactionSummary();
         });
 
-        async function handleDeleteAccount(event) {
+        function closeActionMenus(exceptMenu = null) {
+            document.querySelectorAll('.action-menu[open]').forEach(menu => {
+                if (menu !== exceptMenu) {
+                    menu.removeAttribute('open');
+                }
+            });
+        }
+
+        async function handleAdminAction(event) {
             event.preventDefault();
-            const userId = event.target.getAttribute('data-user-id') || event.target.closest('.delete-account-form').getAttribute('data-user-id');
+            const action = event.currentTarget.getAttribute('data-action');
+            const menu = event.currentTarget.closest('.action-menu');
+            menu.removeAttribute('open');
+
+            if (action === 'view') {
+                openUserDetailsModal(menu);
+                return;
+            }
+
+            if (action === 'toggle-suspension') {
+                await handleToggleSuspension(menu);
+                return;
+            }
+
+            if (action === 'delete') {
+                await handleDeleteAccount(menu);
+            }
+        }
+
+        async function handleDeleteAccount(menu) {
+            const userId = menu.getAttribute('data-user-id');
             try {
                 const response = await fetch(`/admin/delete_account/${userId}`, {
                     method: 'POST',
@@ -470,15 +324,125 @@
                 });
                 const data = await response.json();
                 if (data.status === 'success') {
-                    showMessage('Account deleted successfully!', 'success');
-                    event.target.closest('tr').remove();
+                    document.getElementById('message').innerHTML = 'Account deleted successfully!';
+                    document.getElementById('message').className = 'success';
+                    menu.closest('tr').remove();
                 } else {
-                    showMessage(data.message, 'error');
+                    document.getElementById('message').innerHTML = data.message;
+                    document.getElementById('message').className = 'error';
                 }
             } catch (error) {
-                showMessage('Failed to delete account.', 'error');
+                document.getElementById('message').innerHTML = 'Failed to delete account.';
+                document.getElementById('message').className = 'error';
             }
         }
+
+        async function handleToggleSuspension(menu) {
+            const userId = menu.getAttribute('data-user-id');
+            try {
+                const response = await fetch(`/admin/toggle_suspension/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    document.getElementById('message').innerHTML = data.message;
+                    document.getElementById('message').className = 'success';
+                    updateSuspensionState(menu, data.user.is_suspended);
+                } else {
+                    document.getElementById('message').innerHTML = data.message;
+                    document.getElementById('message').className = 'error';
+                }
+            } catch (error) {
+                document.getElementById('message').innerHTML = 'Failed to update suspension status.';
+                document.getElementById('message').className = 'error';
+            }
+        }
+
+        function updateSuspensionState(menu, isSuspended) {
+            menu.setAttribute('data-suspended', isSuspended ? 'true' : 'false');
+            const toggleButton = menu.querySelector('[data-action="toggle-suspension"]');
+            toggleButton.textContent = isSuspended ? 'Unsuspend' : 'Suspend';
+
+            const roleStack = menu.closest('tr').querySelector('.role-stack');
+            let suspendedBadge = roleStack.querySelector('.suspended-badge');
+
+            if (isSuspended && !suspendedBadge) {
+                suspendedBadge = document.createElement('span');
+                suspendedBadge.className = 'badge badge-warning suspended-badge';
+                suspendedBadge.textContent = 'Suspended';
+                roleStack.appendChild(suspendedBadge);
+            }
+
+            if (!isSuspended && suspendedBadge) {
+                suspendedBadge.remove();
+            }
+        }
+
+        function openUserDetailsModal(menu) {
+            const modal = document.getElementById('userDetailsModal');
+            const content = document.getElementById('userDetailsContent');
+            const isSuspended = menu.getAttribute('data-suspended') === 'true';
+
+            content.innerHTML = `
+                <div class="admin-detail-grid">
+                    <div class="admin-detail-item">
+                        <span>Username</span>
+                        <strong>${escapeHtml(menu.getAttribute('data-username'))}</strong>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span>Account Number</span>
+                        <strong class="mono">${escapeHtml(menu.getAttribute('data-account-number'))}</strong>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span>Balance</span>
+                        <strong>${formatCurrency(menu.getAttribute('data-balance'))}</strong>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span>Role</span>
+                        <strong>${escapeHtml(menu.getAttribute('data-role'))}</strong>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span>Status</span>
+                        <strong>${isSuspended ? 'Suspended' : 'Active'}</strong>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span>User ID</span>
+                        <strong>${escapeHtml(menu.getAttribute('data-user-id'))}</strong>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.add('open');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeUserDetailsModal() {
+            const modal = document.getElementById('userDetailsModal');
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        window.addEventListener('click', function(event) {
+            if (event.target.id === 'userDetailsModal') {
+                closeUserDetailsModal();
+                return;
+            }
+
+            if (!event.target.closest('.action-menu')) {
+                closeActionMenus();
+            }
+        });
+
+        window.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeActionMenus();
+                closeUserDetailsModal();
+            }
+        });
 
         async function handleLoanApproval(event) {
             event.preventDefault();
@@ -493,13 +457,16 @@
                 });
                 const data = await response.json();
                 if (data.status === 'success') {
-                    showMessage('Loan approved successfully', 'success');
+                    document.getElementById('message').innerHTML = 'Loan approved successfully';
+                    document.getElementById('message').className = 'success';
                     event.target.closest('tr').remove();
                 } else {
-                    showMessage(data.message, 'error');
+                    document.getElementById('message').innerHTML = data.message;
+                    document.getElementById('message').className = 'error';
                 }
             } catch (error) {
-                showMessage('Failed to approve loan', 'error');
+                document.getElementById('message').innerHTML = 'Failed to approve loan';
+                document.getElementById('message').className = 'error';
             }
         }
 
@@ -519,22 +486,18 @@
                 });
                 const data = await response.json();
                 if (data.status === 'success') {
-                    showMessage('Admin account created successfully', 'success');
+                    document.getElementById('message').innerHTML = 'Admin account created successfully';
+                    document.getElementById('message').className = 'success';
                     event.target.reset();
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    showMessage(data.message, 'error');
+                    document.getElementById('message').innerHTML = data.message;
+                    document.getElementById('message').className = 'error';
                 }
             } catch (error) {
-                showMessage('Failed to create admin account', 'error');
+                document.getElementById('message').innerHTML = 'Failed to create admin account';
+                document.getElementById('message').className = 'error';
             }
-        }
-
-        function showMessage(text, type) {
-            const msgDiv = document.getElementById('message');
-            msgDiv.innerHTML = `<div class="message message-${type}">${text}</div>`;
-            msgDiv.style.display = 'block';
-            setTimeout(() => msgDiv.style.display = 'none', 5000);
         }
 
         async function fetchGraphqlTransactionSummary() {
@@ -549,6 +512,11 @@
                         outflowTotal
                         netFlow
                         largestTransaction
+                        totalLoansGiven
+                        pendingLoansCount
+                        pendingLoansTotal
+                        billPaymentTotal
+                        billPaymentsCount
                         byType {
                             transactionType
                             count
@@ -593,10 +561,10 @@
                 renderGraphqlSummary(payload.data.transactionSummary);
             } catch (error) {
                 document.getElementById('graphql-breakdown').innerHTML = `
-                    <div class="analytics-empty">Failed to load analytics: ${escapeHtml(error.message)}</div>
+                    <div class="graphql-empty">Failed to load analytics: ${escapeHtml(error.message)}</div>
                 `;
                 document.getElementById('graphql-recent-transactions').innerHTML = `
-                    <div class="analytics-empty">Try again after creating a few transfers.</div>
+                    <div class="graphql-empty">Try again after creating a few transfers.</div>
                 `;
             }
         }
@@ -612,36 +580,39 @@
             document.getElementById('graphql-outflow').textContent = formatCurrency(summary.outflowTotal);
             document.getElementById('graphql-net-flow').textContent = formatCurrency(summary.netFlow);
             document.getElementById('graphql-largest-transaction').textContent = formatCurrency(summary.largestTransaction);
+            document.getElementById('graphql-total-loans-given').textContent = formatCurrency(summary.totalLoansGiven);
+            document.getElementById('graphql-pending-loans').textContent = formatCount(summary.pendingLoansCount, 'loan');
+            document.getElementById('graphql-pending-loans-meta').textContent = `${formatCurrency(summary.pendingLoansTotal)} awaiting approval`;
+            document.getElementById('graphql-bill-payments').textContent = formatCurrency(summary.billPaymentTotal);
+            document.getElementById('graphql-bill-payments-meta').textContent = `${formatCount(summary.billPaymentsCount, 'payment')} logged`;
 
             const breakdownContainer = document.getElementById('graphql-breakdown');
-            breakdownContainer.classList.remove('graphql-loading');
             if (!summary.byType || summary.byType.length === 0) {
-                breakdownContainer.innerHTML = '<div class="analytics-empty">No transactions available yet.</div>';
+                breakdownContainer.innerHTML = '<div class="graphql-empty">No transactions available yet.</div>';
             } else {
                 breakdownContainer.innerHTML = summary.byType.map(item => `
-                    <div class="analytics-item">
-                        <div class="analytics-item-main">
+                    <div class="graphql-list-item">
+                        <div>
                             <strong>${escapeHtml(item.transactionType || 'unknown')}</strong>
-                            <span class="analytics-item-sub">${item.count} transactions</span>
+                            <div class="graphql-subtle">${item.count} recorded transaction(s)</div>
                         </div>
-                        <span class="analytics-item-value">${formatCurrency(item.totalAmount)}</span>
+                        <span class="badge badge-neutral">${formatCurrency(item.totalAmount)}</span>
                     </div>
                 `).join('');
             }
 
             const recentContainer = document.getElementById('graphql-recent-transactions');
-            recentContainer.classList.remove('graphql-loading');
             if (!summary.recentTransactions || summary.recentTransactions.length === 0) {
-                recentContainer.innerHTML = '<div class="analytics-empty">Recent transactions will appear here.</div>';
+                recentContainer.innerHTML = '<div class="graphql-empty">Recent transactions will appear here.</div>';
             } else {
                 recentContainer.innerHTML = summary.recentTransactions.map(item => `
-                    <div class="analytics-item">
-                        <div class="analytics-item-main">
+                    <div class="graphql-list-item">
+                        <div>
                             <strong>${escapeHtml(item.transactionType || 'transfer')}</strong>
-                            <span class="analytics-item-sub">${formatAccountIdentity(item.fromUsername, item.fromAccount)} → ${formatAccountIdentity(item.toUsername, item.toAccount)}</span>
-                            <span class="analytics-item-sub">${escapeHtml(item.timestamp)}</span>
+                            <div class="graphql-subtle">${formatAccountIdentity(item.fromUsername, item.fromAccount)} → ${formatAccountIdentity(item.toUsername, item.toAccount)}</div>
+                            <div class="graphql-subtle">${escapeHtml(item.timestamp)}</div>
                         </div>
-                        <span class="analytics-item-value">${formatCurrency(item.amount)}</span>
+                        <span class="badge badge-info">${formatCurrency(item.amount)}</span>
                     </div>
                 `).join('');
             }
@@ -664,18 +635,24 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function formatCount(value, noun) {
+            const numericValue = Number(value || 0);
+            return `${numericValue} ${noun}${numericValue === 1 ? '' : 's'}`;
+        }
+
         function formatAccountIdentity(username, accountNumber) {
             const safeAccount = escapeHtml(accountNumber || 'Unknown account');
             if (!username) {
                 return safeAccount;
             }
+
             return `${escapeHtml(username)} (${safeAccount})`;
         }
 
         // Admin user search with XSS vulnerability
         function handleAdminSearch(query) {
             const searchInfo = document.getElementById('admin-search-info');
-            const rows = document.querySelectorAll('tbody tr');
+            const rows = document.querySelectorAll('#user-management-table tbody tr');
 
             // XSS vulnerability: Reflect user input directly
             if (query && query.trim() !== '') {
@@ -695,84 +672,6 @@
                     row.style.display = 'none';
                 }
             });
-        }
-
-        // User Modal Functions
-        function openUserModal(userId) {
-            const modal = document.getElementById('user-modal');
-            const modalBody = document.getElementById('user-modal-body');
-            modal.style.display = 'flex';
-            modalBody.innerHTML = 'Loading user details...';
-            fetchUserDetails(userId);
-        }
-
-        function closeUserModal() {
-            document.getElementById('user-modal').style.display = 'none';
-        }
-
-        async function fetchUserDetails(userId) {
-            try {
-                const response = await fetch(`/api/v3/user/${userId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
-                        'Content-Type': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                if (data.status === 'success' && data.user) {
-                    renderUserDetails(data.user);
-                } else {
-                    document.getElementById('user-modal-body').innerHTML = 'Failed to load user details.';
-                }
-            } catch (error) {
-                document.getElementById('user-modal-body').innerHTML = 'Failed to load user details.';
-            }
-        }
-
-        function renderUserDetails(user) {
-            const modalBody = document.getElementById('user-modal-body');
-            modalBody.innerHTML = `
-                <div class="user-detail-row">
-                    <span class="user-detail-label">User ID:</span>
-                    <span class="user-detail-value">${escapeHtml(user.id?.toString() || 'N/A')}</span>
-                </div>
-                <div class="user-detail-row">
-                    <span class="user-detail-label">Username:</span>
-                    <span class="user-detail-value">${user.username || 'N/A'}</span>
-                </div>
-                <div class="user-detail-row">
-                    <span class="user-detail-label">Account Number:</span>
-                    <span class="user-detail-value mono">${escapeHtml(user.account_number || 'N/A')}</span>
-                </div>
-                <div class="user-detail-row">
-                    <span class="user-detail-label">Balance:</span>
-                    <span class="user-detail-value mono">$${(user.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-                </div>
-                <div class="user-detail-row">
-                    <span class="user-detail-label">Role:</span>
-                    <span class="user-detail-value">${user.is_admin ? '<span class="role-badge role-admin">Admin</span>' : '<span class="role-badge role-user">User</span>'}</span>
-                </div>
-                <div class="user-detail-row">
-                    <span class="user-detail-label">Bio:</span>
-                </div>
-                <div class="user-detail-bio">
-                    ${user.bio ? user.bio : '<em style="color: var(--text-4);">No bio provided</em>'}
-                </div>
-            `;
-        }
-
-        // Close modal on Escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closeUserModal();
-            }
-        });
-
-        function toggleTheme() {
-            const h = document.documentElement;
-            const n = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            h.setAttribute('data-theme', n); localStorage.setItem('vb-theme', n);
         }
     </script>
 </body>
