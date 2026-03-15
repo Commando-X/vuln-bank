@@ -482,7 +482,7 @@
             const userId = form.getAttribute('data-user-id');
             const isSuspended = form.getAttribute('data-is-suspended') === 'true';
             try {
-                const response = await fetch(`/admin/suspend_account/${userId}`, {
+                const response = await fetch(`/admin/toggle_suspension/${userId}`, {
                     method: 'POST',
                     headers: {
                         'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
