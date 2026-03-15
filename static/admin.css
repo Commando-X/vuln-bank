@@ -655,6 +655,14 @@ body {
   background: rgba(239, 68, 68, 0.1);
 }
 
+.btn-suspend {
+  color: var(--admin-warning);
+}
+
+.btn-suspend:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
 .btn-approve {
   display: inline-flex;
   align-items: center;

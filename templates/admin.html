@@ -232,6 +232,9 @@
                                     <td>
                                         <div class="action-buttons">
                                             <button type="button" class="btn-text btn-view" data-user-id="{{ user[0] }}">View</button>
+                                            <form class="suspend-account-form" data-user-id="{{ user[0] }}" data-is-suspended="{{ user[9] if user|length > 9 else False }}">
+                                                <button type="submit" class="btn-text btn-suspend">{{ 'Unsuspend' if (user[9] if user|length > 9 else False) else 'Suspend' }}</button>
+                                            </form>
                                             <form class="delete-account-form" data-user-id="{{ user[0] }}">
                                                 <button type="submit" class="btn-text btn-delete">Delete</button>
                                             </form>
@@ -431,6 +434,10 @@
                 form.addEventListener('submit', handleDeleteAccount);
             });
 
+            document.querySelectorAll('.suspend-account-form').forEach(form => {
+                form.addEventListener('submit', handleSuspendAccount);
+            });
+
             document.querySelectorAll('.view-user-btn, .btn-view').forEach(button => {
                 button.addEventListener('click', function() {
                     const userId = this.getAttribute('data-user-id');
@@ -466,6 +473,35 @@
                 }
             } catch (error) {
                 showMessage('Failed to delete account.', 'error');
+            }
+        }
+
+        async function handleSuspendAccount(event) {
+            event.preventDefault();
+            const form = event.target.closest('.suspend-account-form');
+            const userId = form.getAttribute('data-user-id');
+            const isSuspended = form.getAttribute('data-is-suspended') === 'true';
+            try {
+                const response = await fetch(`/admin/suspend_account/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    const newStatus = !isSuspended;
+                    showMessage(`Account ${newStatus ? 'suspended' : 'unsuspended'} successfully`, 'success');
+                    // Update the button text and data attribute
+                    form.setAttribute('data-is-suspended', newStatus.toString());
+                    const button = form.querySelector('button');
+                    button.textContent = newStatus ? 'Unsuspend' : 'Suspend';
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('Failed to suspend/unsuspend account.', 'error');
             }
         }
 
