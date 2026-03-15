@@ -505,7 +505,7 @@ function renderVirtualCards() {
     
     // Vulnerability: XSS possible in card rendering
     container.innerHTML = virtualCards.map(card => `
-        <div class="virtual-card ${card.is_frozen ? 'frozen' : ''}" id="card-${card.id}">
+        <div class="virtual-card ${String(card.card_type || '').toLowerCase()} ${card.is_frozen ? 'frozen' : ''}" id="card-${card.id}">
             <div class="card-topline">
                 <div class="card-type">${card.card_type.toUpperCase()}</div>
                 <div class="card-currency-badge">${card.currency || 'USD'}</div>
