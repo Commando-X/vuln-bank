@@ -2,6 +2,27 @@
 // TOAST NOTIFICATIONS
 // ================================================
 function showToast(type, title, message, duration = 5000) {
+    // Check if any modal is open
+    const openModal = document.querySelector('.modal[style*="display: flex"], .modal[style*="display:block"]');
+
+    if (openModal) {
+        // Show message inside the modal
+        const modalId = openModal.id;
+        const messageDiv = document.getElementById(`${modalId}-message`);
+
+        if (messageDiv) {
+            messageDiv.className = `modal-message modal-message-${type}`;
+            messageDiv.textContent = `${title}: ${message}`;
+            messageDiv.style.display = 'block';
+
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, duration);
+            return;
+        }
+    }
+
+    // Fall back to toast notification
     const container = document.getElementById('toast-container');
     if (!container) return;
 
