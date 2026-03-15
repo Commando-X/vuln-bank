@@ -35,8 +35,9 @@
             color: var(--text-1); letter-spacing: -0.03em;
         }
         .navbar-links { display: flex; align-items: center; gap: 2.5rem; }
-        .navbar-links a { font-size: 0.875rem; font-weight: 500; color: var(--text-3); }
+        .navbar-links a { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.875rem; font-weight: 500; color: var(--text-3); }
         .navbar-links a:hover { color: var(--text-1); }
+        .navbar-links a svg { width: 0.95rem; height: 0.95rem; }
         .navbar-actions { display: flex; align-items: center; gap: 0.625rem; }
 
         /* ---- HERO ---- */
@@ -360,6 +361,10 @@
         <div class="navbar-links">
             <a href="#features">Features</a>
             <a href="#how-it-works">How It Works</a>
+            <a href="https://github.com/Commando-X/vuln-bank" target="_blank" rel="noopener noreferrer">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12A11.5 11.5 0 0 0 8.36 22.9c.58.1.79-.25.79-.56v-2.15c-3.18.69-3.85-1.35-3.85-1.35-.52-1.3-1.26-1.65-1.26-1.65-1.03-.7.08-.69.08-.69 1.13.08 1.73 1.17 1.73 1.17 1.02 1.72 2.67 1.22 3.32.93.1-.74.4-1.22.72-1.5-2.54-.29-5.2-1.27-5.2-5.64 0-1.25.45-2.27 1.17-3.07-.12-.29-.5-1.46.11-3.04 0 0 .96-.31 3.14 1.17a10.9 10.9 0 0 1 5.72 0c2.18-1.48 3.13-1.17 3.13-1.17.62 1.58.24 2.75.12 3.04.73.8 1.17 1.82 1.17 3.07 0 4.38-2.67 5.35-5.22 5.63.41.35.78 1.04.78 2.11v3.12c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
+                <span>Star on Github</span>
+            </a>
         </div>
         <div class="navbar-actions">
             <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
@@ -377,7 +382,7 @@
         <div class="hero-content lr">
             <div class="hero-badge"><span class="hero-badge-dot"></span> The future of personal banking</div>
             <h1>Banking Made Simple<br>& <span class="accent">InSecure</span></h1>
-            <p class="hero-desc">This is an intentionally vulnerable application, designed for everyone to practice application security.</p>
+            <p class="hero-desc">This is an intentionally vulnerable application, built to practice and teach application security testing, and to help security professionals, and tooling companies benchmark traditional SAST/DAST tools and offensive security AI agents.</p>
             <div class="hero-buttons">
                 <a href="{{ url_for('register') }}" class="btn btn-accent btn-lg">Register</a>
                 <a href="{{ url_for('login') }}" class="btn btn-secondary btn-lg">Login</a>
