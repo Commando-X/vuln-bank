@@ -647,12 +647,18 @@ body {
   background: rgba(0, 123, 255, 0.1);
 }
 
-.btn-delete {
-  color: var(--red);
+.btn-text.btn-delete,
+button.btn-delete[type="submit"] {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
 }
 
-.btn-delete:hover {
-  background: rgba(239, 68, 68, 0.1);
+.btn-text.btn-delete:hover,
+button.btn-delete[type="submit"]:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
 }
 
 .btn-suspend {
@@ -751,6 +757,7 @@ body {
 /* ===== FORMS ===== */
 .settings-form {
   max-width: 400px;
+  padding: 1.5rem;
 }
 
 .form-group {
