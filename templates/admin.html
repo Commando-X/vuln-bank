@@ -701,6 +701,7 @@
             }
 
             const suffixes = [
+                { threshold: 1e12, suffix: 'T' },
                 { threshold: 1e9, suffix: 'B' },
                 { threshold: 1e6, suffix: 'M' },
                 { threshold: 1e3, suffix: 'K' }
@@ -708,10 +709,9 @@
 
             const compact = suffixes.find(item => absValue >= item.threshold);
             const shortenedValue = absValue / compact.threshold;
-            const formattedValue = shortenedValue.toLocaleString('en-US', {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 3
-            });
+            const formattedValue = shortenedValue
+                .toFixed(3)
+                .replace(/\.?0+$/, '');
 
             return `${sign}$${formattedValue}${compact.suffix}`;
         }
