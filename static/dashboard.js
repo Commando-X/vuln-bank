@@ -489,17 +489,17 @@ async function fetchVirtualCards() {
             virtualCards = data.cards;
             renderVirtualCards();
         } else {
-            document.getElementById('virtual-cards-list').innerHTML = '<p style="text-align: center;">No virtual cards found</p>';
+            document.getElementById('virtual-cards-list').innerHTML = '<div class="cards-empty-state">No virtual cards found</div>';
         }
     } catch (error) {
-        document.getElementById('virtual-cards-list').innerHTML = '<p style="text-align: center;">Error loading virtual cards</p>';
+        document.getElementById('virtual-cards-list').innerHTML = '<div class="cards-empty-state">Error loading virtual cards</div>';
     }
 }
 
 function renderVirtualCards() {
     const container = document.getElementById('virtual-cards-list');
     if (virtualCards.length === 0) {
-        container.innerHTML = '<p style="text-align: center;">No virtual cards found. Create one to get started.</p>';
+        container.innerHTML = '<div class="cards-empty-state">No virtual cards found. Create one to get started.</div>';
         return;
     }
     
