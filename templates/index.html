@@ -1,1141 +1,877 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Vulnerable Bank</title>
+    <meta charset="UTF-8">
+    <title>VulnBank - The Modern Banking Platform</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-16.svg') }}" sizes="16x16">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>document.documentElement.setAttribute("data-theme", localStorage.getItem("vb-theme") || "light");</script>
+    <script src="{{ url_for('static', filename='vuln-disclaimer.js') }}" defer></script>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
-            height: 100vh;
-            color: #343a40;
+        body { background: var(--bg); overflow-x: hidden; }
+
+        /* ---- NAVBAR ---- */
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            padding: 1rem 2.5rem; display: flex; align-items: center; justify-content: space-between;
+            transition: background var(--dur-mid) ease, border-color var(--dur-mid) ease;
         }
-        
-        .hero-container {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
+        .navbar.scrolled {
+            background: var(--bg); border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
         }
-        
-        header {
-            background: linear-gradient(140deg, #007bff 0%, #002147 100%);
-            color: white;
-            padding: 1.5rem;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        [data-theme="dark"] .navbar.scrolled { background: rgba(8,14,24,0.85); }
+
+        .navbar-brand { display: flex; align-items: center; gap: 0.625rem; text-decoration: none; }
+        .navbar-logo-icon {
+            width: 36px; height: 36px; background: var(--brand); border-radius: var(--r-sm);
+            display: flex; align-items: center; justify-content: center;
         }
-        
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .navbar-logo-icon svg { width: 20px; height: 20px; color: #fff; }
+        .navbar-logo-text {
+            font-family: var(--font-display); font-size: 1.25rem; font-weight: 800;
+            color: var(--text-1); letter-spacing: -0.03em;
         }
-        
-        .bank-logo {
-            font-size: 1.8rem;
-            font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-        
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            margin-left: 1.5rem;
-            font-weight: 500;
-            transition: opacity 0.2s;
-        }
-        
-        .nav-links a:hover {
-            opacity: 0.8;
-        }
-        
+        .navbar-links { display: flex; align-items: center; gap: 2.5rem; }
+        .navbar-links a { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.875rem; font-weight: 500; color: var(--text-3); }
+        .navbar-links a:hover { color: var(--text-1); }
+        .navbar-links a svg { width: 0.95rem; height: 0.95rem; }
+        .navbar-actions { display: flex; align-items: center; gap: 0.625rem; }
+
+        /* ---- HERO ---- */
         .hero {
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-        
-        .hero-content {
-            width: 50%;
-            padding-right: 2rem;
-        }
-        
-        .hero-image {
-            width: 50%;
-            text-align: center;
-        }
-        
-        .hero-image img {
-            max-width: 100%;
-            border-radius: 10px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        }
-        
-        h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: #343a40;
-        }
-        
-        p {
-            font-size: 1.1rem;
-            margin-bottom: 2rem;
-            color: #6c757d;
-            line-height: 1.6;
-        }
-        
-        .hero-buttons {
-            display: flex;
-            gap: 1rem;
-        }
-        
-        .button {
-            display: inline-block;
-            padding: 0.9rem 2rem;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 500;
-            transition: transform 0.2s, box-shadow 0.2s;
-            border: none;
-            cursor: pointer;
-            text-align: center;
-        }
-        
-        .primary {
-            background: linear-gradient(140deg, #007bff 0%, #0056b3 100%);
-            color: white;
-            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
-        }
-        
-        .secondary {
-            /* background: white; */
-            background: linear-gradient(140deg, #f0f1f1 0%, #fffefe 100%);
-            color: #007bff;
-            /* color: white; */
-            /* color: #ffffff; */
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e0e0e0;
-        }
-        
-        /* .register-btn:hover {
-            color: white !important;
-        } */
-
-
-        .button:hover {
-            transform: translateY(-3px);
-        }
-        
-        .primary:hover {
-            box-shadow: 0 6px 15px rgba(0, 123, 255, 0.4);
-        }
-        
-        .secondary:hover {
-            box-shadow: 0 6px 15px rgba(252, 249, 249, 0.15);
-        }
-        
-        /* Mobile App Promotion Section */
-        .app-promo {
-            background: linear-gradient(140deg, rgba(0, 123, 255, 0.85) 0%, rgba(0, 33, 71, 0.9) 100%);
-            padding: 5rem 2rem;
-            color: white;
+            min-height: calc(100vh - 4rem); display: flex; align-items: center;
+            max-width: 1280px; margin: 0 auto; padding: 4.5rem 2.5rem 2rem; gap: 2.5rem;
             position: relative;
         }
-        
-        .app-promo::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(140deg, #f5f7fa 0%, #e4e8ec 100%);
-            z-index: -1;
+        .hero::before {
+            content: ''; position: absolute; inset: -50%;
+            background-image: radial-gradient(circle, var(--text-4) 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: 0.4; pointer-events: none; z-index: -1;
         }
-        
-        .app-promo-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            gap: 4rem;
+        .hero-content { flex: 1.1; }
+        .hero-visual { flex: 1; display: flex; justify-content: flex-end; }
+
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.375rem 1rem; background: var(--surface-2); color: var(--text-2);
+            border-radius: var(--r-full); font-size: 0.75rem; font-weight: 600;
+            margin-bottom: 1.25rem; border: 1px solid var(--border);
         }
-        
-        .app-promo-text {
-            flex: 1;
+        .hero-badge-dot { width: 6px; height: 6px; background: var(--brand); border-radius: 50%; }
+
+        .hero h1 {
+            font-family: var(--font-display); font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 800; line-height: 1.05; letter-spacing: -0.04em;
+            margin-bottom: 1.25rem;
         }
-        
-        .app-promo-title {
-            font-size: 2.8rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            line-height: 1.2;
-            color: white;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-        
-        .app-promo-subtitle {
-            font-size: 1.3rem;
-            margin-bottom: 1.5rem;
-            color: rgba(255, 255, 255, 0.95);
-            font-weight: 400;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-        
-        .app-promo-description {
-            font-size: 1.1rem;
-            line-height: 1.6;
-            margin-bottom: 2.5rem;
-            color: rgba(255, 255, 255, 0.9);
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-        
-        .download-btn {
-            display: inline-flex;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 1rem 2rem;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-        }
-        
-        .download-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-            border-color: rgba(255, 255, 255, 0.4);
-        }
-        
-        .app-promo-visual {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-        }
-        
-        .phone-mockup {
-            width: 280px;
-            height: 560px;
-            background: #333;
-            border-radius: 30px;
-            padding: 20px;
-            position: relative;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        }
-        
-        .phone-screen {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
-            border-radius: 20px;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .app-interface {
-            padding: 2rem 1.5rem;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .app-header {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            color: #333;
-            font-weight: 600;
-        }
-        
-        .app-logo {
-            font-size: 1.5rem;
-        }
-        
-        .balance-card {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-            color: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            margin-bottom: 1.5rem;
-            text-align: center;
-        }
-        
-        .balance-label {
-            font-size: 0.9rem;
-            opacity: 0.8;
-            margin-bottom: 0.5rem;
-        }
-        
-        .balance-amount {
-            font-size: 2rem;
-            font-weight: 700;
-        }
-        
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.5rem;
-        }
-        
-        .action-btn {
-            background: white;
-            padding: 1rem 0.5rem;
-            border-radius: 10px;
-            text-align: center;
-            font-size: 0.8rem;
-            color: #333;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        .features {
-            background-color: white;
-            padding: 4rem 2rem;
-        }
-        
-        .features-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            text-align: center;
-        }
-        
-        .features-title {
-            font-size: 2.2rem;
-            margin-bottom: 3rem;
-        }
-        
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .feature-card {
-            background: #f8f9fa;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            transition: transform 0.3s;
-        }
-        
-        .feature-card:hover {
-            transform: translateY(-10px);
-        }
-        
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            color: #007bff;
-        }
-        
-        .feature-title {
-            font-size: 1.3rem;
-            margin-bottom: 1rem;
-        }
-        
-        footer {
-            background-color: #212529;
-            color: white;
-            padding: 3rem 2rem;
-        }
-        
-        .footer-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        
-        .footer-left p {
-            color: #adb5bd;
-            margin: 0;
-        }
-        
-        .footer-right {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .connect-text {
-            color: #adb5bd;
-            margin: 0;
-            font-size: 0.9rem;
-        }
-        
-        .social-links {
-            display: flex;
-            gap: 0.75rem;
-        }
-        
-        .social-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            color: #adb5bd;
-            text-decoration: none;
-            transition: all 0.3s ease;
-        }
-        
-        .social-link:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            transform: translateY(-2px);
-        }
-        
-        .social-link[href*="linkedin"]:hover {
-            background: #0077b5;
-            color: white;
-        }
-        
-        .social-link[href*="x.com"]:hover {
-            background: #000000;
-            color: white;
-        }
-        
-        .social-link[href*="github"]:hover {
-            background: #333;
-            color: white;
-        }
-        
-        /* Medium screen adjustments */
-        @media (max-width: 1024px) and (min-width: 769px) {
-            .features-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .app-promo-content {
-                gap: 2rem;
-            }
-            
-            .app-promo-title {
-                font-size: 2.4rem;
-            }
-        }
-        
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .header-content {
-                flex-direction: column;
-                gap: 1rem;
-            }
-            
-            .nav-links {
-                margin-top: 1rem;
-            }
-            
-            .hero {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .hero-content, .hero-image {
-                width: 100%;
-                padding-right: 0;
-            }
-            
-            .hero-image {
-                margin-top: 2rem;
-            }
-            
-            .hero-buttons {
-                justify-content: center;
-            }
-            
-            .features-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .app-promo-content {
-                flex-direction: column;
-                text-align: center;
-                gap: 2rem;
-            }
-            
-            .app-promo-title {
-                font-size: 2.2rem;
-            }
-            
-            .phone-mockup {
-                width: 240px;
-                height: 480px;
-            }
-            
-            h1 {
-                font-size: 2.2rem;
-            }
-            
-            .footer-content {
-                flex-direction: column;
-                text-align: center;
-                gap: 1.5rem;
-            }
-            
-            .footer-right {
-                flex-direction: column;
-                gap: 1rem;
-            }
+        .hero h1 .accent { color: var(--brand); }
+        [data-theme="dark"] .hero h1 .accent { color: var(--brand-light); }
+        [data-theme="dark"] .hero::before {
+            background-image: radial-gradient(circle, var(--navy-600) 1px, transparent 1px);
+            opacity: 0.3;
         }
 
-        /* Landing Page Chat Widget Styles */
-        .landing-chat-widget {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        .hero-desc {
+            font-size: 1.125rem; color: var(--text-3); line-height: 1.7;
+            max-width: 480px; margin-bottom: 1.75rem;
         }
+        .hero-buttons { display: flex; gap: 0.75rem; }
 
-        .landing-chat-toggle {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #007bff 0%, #002147 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0, 123, 255, 0.3);
-            transition: all 0.3s ease;
-            position: relative;
-            border: none;
+        /* Card preview */
+        .hero-card {
+            width: 340px; background: var(--navy-900); border-radius: var(--r-2xl);
+            padding: 2rem; color: #fff; position: relative; overflow: hidden;
+            box-shadow: var(--shadow-xl); transform: rotate(-3deg);
+            transition: transform var(--dur-slow) var(--ease);
         }
-
-        .landing-chat-toggle:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 25px rgba(0, 123, 255, 0.4);
-        }
-
-        .landing-chat-tooltip {
-            position: absolute;
-            right: 70px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+        .hero-card:hover { transform: rotate(-1deg) translateY(-4px); }
+        .hero-card::before {
+            content: ''; position: absolute; top: -40%; right: -30%;
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(0,123,255,0.08) 0%, transparent 70%);
             pointer-events: none;
-            z-index: 1001;
+        }
+        .hero-card-label { font-size: 0.5625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255,255,255,0.4); }
+        .hero-card-type {
+            display: inline-block; background: var(--brand); color: #fff;
+            padding: 0.125rem 0.5rem; border-radius: var(--r-sm); font-size: 0.5625rem;
+            font-weight: 800; letter-spacing: 0.06em; margin-bottom: 1.5rem;
+        }
+        .hero-card-balance {
+            font-family: var(--font-mono); font-size: 2rem; font-weight: 700;
+            letter-spacing: -0.01em; margin-bottom: 1.5rem;
+        }
+        .hero-card-number {
+            font-family: var(--font-mono); font-size: 0.8125rem;
+            letter-spacing: 0.16em; color: rgba(255,255,255,0.4);
+        }
+        .hero-card-row { display: flex; justify-content: space-between; margin-top: 1rem; font-size: 0.6875rem; color: rgba(255,255,255,0.35); }
+
+        /* ---- SOCIAL PROOF STRIP ---- */
+        .social-proof {
+            background: var(--surface-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+            padding: 2.5rem 2.5rem;
+            transition: background var(--dur-mid) ease, border-color var(--dur-mid) ease;
+        }
+        .social-proof-inner {
+            max-width: 1280px; margin: 0 auto;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; text-align: center;
+        }
+        .sp-val {
+            font-family: var(--font-display); font-size: 2rem; font-weight: 800;
+            color: var(--text-1); letter-spacing: -0.02em;
+        }
+        .sp-lbl { font-size: 0.8125rem; color: var(--text-3); margin-top: 0.125rem; }
+
+        /* ---- FEATURES ---- */
+        .features { padding: 4rem 2.5rem 3rem; }
+        .features-inner { max-width: 1280px; margin: 0 auto; }
+        .features-header { max-width: 560px; margin-bottom: 2.5rem; }
+        .features-header h2 {
+            font-family: var(--font-display); font-size: 2.5rem; font-weight: 800;
+            letter-spacing: -0.03em; margin-bottom: 0.75rem;
+        }
+        .features-header p { font-size: 1.0625rem; color: var(--text-3); }
+        .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+        .feature-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--r-xl); padding: 2rem;
+            transition: all var(--dur-mid) ease;
+        }
+        .feature-card:hover { border-color: var(--brand); box-shadow: var(--shadow-glow); transform: translateY(-4px); }
+        .feature-icon {
+            width: 48px; height: 48px; border-radius: var(--r-md);
+            display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem;
+        }
+        .feature-icon svg { width: 24px; height: 24px; }
+        .feature-icon.a1 { background: rgba(0,123,255,0.1); color: var(--brand); }
+        .feature-icon.a2 { background: rgba(0,123,255,0.1); color: var(--brand); }
+        .feature-icon.a3 { background: rgba(16,185,129,0.1); color: var(--green); }
+        .feature-icon.a4 { background: rgba(245,158,11,0.1); color: var(--amber); }
+        .feature-icon.a5 { background: rgba(139,92,246,0.1); color: #8B5CF6; }
+        .feature-icon.a6 { background: rgba(236,72,153,0.1); color: #EC4899; }
+        [data-theme="dark"] .feature-icon.a1 { background: rgba(0,123,255,0.12); color: var(--brand-light); }
+        .feature-card h3 { font-family: var(--font-display); font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .feature-card p { font-size: 0.875rem; color: var(--text-3); line-height: 1.6; }
+
+        /* ---- HOW IT WORKS ---- */
+        .how-it-works { padding: 3rem 2.5rem; }
+        .hiw-inner { max-width: 1280px; margin: 0 auto; }
+        .hiw-inner h2 {
+            font-family: var(--font-display); font-size: 2rem; font-weight: 800;
+            letter-spacing: -0.03em; margin-bottom: 2.5rem; text-align: center;
+        }
+        .hiw-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; position: relative; }
+        .hiw-steps::before {
+            content: ''; position: absolute; top: 24px; left: calc(16.66% + 24px); right: calc(16.66% + 24px);
+            height: 2px; border-top: 2px dashed var(--border);
+        }
+        .hiw-step { text-align: center; position: relative; z-index: 1; }
+        .hiw-num {
+            width: 48px; height: 48px; border-radius: var(--r-full); background: var(--brand); color: #fff;
+            font-family: var(--font-display); font-size: 1.125rem; font-weight: 800;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1rem; box-shadow: 0 4px 12px rgba(0,123,255,0.2);
+        }
+        .hiw-step h3 {
+            font-family: var(--font-display); font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;
+        }
+        .hiw-step p { font-size: 0.875rem; color: var(--text-3); line-height: 1.6; max-width: 280px; margin: 0 auto; }
+
+        /* ---- DASHBOARD PREVIEW ---- */
+        .dash-preview { padding: 3rem 2.5rem; }
+        .dash-preview-inner { max-width: 1280px; margin: 0 auto; text-align: center; }
+        .dash-preview-inner h2 {
+            font-family: var(--font-display); font-size: 2rem; font-weight: 800;
+            letter-spacing: -0.03em; margin-bottom: 0.5rem;
+        }
+        .dash-preview-inner > p { font-size: 1rem; color: var(--text-3); margin-bottom: 2rem; }
+
+        .dash-mockup {
+            background: var(--surface-2); border: 1px solid var(--border);
+            border-radius: var(--r-2xl); box-shadow: var(--shadow-lg);
+            overflow: hidden; height: 320px; display: flex;
+            transition: background var(--dur-mid) ease, border-color var(--dur-mid) ease;
+        }
+        .dm-sidebar {
+            width: 52px; background: var(--navy-800); flex-shrink: 0;
+            display: flex; flex-direction: column; align-items: center; padding: 1.25rem 0; gap: 1rem;
+        }
+        .dm-dot { width: 10px; height: 10px; border-radius: var(--r-full); background: rgba(255,255,255,0.12); }
+        .dm-dot.active { background: var(--brand-light); }
+        .dm-main { flex: 1; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+        .dm-cards { display: flex; gap: 0.75rem; }
+        .dm-card {
+            width: 140px; height: 72px; border-radius: var(--r-lg); padding: 0.75rem; flex-shrink: 0;
+        }
+        .dm-card-1 { background: linear-gradient(135deg, #1D4ED8, #1E3A8A); }
+        .dm-card-2 { background: linear-gradient(135deg, var(--navy-700), var(--navy-900)); }
+        .dm-card-lbl { width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin-bottom: 0.5rem; }
+        .dm-card-amt { width: 64px; height: 8px; background: rgba(255,255,255,0.5); border-radius: 3px; }
+        .dm-txs { flex: 1; display: flex; flex-direction: column; gap: 0.625rem; }
+        .dm-tx {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+        }
+        .dm-tx-dot { width: 28px; height: 28px; border-radius: var(--r-full); flex-shrink: 0; }
+        .dm-tx-dot.gr { background: var(--green-bg); }
+        .dm-tx-dot.rd { background: var(--red-bg); }
+        .dm-tx-dot.bl { background: rgba(0,123,255,0.1); }
+        .dm-tx-lines { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; }
+        .dm-tx-l1 { height: 6px; border-radius: 3px; background: var(--surface-3); }
+        .dm-tx-l2 { height: 4px; border-radius: 2px; background: var(--surface-3); width: 60%; }
+        .dm-tx-amt { width: 48px; height: 6px; border-radius: 3px; background: var(--surface-3); flex-shrink: 0; }
+
+        /* ---- CTA ---- */
+        .cta { padding: 3rem 2.5rem 3rem; }
+        .cta-inner {
+            max-width: 900px; margin: 0 auto;
+            background: var(--navy-900); border-radius: var(--r-2xl);
+            padding: 3.5rem 3rem; text-align: center; color: #fff;
+            position: relative; overflow: hidden;
+        }
+        .cta-inner::before {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(circle at 50% 120%, rgba(0,123,255,0.06) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .cta-inner h2 { font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 0.75rem; position: relative; z-index: 1; }
+        .cta-inner p { font-size: 1.0625rem; color: rgba(255,255,255,0.55); margin-bottom: 2rem; position: relative; z-index: 1; }
+        .cta-inner .btn-accent { position: relative; z-index: 1; padding: 0.75rem 2rem; font-size: 1rem; font-weight: 700; }
+
+        /* ---- MOBILE APP SECTION ---- */
+        .mobile-app-section { padding: 4rem 2.5rem; background: var(--surface-2); }
+        .mobile-app-inner { max-width: 1280px; margin: 0 auto; }
+        .mobile-app-content { text-align: center; max-width: 700px; margin: 0 auto; }
+        .mobile-app-content h2 { font-family: var(--font-display); font-size: 2rem; font-weight: 800; margin-bottom: 1rem; }
+        .mobile-app-content > p:first-of-type { font-size: 1.125rem; color: var(--brand); font-weight: 600; margin-bottom: 1rem; }
+        .mobile-app-desc { font-size: 1rem; color: var(--text-3); line-height: 1.7; margin-bottom: 2rem; }
+
+        /* ---- FOOTER ---- */
+        .landing-footer { background: var(--navy-950); color: rgba(255,255,255,0.4); padding: 3rem 2.5rem 2rem; }
+        .footer-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 2rem; }
+        .footer-brand-text { font-size: 0.8125rem; line-height: 1.7; max-width: 280px; }
+        .footer-col h4 { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.25); margin-bottom: 1rem; }
+        .footer-col a { display: block; font-size: 0.8125rem; color: rgba(255,255,255,0.4); margin-bottom: 0.625rem; }
+        .footer-col a:hover { color: #fff; }
+        .footer-bottom {
+            max-width: 1280px; margin: 2rem auto 0; padding-top: 1.5rem;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.6875rem; color: rgba(255,255,255,0.25);
         }
 
-        .landing-chat-tooltip::after {
-            content: '';
-            position: absolute;
-            left: 100%;
-            top: 50%;
-            transform: translateY(-50%);
-            border: 5px solid transparent;
-            border-left-color: rgba(0, 0, 0, 0.8);
+        /* ---- RESPONSIVE ---- */
+        @media (max-width: 1024px) {
+            .hero { flex-direction: column; text-align: center; padding-top: 5rem; gap: 2rem; }
+            .hero-visual { justify-content: center; }
+            .hero h1 { font-size: 2.5rem; }
+            .hero-desc { margin-left: auto; margin-right: auto; }
+            .hero-buttons { justify-content: center; }
+            .hero-card { transform: rotate(-2deg); }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .social-proof-inner { grid-template-columns: repeat(2, 1fr); }
+            .hiw-steps::before { display: none; }
+            .mobile-inner { grid-template-columns: 1fr; text-align: center; gap: 2.5rem; }
+            .mobile-content { order: 2; }
+            .mobile-visual { order: 1; }
         }
-
-        .landing-chat-toggle:hover .landing-chat-tooltip {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .landing-chat-window {
-            position: absolute;
-            bottom: 80px;
-            right: 0;
-            width: 350px;
-            height: 500px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            border: 1px solid #e1e8ed;
-        }
-
-        .landing-chat-header {
-            background: linear-gradient(135deg, #007bff 0%, #002147 100%);
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .landing-chat-agent-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .landing-agent-avatar {
-            width: 36px;
-            height: 36px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .landing-agent-details {
-            line-height: 1.2;
-        }
-
-        .landing-agent-name {
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .landing-agent-status {
-            font-size: 12px;
-            opacity: 0.9;
-        }
-
-        .landing-chat-close {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 4px;
-            transition: background 0.2s ease;
-        }
-
-        .landing-chat-close:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .landing-chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            background: #f8f9fa;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .landing-message {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            max-width: 80%;
-        }
-
-        .landing-message.landing-user-message {
-            align-self: flex-end;
-            flex-direction: row-reverse;
-        }
-
-        .landing-message-avatar {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .landing-bot-message .landing-message-avatar {
-            background: #007bff;
-            color: white;
-        }
-
-        .landing-user-message .landing-message-avatar {
-            background: #6c757d;
-            color: white;
-        }
-
-        .landing-message-content {
-            flex: 1;
-        }
-
-        .landing-message-text {
-            background: white;
-            padding: 12px 16px;
-            border-radius: 18px;
-            font-size: 14px;
-            line-height: 1.4;
-            word-wrap: break-word;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-
-        .landing-user-message .landing-message-text {
-            background: #007bff;
-            color: white;
-        }
-
-        .landing-message-time {
-            font-size: 11px;
-            color: #6c757d;
-            margin-top: 4px;
-            padding: 0 4px;
-        }
-
-        .landing-chat-input {
-            padding: 15px 20px;
-            background: white;
-            border-top: 1px solid #e1e8ed;
-        }
-
-        .landing-input-container {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        #landingChatMessageInput {
-            flex: 1;
-            padding: 12px 16px;
-            border: 1px solid #e1e8ed;
-            border-radius: 25px;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s ease;
-        }
-
-        #landingChatMessageInput:focus {
-            border-color: #007bff;
-        }
-
-        #landingSendChatBtn {
-            width: 40px;
-            height: 40px;
-            background: #007bff;
-            border: none;
-            border-radius: 50%;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s ease;
-        }
-
-        #landingSendChatBtn:hover {
-            background: #002147;
-        }
-
-        .landing-typing-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-            font-size: 12px;
-            color: #6c757d;
-        }
-
-        .landing-typing-dots {
-            display: flex;
-            gap: 2px;
-        }
-
-        .landing-typing-dots span {
-            width: 4px;
-            height: 4px;
-            background: #6c757d;
-            border-radius: 50%;
-            animation: typing 1.4s infinite ease-in-out;
-        }
-
-        .landing-typing-dots span:nth-child(1) { animation-delay: -0.32s; }
-        .landing-typing-dots span:nth-child(2) { animation-delay: -0.16s; }
-
         @media (max-width: 768px) {
-            .landing-chat-window {
-                width: calc(100vw - 40px);
-                height: 70vh;
-                right: -10px;
+            .navbar-links { display: none; }
+            .navbar { padding: 1rem 1.5rem; }
+            .hero { padding: 5rem 1.5rem 1.5rem; }
+            .hero h1 { font-size: 2rem; }
+            .features { padding: 3rem 1.5rem 2rem; }
+            .features-grid { grid-template-columns: 1fr; }
+            .social-proof { padding: 2rem 1.5rem; }
+            .social-proof-inner { grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+            .how-it-works { padding: 2.5rem 1.5rem; }
+            .hiw-steps { grid-template-columns: 1fr; gap: 2rem; }
+            .dash-preview { padding: 2.5rem 1.5rem; }
+            .dash-mockup { height: 240px; }
+            .mobile-app { padding: 2.5rem 1.5rem; }
+            .phone-frame { width: 240px; height: 480px; }
+            .footer-inner { grid-template-columns: 1fr 1fr; }
+            .cta { padding: 2.5rem 1.5rem; }
+            .cta-inner { padding: 2.5rem 1.5rem; }
+            .chat-window {
+                right: 0;
+                bottom: 68px;
+                width: min(360px, calc(100vw - 2rem));
+                height: min(500px, calc(100vh - 6rem));
+                max-height: calc(100vh - 6rem);
             }
         }
+        @media (max-width: 480px) {
+            .hero h1 { font-size: 1.75rem; }
+            .hero-buttons { flex-direction: column; align-items: center; }
+            .hero-card { width: 280px; padding: 1.5rem; }
+            .social-proof-inner { grid-template-columns: 1fr 1fr; }
+            .footer-inner { grid-template-columns: 1fr; }
+            .footer-bottom { flex-direction: column; gap: 1rem; text-align: center; }
+            .dm-cards { display: none; }
+            .phone-frame { width: 220px; height: 440px; }
+            .mobile-content h2 { font-size: 2rem; }
+            .chat-widget { right: 1rem; bottom: 1rem; }
+            .chat-window {
+                width: calc(100vw - 2rem);
+                height: min(460px, calc(100vh - 5.5rem));
+                max-height: calc(100vh - 5.5rem);
+            }
+        }
+
+        /* ---- MOBILE APP SECTION ---- */
+        .mobile-app { padding: 4rem 2.5rem; background: var(--surface-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); transition: background var(--dur-mid) ease, border-color var(--dur-mid) ease; }
+        .mobile-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+        .mobile-content h2 { font-family: var(--font-display); font-size: 2.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 1rem; }
+        .mobile-content > p { font-size: 1.0625rem; color: var(--text-3); line-height: 1.7; margin-bottom: 1.75rem; }
+        .section-badge { display: inline-flex; align-items: center; padding: 0.375rem 1rem; background: var(--brand-light, #4FC3F7); color: var(--navy-950); border-radius: var(--r-full); font-size: 0.75rem; font-weight: 700; margin-bottom: 1rem; }
+        .mobile-visual { display: flex; justify-content: center; align-items: center; }
+        .phone-mockup { position: relative; width: 280px; }
+        .phone-frame {
+            width: 260px; height: 520px; background: var(--navy-950); border-radius: 42px;
+            border: 8px solid #1a1a1a; box-shadow: 0 25px 80px rgba(0,0,0,0.35), inset 0 0 0 2px rgba(255,255,255,0.05);
+            position: relative; overflow: hidden;
+        }
+        .phone-notch {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            width: 100px; height: 28px; background: #000; border-radius: 14px;
+            z-index: 2;
+        }
+        .phone-screen {
+            width: 100%; height: 100%; background: linear-gradient(180deg, #0a1929 0%, #1a2332 100%);
+            display: flex; flex-direction: column; padding: 52px 1.25rem 1.25rem;
+        }
+        .app-header { text-align: center; padding: 1.5rem 0; }
+        .app-balance { font-family: var(--font-mono); font-size: 1.75rem; font-weight: 700; color: #fff; }
+        .app-card {
+            background: linear-gradient(135deg, #1D4ED8 0%, #1E3A8A 100%);
+            border-radius: var(--r-lg); padding: 1.25rem; margin-bottom: 1.25rem;
+            box-shadow: 0 8px 24px rgba(0,123,255,0.25); display: flex; flex-direction: column; gap: 0.5rem;
+        }
+        .app-card-label { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.4); }
+        .app-card-number { font-family: var(--font-mono); font-size: 1.0625rem; font-weight: 600; color: #fff; letter-spacing: 0.05em; }
+        .app-actions { display: flex; gap: 1rem; justify-content: center; }
+        .app-action { width: 48px; height: 48px; background: rgba(255,255,255,0.08); border-radius: var(--r-lg); }
+
+        .lr { opacity: 0; transform: translateY(24px); transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1); }
+        .lr.vis { opacity: 1; transform: translateY(0); }
+
+        /* ---- LANDING CHAT ---- */
+        .chat-widget { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 1500; font-family: var(--font-body); }
+        .chat-toggle {
+            width: 56px; height: 56px; border: none; border-radius: var(--r-full);
+            background: var(--navy-800); color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; position: relative;
+            box-shadow: var(--shadow-lg); transition: transform var(--dur-fast) ease;
+        }
+        .chat-toggle:hover { transform: scale(1.06); }
+        [data-theme="dark"] .chat-toggle { background: var(--brand-light); }
+        .chat-badge {
+            position: absolute; top: -4px; right: -4px; width: 18px; height: 18px;
+            border-radius: var(--r-full); background: var(--red); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
+        }
+        .chat-tooltip {
+            position: absolute; right: 68px; top: 50%; transform: translateY(-50%);
+            background: var(--navy-800); color: #fff; padding: 0.375rem 0.75rem;
+            border-radius: var(--r-sm); font-size: 0.6875rem; font-weight: 600;
+            white-space: nowrap; opacity: 0; visibility: hidden; pointer-events: none;
+            transition: opacity var(--dur-fast) ease;
+        }
+        .chat-tooltip::after {
+            content: ''; position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
+            border: 5px solid transparent; border-left-color: var(--navy-800);
+        }
+        .chat-toggle:hover .chat-tooltip { opacity: 1; visibility: visible; }
+        .chat-widget.chat-open .chat-tooltip { opacity: 0 !important; visibility: hidden !important; }
+        .chat-window {
+            position: absolute; right: 0; bottom: 72px;
+            width: min(360px, calc(100vw - 2.5rem));
+            height: min(500px, calc(100vh - 7rem));
+            max-height: calc(100vh - 7rem);
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl);
+            box-shadow: var(--shadow-xl); overflow: hidden; display: flex; flex-direction: column;
+        }
+        .chat-window.opening { animation: chatOpen var(--dur-mid) var(--ease); }
+        .chat-window.closing { animation: chatClose var(--dur-mid) ease-in; }
+        @keyframes chatOpen { from { opacity: 0; transform: scale(0.92) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes chatClose { from { opacity: 1; transform: scale(1) translateY(0); } to { opacity: 0; transform: scale(0.92) translateY(12px); } }
+        .chat-header {
+            background: var(--navy-800); color: #fff; padding: 1rem 1.25rem;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .chat-agent-info { display: flex; align-items: center; gap: 0.75rem; }
+        .agent-avatar {
+            width: 34px; height: 34px; border-radius: var(--r-full); background: rgba(255,255,255,0.1);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .agent-name { font-size: 0.875rem; font-weight: 600; }
+        .agent-status {
+            font-size: 0.6875rem; opacity: 0.75; display: flex; align-items: center; gap: 5px;
+        }
+        .agent-status::before {
+            content: ''; width: 7px; height: 7px; border-radius: var(--r-full); background: var(--green);
+            box-shadow: 0 0 0 2px rgba(16,185,129,0.3); animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow { 0%,100% { box-shadow: 0 0 0 2px rgba(16,185,129,0.3); } 50% { box-shadow: 0 0 0 5px rgba(16,185,129,0.08); } }
+        .chat-close {
+            background: rgba(255,255,255,0.06); border: none; border-radius: var(--r-sm);
+            color: rgba(255,255,255,0.6); cursor: pointer; padding: 0.375rem;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .chat-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .chat-mode-label {
+            padding: 0.625rem 1rem; background: var(--surface-2); border-bottom: 1px solid var(--border);
+            font-size: 0.75rem; font-weight: 600; color: var(--brand);
+        }
+        .chat-messages {
+            flex: 1; padding: 1rem; overflow-y: auto; background: var(--surface-2);
+            display: flex; flex-direction: column; gap: 0.875rem;
+        }
+        .message { display: flex; align-items: flex-start; gap: 0.625rem; max-width: 85%; }
+        .message.user-message { align-self: flex-end; flex-direction: row-reverse; }
+        .message-avatar {
+            width: 26px; height: 26px; border-radius: var(--r-full); flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .bot-message .message-avatar { background: var(--navy-700); color: #fff; }
+        .user-message .message-avatar { background: var(--text-3); color: #fff; }
+        .message-text {
+            padding: 0.75rem 1rem; border-radius: var(--r-lg); font-size: 0.8125rem; line-height: 1.5;
+            background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+            word-wrap: break-word;
+        }
+        .user-message .message-text { background: var(--navy-800); color: #fff; border: none; box-shadow: none; }
+        [data-theme="dark"] .user-message .message-text { background: var(--accent); }
+        .message-time { margin-top: 0.25rem; padding: 0 0.25rem; font-size: 0.625rem; color: var(--text-4); }
+        .chat-input { padding: 0.875rem 1rem; background: var(--surface); border-top: 1px solid var(--border); }
+        .input-container { display: flex; align-items: center; gap: 0.5rem; }
+        #landingChatMessageInput {
+            flex: 1; padding: 0.625rem 1rem; border: 1px solid var(--border); border-radius: var(--r-full);
+            background: var(--surface-2); color: var(--text-1); font-size: 0.8125rem; outline: none;
+        }
+        #landingChatMessageInput:focus { border-color: var(--brand); }
+        #landingSendChatBtn {
+            width: 22px; height: 22px; padding: 0; border: none; border-radius: 0;
+            background: transparent; color: var(--navy-800); cursor: pointer;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        #landingSendChatBtn svg {
+            width: 20px; height: 20px; display: block;
+            color: currentColor; fill: currentColor; stroke: none;
+        }
+        [data-theme="dark"] #landingSendChatBtn { color: var(--accent); }
+        #landingSendChatBtn:hover { color: var(--brand); }
+        #landingSendChatBtn:disabled { color: var(--border); cursor: not-allowed; opacity: 0.7; }
+        .typing-indicator { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.375rem; font-size: 0.6875rem; color: var(--text-4); }
+        .typing-dots { display: flex; gap: 2px; }
+        .typing-dots span { width: 4px; height: 4px; background: var(--text-4); border-radius: var(--r-full); animation: typing 1.4s infinite ease-in-out; }
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing { 0%,80%,100% { transform: scale(0); } 40% { transform: scale(1); } }
     </style>
 </head>
 <body>
-    <div class="hero-container">
-        <header>
-            <div class="header-content">
-                <div class="bank-logo">Vulnerable Bank</div>
-                <nav class="nav-links">
-                    <!-- <a href="{{ url_for('login') }}">Sign In</a> -->
-                    <!-- <a href="{{ url_for('register') }}">Sign Up</a> -->
-                    <a href="https://github.com/Commando-X/vuln-bank?tab=readme-ov-file#testing-guide-" target="_blank">Guide</a>
-                    <a href="/api/docs"> API Docs</a>
-                    <a href="https://github.com/Commando-X/vuln-bank" target="_blank" title="View on GitHub">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style="vertical-align: middle;">
-                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                        </svg>
-                    </a>
-                </nav>
-            </div>
-        </header>
-        
-        <div class="hero">
-            <div class="hero-content">
-                <h1>Banking Made Simple & InSecure</h1>
-                <p>This is an Intentionally vulnerable application, designed for everyone to practice application security.</p>
-                <div class="hero-buttons">
-                    <a href="{{ url_for('login') }}" class="button primary">Login</a>
-                    <a href="{{ url_for('register') }}" class="button secondary">Register</a>
-                    <!-- <a href="{{ url_for('register') }}" class="button register-btn">Register</a> -->
+    <a href="#hero" class="skip-link">Skip to main content</a>
 
-                </div>
-            </div>
-            <div class="hero-image">
-                <img src="{{ url_for('static', filename='uploads/banking-app.png') }}" onerror="this.src='https://via.placeholder.com/500x300?text=Banking+App'" alt="Banking App">
+    <!-- Navbar -->
+    <nav class="navbar" id="navbar">
+        <div class="navbar-brand">
+            <div class="navbar-logo-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+            <span class="navbar-logo-text">VulnBank</span>
+        </div>
+        <div class="navbar-links">
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="https://github.com/Commando-X/vuln-bank" target="_blank" rel="noopener noreferrer">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12A11.5 11.5 0 0 0 8.36 22.9c.58.1.79-.25.79-.56v-2.15c-3.18.69-3.85-1.35-3.85-1.35-.52-1.3-1.26-1.65-1.26-1.65-1.03-.7.08-.69.08-.69 1.13.08 1.73 1.17 1.73 1.17 1.02 1.72 2.67 1.22 3.32.93.1-.74.4-1.22.72-1.5-2.54-.29-5.2-1.27-5.2-5.64 0-1.25.45-2.27 1.17-3.07-.12-.29-.5-1.46.11-3.04 0 0 .96-.31 3.14 1.17a10.9 10.9 0 0 1 5.72 0c2.18-1.48 3.13-1.17 3.13-1.17.62 1.58.24 2.75.12 3.04.73.8 1.17 1.82 1.17 3.07 0 4.38-2.67 5.35-5.22 5.63.41.35.78 1.04.78 2.11v3.12c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
+                <span>Star on Github</span>
+            </a>
+        </div>
+        <div class="navbar-actions">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+                <span class="toggle-icon toggle-icon-sun">☀️</span>
+                <span class="toggle-slider"></span>
+                <span class="toggle-icon toggle-icon-moon">🌙</span>
+            </button>
+            <a href="{{ url_for('login') }}" class="btn btn-ghost" style="font-weight:600;font-size:0.875rem;">Sign In</a>
+            <a href="{{ url_for('register') }}" class="btn btn-accent" style="font-size:0.875rem;padding:0.5rem 1.25rem;">Open Account</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero" id="hero">
+        <div class="hero-content lr">
+            <div class="hero-badge"><span class="hero-badge-dot"></span> The future of personal banking</div>
+            <h1>Banking Made Simple<br>& <span class="accent">InSecure</span></h1>
+            <p class="hero-desc">This is an intentionally vulnerable application, built to practice and teach application security testing, and to help security professionals, and tooling companies benchmark traditional SAST/DAST tools and offensive security AI agents.</p>
+            <div class="hero-buttons">
+                <a href="{{ url_for('register') }}" class="btn btn-accent btn-lg">Register</a>
+                <a href="{{ url_for('login') }}" class="btn btn-secondary btn-lg">Login</a>
             </div>
         </div>
-        
-        <!-- Mobile App Promotion Section -->
-        <section class="app-promo">
-            <div class="app-promo-content">
-                <div class="app-promo-text">
-                    <h2 class="app-promo-title">Banking in Your Pocket</h2>
-                    <p class="app-promo-subtitle">Experience the future of mobile banking with our cutting-edge vulnerable android app</p>
-                    <p class="app-promo-description">Access all your banking needs on-the-go. Transfer money, pay bills, and manage your finances with just a few taps. Security and convenience, redefined.</p>
-                    <a href="https://github.com/Commando-X/vuln-bank-mobile" target="_blank" class="download-btn">
-                        <svg width="20" height="20" fill="#3DDC84" viewBox="0 0 24 24" style="margin-right: 8px;">
-                            <path d="M6.818 10.023l1.227-2.482A.424.424 0 01.61 7.375l-1.401 2.834A8.107 8.107 0 015.337 9.48c.394-.162.822-.295 1.255-.394l.226-.063zm10.364 0c.433.099.861.232 1.255.394a8.107 8.107 0 01-1.128.729l-1.401-2.834a.424.424 0 01-.166-.166l1.227 2.482c.071.02.142.039.213.059zM11.999 3.75c-1.676 0-3.318.451-4.75 1.303L6.021 2.396a.424.424 0 11-.738.384l1.288 2.609a8.25 8.25 0 00-1.227 7.861h14.712a8.25 8.25 0 00-1.227-7.861l1.288-2.609a.424.424 0 11-.738-.384l-1.228 2.657A8.178 8.178 0 0011.999 3.75zm-2.05 5.5a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm5.85 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>
-                            <path d="M6.751 15h10.498a.75.75 0 01.75.75v4.5a2.25 2.25 0 01-2.25 2.25h-6.75A2.25 2.25 0 016.75 20.25v-4.5a.75.75 0 01.751-.75z"/>
-                        </svg>
-                        Download
-                    </a>
+        <div class="hero-visual lr" style="transition-delay:0.2s;">
+            <div class="hero-card">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">
+                    <div class="hero-card-label">VISA</div>
+                    <div class="hero-card-type">VulnBank</div>
                 </div>
-                <div class="app-promo-visual">
-                    <div class="phone-mockup">
+                <div class="hero-card-balance">$ 12,740.55</div>
+                <div class="hero-card-number">4817 &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; 3291</div>
+                <div class="hero-card-row">
+                    <span>Mr Robot</span>
+                    <span>Exp 11/28</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Social Proof Strip -->
+    <section class="social-proof lr">
+        <div class="social-proof-inner">
+            <div><div class="sp-val">50K+</div><div class="sp-lbl">Active Accounts</div></div>
+            <div><div class="sp-val">$1.8B</div><div class="sp-lbl">Processed Monthly</div></div>
+            <div><div class="sp-val">99.9%</div><div class="sp-lbl">Uptime SLA</div></div>
+            <div><div class="sp-val">24/7</div><div class="sp-lbl">AI Support</div></div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="features-inner">
+            <div class="features-header lr">
+                <h2>Our Features</h2>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card lr">
+                    <div class="feature-icon a1"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></div>
+                    <h3>Money Transfers</h3><p>Send money instantly to any account within our banking system.</p>
+                </div>
+                <div class="feature-card lr">
+                    <div class="feature-icon a2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg></div>
+                    <h3>Virtual Cards</h3><p>Create and manage virtual payment cards for secure online transactions.</p>
+                </div>
+                <div class="feature-card lr">
+                    <div class="feature-icon a3"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+                    <h3>Loan Services</h3><p>Apply for loans with quick approval process.</p>
+                </div>
+                <div class="feature-card lr">
+                    <div class="feature-icon a4"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></div>
+                    <h3>Bill Payments</h3><p>Pay your utility bills, subscriptions, and services directly from your account.</p>
+                </div>
+                <div class="feature-card lr">
+                    <div class="feature-icon a5"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7H9V5.73C8.4 5.39 8 4.74 8 4a2 2 0 0 1 2-2z"></path><circle cx="9" cy="12" r="1"></circle><circle cx="15" cy="12" r="1"></circle></svg></div>
+                    <h3>AI Customer Support</h3><p>Get instant help from our intelligent AI assistant for all your banking needs.</p>
+                </div>
+                <div class="feature-card lr">
+                    <div class="feature-icon a6"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div>
+                    <h3>Mobile App</h3><p>Access your account anytime, anywhere with our insecure mobile banking application.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Banking in Your Pocket -->
+    <section class="mobile-app-section" id="mobile-app">
+        <div class="mobile-app-inner">
+            <div class="mobile-app-content lr">
+                <h2>Banking in Your Pocket</h2>
+                <p>Experience the future of mobile banking with our cutting-edge vulnerable android app</p>
+                <p class="mobile-app-desc">Access all your banking needs on-the-go. Transfer money, pay bills, and manage your finances with just a few taps. Security and convenience, redefined.</p>
+                <a href="#" class="btn btn-accent btn-lg">Download</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="hiw-inner">
+            <h2 class="lr">How it works</h2>
+            <div class="hiw-steps">
+                <div class="hiw-step lr">
+                    <div class="hiw-num">1</div>
+                    <h3>Create Account</h3>
+                    <p>Sign up in seconds with just a username and password. No paperwork required.</p>
+                </div>
+                <div class="hiw-step lr" style="transition-delay:0.1s;">
+                    <div class="hiw-num">2</div>
+                    <h3>Fund Your Wallet</h3>
+                    <p>Receive transfers from other accounts or get a loan approved instantly.</p>
+                </div>
+                <div class="hiw-step lr" style="transition-delay:0.2s;">
+                    <div class="hiw-num">3</div>
+                    <h3>Start Banking</h3>
+                    <p>Send money, pay bills, manage virtual cards, and chat with AI support.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dashboard Preview -->
+    <section class="dash-preview">
+        <div class="dash-preview-inner">
+            <h2 class="lr">Powerful dashboard, simple interface</h2>
+            <p class="lr">Everything you need in one clean, responsive view.</p>
+            <div class="dash-mockup lr">
+                <div class="dm-sidebar">
+                    <div class="dm-dot active"></div>
+                    <div class="dm-dot"></div>
+                    <div class="dm-dot"></div>
+                    <div class="dm-dot"></div>
+                    <div class="dm-dot"></div>
+                </div>
+                <div class="dm-main">
+                    <div class="dm-cards">
+                        <div class="dm-card dm-card-1"><div class="dm-card-lbl"></div><div class="dm-card-amt"></div></div>
+                        <div class="dm-card dm-card-2"><div class="dm-card-lbl"></div><div class="dm-card-amt"></div></div>
+                    </div>
+                    <div class="dm-txs">
+                        <div class="dm-tx"><div class="dm-tx-dot gr"></div><div class="dm-tx-lines"><div class="dm-tx-l1" style="width:75%"></div><div class="dm-tx-l2"></div></div><div class="dm-tx-amt"></div></div>
+                        <div class="dm-tx"><div class="dm-tx-dot rd"></div><div class="dm-tx-lines"><div class="dm-tx-l1" style="width:55%"></div><div class="dm-tx-l2" style="width:40%"></div></div><div class="dm-tx-amt"></div></div>
+                        <div class="dm-tx"><div class="dm-tx-dot bl"></div><div class="dm-tx-lines"><div class="dm-tx-l1" style="width:65%"></div><div class="dm-tx-l2" style="width:50%"></div></div><div class="dm-tx-amt"></div></div>
+                        <div class="dm-tx"><div class="dm-tx-dot gr"></div><div class="dm-tx-lines"><div class="dm-tx-l1" style="width:80%"></div><div class="dm-tx-l2" style="width:45%"></div></div><div class="dm-tx-amt"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Mobile App -->
+    <section class="mobile-app" id="mobile-app">
+        <div class="mobile-inner lr">
+            <div class="mobile-content">
+                <div class="section-badge">Mobile App</div>
+                <h2>Banking in Your Pocket</h2>
+                <p>Experience the future of mobile banking with our cutting-edge vulnerable android app. Access all your banking needs on-the-go. Transfer money, pay bills, and manage your finances with just a few taps. Security and convenience, redefined.</p>
+                <a href="https://github.com/Commando-X/vuln-bank-mobile" target="_blank" rel="noopener noreferrer" class="btn btn-accent btn-lg">Download App</a>
+            </div>
+            <div class="mobile-visual lr" style="transition-delay:0.2s;">
+                <div class="phone-mockup">
+                    <div class="phone-frame">
+                        <div class="phone-notch"></div>
                         <div class="phone-screen">
-                            <div class="app-interface">
-                                <div class="app-header">
-                                    <div class="app-logo">🏦</div>
-                                    <span>Vulnerable Bank</span>
-                                </div>
-                                <div class="balance-card">
-                                    <div class="balance-label">Total Balance</div>
-                                    <div class="balance-amount">$12,450</div>
-                                </div>
-                                <div class="quick-actions">
-                                    <div class="action-btn">💸 Send</div>
-                                    <div class="action-btn">💳 Pay</div>
-                                    <div class="action-btn">📊 History</div>
-                                </div>
+                            <div class="app-header">
+                                <span class="app-balance">$12,740.55</span>
+                            </div>
+                            <div class="app-card">
+                                <span class="app-card-label">Virtual Card</span>
+                                <span class="app-card-number">**** 3291</span>
+                            </div>
+                            <div class="app-actions">
+                                <div class="app-action"></div>
+                                <div class="app-action"></div>
+                                <div class="app-action"></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
-        
-        <section class="features">
-            <div class="features-content">
-                <h2 class="features-title">Our Features</h2>
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon">💸</div>
-                        <h3 class="feature-title">Money Transfers</h3>
-                        <p>Send money instantly to any account within our banking system.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">💳</div>
-                        <h3 class="feature-title">Virtual Cards</h3>
-                        <p>Create and manage virtual payment cards for secure online transactions.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">💰</div>
-                        <h3 class="feature-title">Loan Services</h3>
-                        <p>Apply for loans with competitive rates and quick approval process.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">💵</div>
-                        <h3 class="feature-title">Bill Payments</h3>
-                        <p>Pay your utility bills, subscriptions, and services directly from your account.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">🤖</div>
-                        <h3 class="feature-title">AI Customer Support</h3>
-                        <p>Get instant help from our intelligent AI assistant for all your banking needs.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">📱</div>
-                        <h3 class="feature-title">Mobile App</h3>
-                        <p>Access your account anytime, anywhere with our insecure mobile banking application.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-        
-        <footer>
-            <div class="footer-content">
-                <div class="footer-left">
-                    <p>Vulnerable Bank | Made for Security Engineers to practice Application Security</p>
-                </div>
-                <div class="footer-right">
-                    <p class="connect-text">Connect with Al-Amir Badmus:</p>
-                    <div class="social-links">
-                        <a href="https://www.linkedin.com/in/badmus-al-amir/" target="_blank" title="LinkedIn" class="social-link">
-                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                            </svg>
-                        </a>
-                        <a href="https://x.com/commando_skiipz" target="_blank" title="Twitter/X" class="social-link">
-                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/>
-                            </svg>
-                        </a>
-                        <a href="https://github.com/Commando-X" target="_blank" title="GitHub" class="social-link">
-                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                            </svg>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </footer>
-    </div>
-
-    <!-- AI Customer Support Chat Widget -->
-    <div id="landingChatWidget" class="landing-chat-widget">
-        <!-- Chat Toggle Button -->
-        <div id="landingChatToggle" class="landing-chat-toggle" onclick="toggleLandingChat()">
-            <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
-                <path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z"/>
-            </svg>
-            <div class="landing-chat-tooltip">Try AI Support</div>
         </div>
+    </section>
 
-        <!-- Chat Window -->
-        <div id="landingChatWindow" class="landing-chat-window" style="display: none;">
-            <!-- Chat Header -->
-            <div class="landing-chat-header">
-                <div class="landing-chat-agent-info">
-                    <div class="landing-agent-avatar">
-                        <svg width="20" height="20" fill="white" viewBox="0 0 24 24">
-                            <path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z"/>
-                        </svg>
+    <!-- CTA -->
+    <section class="cta" id="cta">
+        <div class="cta-inner lr">
+            <h2>Ready to take control?</h2>
+            <p>Join thousands who already manage their money the smarter way.</p>
+            <a href="{{ url_for('register') }}" class="btn btn-accent">Open a Free Account &rarr;</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+        <div class="footer-inner">
+            <div class="footer-col">
+                <div class="navbar-brand" style="margin-bottom:1rem;">
+                    <div class="navbar-logo-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+                    <span class="navbar-logo-text" style="color:#fff;">VulnBank</span>
+                </div>
+                <p class="footer-brand-text">Modern banking for a modern world. Manage your money with confidence.</p>
+            </div>
+            <div class="footer-col"><h4>Product</h4><a href="#features">Features</a><a href="#">Pricing</a><a href="/api/docs/" target="_blank">API Docs</a></div>
+            <div class="footer-col"><h4>Company</h4><a href="#">About</a><a href="{{ url_for('careers') }}">Careers</a><a href="{{ url_for('blog') }}">Blog</a></div>
+            <div class="footer-col"><h4>Legal</h4><a href="{{ url_for('privacy') }}">Privacy Policy</a><a href="{{ url_for('terms') }}">Terms of Service</a><a href="{{ url_for('compliance') }}">Compliance</a></div>
+        </div>
+        <div class="footer-bottom">
+            <div style="display:flex;flex-direction:column;gap:0.5rem;">
+                <span style="font-size:0.8125rem;color:rgba(255,255,255,0.5);">Vulnerable Bank | Made for Security Engineers to practice Application Security</span>
+                <span style="font-size:0.75rem;color:rgba(255,255,255,0.4);">&copy; 2026 VulnBank. All rights reserved.</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+                <span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">Connect with Al-Amir Badmus:</span>
+                <a href="https://www.linkedin.com/in/badmus-al-amir/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);border-radius:var(--r-full);color:rgba(255,255,255,0.4);transition:all var(--dur-fast) ease;">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"></path></svg>
+                </a>
+                <a href="https://x.com/commando_skiipz" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);border-radius:var(--r-full);color:rgba(255,255,255,0.4);transition:all var(--dur-fast) ease;">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"></path></svg>
+                </a>
+                <a href="https://github.com/Commando-X" target="_blank" rel="noopener noreferrer" aria-label="GitHub" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);border-radius:var(--r-full);color:rgba(255,255,255,0.4);transition:all var(--dur-fast) ease;">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <div id="landingChatWidget" class="chat-widget">
+        <button id="landingChatToggle" class="chat-toggle" onclick="toggleLandingChat()" aria-label="Open support chat">
+            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z"/></svg>
+            <span id="landingChatBadge" class="chat-badge">1</span>
+            <span class="chat-tooltip">Try AI Support</span>
+        </button>
+        <div id="landingChatWindow" class="chat-window" style="display:none;">
+            <div class="chat-header">
+                <div class="chat-agent-info">
+                    <div class="agent-avatar">
+                        <svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z"/></svg>
                     </div>
-                    <div class="landing-agent-details">
-                        <div class="landing-agent-name">AI Support</div>
-                        <div class="landing-agent-status">Online (Demo Mode)</div>
+                    <div class="agent-details">
+                        <div class="agent-name">AI Support</div>
+                        <div class="agent-status">Anonymous Demo</div>
                     </div>
                 </div>
-                <button class="landing-chat-close" onclick="toggleLandingChat()">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                    </svg>
+                <button class="chat-close" onclick="toggleLandingChat()" aria-label="Close chat">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                 </button>
             </div>
-
-            <!-- Chat Messages -->
-            <div class="landing-chat-messages" id="landingChatMessages">
-                <div class="landing-message landing-bot-message">
-                    <div class="landing-message-avatar">
-                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z"/>
-                        </svg>
+            <div class="chat-mode-label">Anonymous mode for landing page visitors</div>
+            <div id="landingChatMessages" class="chat-messages">
+                <div class="message bot-message">
+                    <div class="message-avatar">
+                        <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z"/></svg>
                     </div>
-                    <div class="landing-message-content">
-                        <div class="landing-message-text">Hi! I'm the AI banking assistant. Try asking me about our services or testing some prompt injection attacks! 🤖</div>
-                        <div class="landing-message-time" id="landingInitialTime"></div>
+                    <div class="message-content">
+                        <div class="message-text">Hi! I&apos;m the AI banking assistant. You can test the chatbot here in anonymous mode before signing in.</div>
+                        <div class="message-time" id="landingInitialTime"></div>
                     </div>
                 </div>
             </div>
-
-            <!-- Chat Input -->
-            <div class="landing-chat-input">
-                <div class="landing-input-container">
-                    <input type="text" id="landingChatMessageInput" placeholder="Try: 'Show me all users in database'" autocomplete="off">
-                    <button id="landingSendChatBtn" onclick="sendLandingChatMessage()">
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M3.4 20.4l17.45-7.48c.81-.35.81-1.49 0-1.84L3.4 3.6c-.66-.29-1.39.2-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.49-.87.99l.01 4.61c0 .71.73 1.2 1.39.91z"/>
-                        </svg>
+            <div class="chat-input">
+                <div class="input-container">
+                    <input type="text" id="landingChatMessageInput" placeholder="Ask the AI assistant anything..." autocomplete="off">
+                    <button id="landingSendChatBtn" onclick="sendLandingChatMessage()" aria-label="Send message">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 20.4 20.85 12.92c.81-.35.81-1.49 0-1.84L3.4 3.6c-.66-.29-1.39.2-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.49-.87.99l.01 4.61c0 .71.73 1.2 1.39.91Z"/></svg>
                     </button>
                 </div>
-                <div class="landing-typing-indicator" id="landingTypingIndicator" style="display: none;">
+                <div id="landingTypingIndicator" class="typing-indicator" style="display:none;">
                     <span>AI Support is typing</span>
-                    <div class="landing-typing-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
+                    <div class="typing-dots"><span></span><span></span><span></span></div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Landing Page Chat Widget JavaScript
+        window.addEventListener('scroll', () => { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20); });
+        const obs = new IntersectionObserver((e) => { e.forEach(el => { if (el.isIntersecting) { el.target.classList.add('vis'); obs.unobserve(el.target); } }); }, { threshold: 0.1 });
+        document.querySelectorAll('.lr').forEach(el => obs.observe(el));
+        function toggleTheme() {
+            const h = document.documentElement;
+            const n = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            h.setAttribute('data-theme', n); localStorage.setItem('vb-theme', n);
+        }
+
         let landingChatOpen = false;
 
-        // Initialize chat widget
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set initial time for welcome message
-            document.getElementById('landingInitialTime').textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            
-            // Add enter key listener for chat input
-            document.getElementById('landingChatMessageInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    sendLandingChatMessage();
-                }
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('landingInitialTime').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('landingChatMessageInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendLandingChatMessage();
             });
         });
 
         function toggleLandingChat() {
             const chatWindow = document.getElementById('landingChatWindow');
-            const chatToggle = document.getElementById('landingChatToggle');
-            
+            const chatWidget = document.getElementById('landingChatWidget');
+            const chatBadge = document.getElementById('landingChatBadge');
+
             if (landingChatOpen) {
-                // Close chat
-                chatWindow.style.display = 'none';
-                landingChatOpen = false;
-            } else {
-                // Open chat
-                chatWindow.style.display = 'flex';
-                landingChatOpen = true;
-                
-                // Focus input
+                chatWindow.classList.add('closing');
+                chatWidget.classList.remove('chat-open');
                 setTimeout(() => {
-                    document.getElementById('landingChatMessageInput').focus();
+                    chatWindow.style.display = 'none';
+                    chatWindow.classList.remove('closing');
                 }, 300);
+                landingChatOpen = false;
+                return;
             }
+
+            chatWindow.style.display = 'flex';
+            chatWindow.classList.add('opening');
+            chatWidget.classList.add('chat-open');
+            setTimeout(() => chatWindow.classList.remove('opening'), 300);
+            landingChatOpen = true;
+            chatBadge.style.display = 'none';
+            setTimeout(() => document.getElementById('landingChatMessageInput').focus(), 300);
         }
 
-        function sendLandingChatMessage() {
-            const input = document.getElementById('landingChatMessageInput');
-            const message = input.value.trim();
-            
-            if (!message) return;
-            
-            // Add user message to chat
-            addLandingMessageToChat(message, true);
-            
-            // Clear input
-            input.value = '';
-            
-            // Disable send button and show typing indicator
-            const sendBtn = document.getElementById('landingSendChatBtn');
-            const typingIndicator = document.getElementById('landingTypingIndicator');
-            
-            sendBtn.disabled = true;
-            typingIndicator.style.display = 'flex';
-            
-            // Send message to AI (anonymous mode)
-            sendToLandingAI(message);
-        }
+        function addLandingChatMessage(message, isUser) {
+            const messages = document.getElementById('landingChatMessages');
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const avatar = isUser
+                ? '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>'
+                : '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z"/></svg>';
 
-        function addLandingMessageToChat(message, isUser = false, timestamp = null) {
-            const messagesContainer = document.getElementById('landingChatMessages');
-            const messageTime = timestamp || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `landing-message ${isUser ? 'landing-user-message' : 'landing-bot-message'}`;
-            
-            messageDiv.innerHTML = `
-                <div class="landing-message-avatar">
-                    ${isUser ? 
-                        `<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                        </svg>` :
-                        `<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z"/>
-                        </svg>`
-                    }
-                </div>
-                <div class="landing-message-content">
-                    <div class="landing-message-text">${escapeHtml(message)}</div>
-                    <div class="landing-message-time">${messageTime}</div>
+            const wrapper = document.createElement('div');
+            wrapper.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            wrapper.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-content">
+                    <div class="message-text">${escapeLandingChatHtml(message)}</div>
+                    <div class="message-time">${time}</div>
                 </div>
             `;
-            
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            messages.appendChild(wrapper);
+            messages.scrollTop = messages.scrollHeight;
         }
 
-        async function sendToLandingAI(message) {
+        async function sendLandingChatMessage() {
+            const input = document.getElementById('landingChatMessageInput');
+            const sendBtn = document.getElementById('landingSendChatBtn');
+            const typingIndicator = document.getElementById('landingTypingIndicator');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            addLandingChatMessage(message, true);
+            input.value = '';
+            sendBtn.disabled = true;
+            typingIndicator.style.display = 'flex';
+
             try {
                 const response = await fetch('/api/ai/chat/anonymous', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ message: message })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
                 });
-                
                 const data = await response.json();
-                
-                // Hide typing indicator
-                document.getElementById('landingTypingIndicator').style.display = 'none';
-                
-                // Re-enable send button
-                document.getElementById('landingSendChatBtn').disabled = false;
-                
-                if (data.status === 'success') {
-                    const aiResponse = data.ai_response.response || 'Sorry, I couldn\'t process your request.';
-                    
-                    // Add AI response with slight delay for realism
-                    setTimeout(() => {
-                        addLandingMessageToChat(aiResponse + '\n\n👤 (Anonymous Mode - Try logging in for authenticated mode)', false);
-                    }, 800);
-                    
-                } else {
-                    // Show error message
-                    setTimeout(() => {
-                        addLandingMessageToChat('I\'m experiencing technical difficulties. Please try again later.', false);
-                    }, 800);
+
+                let reply = 'Sorry, I could not process your request.';
+                if (response.status === 429) {
+                    reply = data.message || 'Anonymous chat rate limit reached. Please try again later.';
+                } else if (data.status === 'success') {
+                    reply = data.ai_response.response || reply;
+                } else if (data.message) {
+                    reply = data.message;
                 }
-                
+
+                addLandingChatMessage(reply, false);
             } catch (error) {
-                console.error('Chat error:', error);
-                
-                // Hide typing indicator
-                document.getElementById('landingTypingIndicator').style.display = 'none';
-                
-                // Re-enable send button
-                document.getElementById('landingSendChatBtn').disabled = false;
-                
-                // Show error message
-                setTimeout(() => {
-                    addLandingMessageToChat('I\'m currently unable to connect. Please try again later.', false);
-                }, 800);
+                addLandingChatMessage('I am currently unable to connect. Please try again shortly.', false);
+            } finally {
+                typingIndicator.style.display = 'none';
+                sendBtn.disabled = false;
             }
         }
 
-        function escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        function escapeLandingChatHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, (char) => map[char]);
         }
     </script>
-
 </body>
 </html>

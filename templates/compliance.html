@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Compliance - VulnBank</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>document.documentElement.setAttribute("data-theme", localStorage.getItem("vb-theme") || "light");</script>
+    <style>
+        body { background: var(--bg); }
+        .legal-page { max-width: 720px; margin: 0 auto; padding: 3rem 2rem; }
+        .legal-page h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .legal-page .subtitle { color: var(--text-3); margin-bottom: 2rem; font-size: 0.9375rem; }
+        .legal-page h2 { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; margin-top: 2rem; margin-bottom: 0.75rem; }
+        .legal-page p { color: var(--text-2); line-height: 1.8; margin-bottom: 1rem; font-size: 0.9375rem; }
+        .legal-page .back-link { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; font-weight: 600; color: var(--brand); margin-bottom: 2rem; }
+        .legal-page .back-link:hover { color: var(--brand-dark); }
+        .legal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .cert-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1.5rem 0; }
+        .cert-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+            padding: 1.25rem; transition: background var(--dur-mid) ease, border-color var(--dur-mid) ease;
+        }
+        .cert-card h3 { font-family: var(--font-display); font-size: 0.9375rem; font-weight: 700; margin-bottom: 0.375rem; color: var(--text-1); }
+        .cert-card p { font-size: 0.8125rem; margin-bottom: 0; }
+        .cert-badge {
+            display: inline-block; padding: 0.125rem 0.5rem; border-radius: var(--r-full);
+            font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+            margin-bottom: 0.625rem;
+        }
+        .cert-badge.fail { background: var(--red-bg); color: var(--red-text); }
+        @media (max-width: 600px) { .cert-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="legal-page">
+        <div class="legal-nav">
+            <a href="{{ url_for('index') }}" class="back-link">&larr; Back to home</a>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+                <span class="toggle-icon toggle-icon-sun">☀️</span>
+                <span class="toggle-slider"></span>
+                <span class="toggle-icon toggle-icon-moon">🌙</span>
+            </button>
+        </div>
+        <h1>Compliance</h1>
+        <p class="subtitle">VulnBank is proudly compliant with absolutely nothing.</p>
+
+        <h2>Our Certifications</h2>
+        <p>We have undergone rigorous internal audits (we Googled "is my app secure" and clicked "I'm Feeling Lucky") and are pleased to report the following compliance status:</p>
+
+        <div class="cert-grid">
+            <div class="cert-card">
+                <div class="cert-badge fail">Non-Compliant</div>
+                <h3>OWASP Top 10</h3>
+                <p>We don't just fail the OWASP Top 10. We implement all 10 as features. SQL injection, XSS, SSRF, IDOR, broken authentication, security misconfiguration... we have the full collection.</p>
+            </div>
+            <div class="cert-card">
+                <div class="cert-badge fail">Non-Compliant</div>
+                <h3>PCI DSS</h3>
+                <p>Payment Card Industry standards require encrypted storage of sensitive data. We store passwords in plaintext and serve JWT tokens from localStorage. PCI DSS auditors are welcome to cry.</p>
+            </div>
+            <div class="cert-card">
+                <div class="cert-badge fail">Non-Compliant</div>
+                <h3>GDPR</h3>
+                <p>The right to be forgotten is technically achievable through our admin panel's unsecured delete endpoint. Anyone can forget you. Whether you wanted them to is another matter.</p>
+            </div>
+            <div class="cert-card">
+                <div class="cert-badge fail">Non-Compliant</div>
+                <h3>SOC 2 Type II</h3>
+                <p>Our access controls consist of a JWT that never expires, an admin panel hidden behind a guessable URL, and a profile picture upload that doubles as a server-side request forgery tool.</p>
+            </div>
+        </div>
+
+        <h2>Vulnerability Disclosure</h2>
+        <p>We operate a full-disclosure policy in the most literal sense: every vulnerability is fully disclosed in the source code via helpful HTML comments like <code>&lt;!-- Vulnerability: No CSRF protection --&gt;</code>. We believe in making penetration testers' lives easier.</p>
+
+        <h2>Incident Response</h2>
+        <p>In the event of a security breach, our incident response plan is to remind everyone that the application is called "Vulnerable Bank" and that this was the plan all along. Mean time to acknowledgment: immediate. Mean time to remediation: never.</p>
+    </div>
+    <script>
+        function toggleTheme() {
+            const h = document.documentElement;
+            const n = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            h.setAttribute('data-theme', n); localStorage.setItem('vb-theme', n);
+        }
+    </script>
+</body>
+</html>

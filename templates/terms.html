@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Terms of Service - VulnBank</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>document.documentElement.setAttribute("data-theme", localStorage.getItem("vb-theme") || "light");</script>
+    <style>
+        body { background: var(--bg); }
+        .legal-page { max-width: 720px; margin: 0 auto; padding: 3rem 2rem; }
+        .legal-page h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .legal-page .subtitle { color: var(--text-3); margin-bottom: 2rem; font-size: 0.9375rem; }
+        .legal-page h2 { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; margin-top: 2rem; margin-bottom: 0.75rem; }
+        .legal-page p { color: var(--text-2); line-height: 1.8; margin-bottom: 1rem; font-size: 0.9375rem; }
+        .legal-page .back-link { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; font-weight: 600; color: var(--brand); margin-bottom: 2rem; }
+        .legal-page .back-link:hover { color: var(--brand-dark); }
+        .legal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    </style>
+</head>
+<body>
+    <div class="legal-page">
+        <div class="legal-nav">
+            <a href="{{ url_for('index') }}" class="back-link">&larr; Back to home</a>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+                <span class="toggle-icon toggle-icon-sun">☀️</span>
+                <span class="toggle-slider"></span>
+                <span class="toggle-icon toggle-icon-moon">🌙</span>
+            </button>
+        </div>
+        <h1>Terms of Service</h1>
+        <p class="subtitle">By using VulnBank, you agree to these terms. Or you don't. We're not checking either way.</p>
+
+        <h2>1. Acceptance of Terms</h2>
+        <p>By accessing this website, you acknowledge that you have read, understood, and agreed to be bound by these terms. Just kidding—you scrolled right past the button like everyone else. We respect your commitment to not reading things.</p>
+
+        <h2>2. Description of Service</h2>
+        <p>VulnBank is a banking simulation that provides approximately the same level of financial security as keeping your money under a rock in a forest. We offer account management, transactions, and other features that look like banking but definitely aren't. Any resemblance to actual banking is purely coincidental and concerning.</p>
+
+        <h2>3. Account Security</h2>
+        <p>You are responsible for maintaining the confidentiality of your account. We are responsible for making it as easy as possible for you to lose control of it. We work together in harmony. If someone else accesses your account, we'll assume it was you or someone you trust enough to share your credentials with. Or someone who guessed them because they were "password123."</p>
+
+        <h2>4. Acceptable Use</h2>
+        <p>You agree not to use our service for any illegal purposes. You also agree not to use it for any legal purposes that might expose how insecure it is. You agree not to point and laugh at our authentication system. You agree not to tell your friends about the things you found. Basically, don't ruin our fun.</p>
+
+        <h2>5. Financial Transactions</h2>
+        <p>All transactions are final. If your money goes somewhere it shouldn't have, we're sure it had a good reason. We do not offer refunds because that would require having a refund system, and that sounds like work. Your balance is more of a suggestion than a guarantee anyway.</p>
+
+        <h2>6. User Content</h2>
+        <p>You retain ownership of any content you post, which is adorable because you're posting it to an application designed for learning about security vulnerabilities. We reserve the right to not care about your content at all.</p>
+
+        <h2>7. Termination</h2>
+        <p>We reserve the right to terminate or suspend your account at any time, for any reason, or no reason at all. We probably won't, because that would require effort, but we could if we felt like it. You can also terminate your account by simply closing this tab and never coming back.</p>
+
+        <h2>8. Disclaimers</h2>
+        <p>THIS SERVICE IS PROVIDED "AS IS," WHICH IS LAWYER SPEAK FOR "WE BARELY TESTED IT." We make no warranties about anything. If something breaks, it breaks. If you lose money you didn't actually have, that's between you and your imagination.</p>
+
+        <h2>9. Limitation of Liability</h2>
+        <p>In no event shall VulnBank be liable for anything. We're a demo application. You clicked through a warning that told you this was insecure. At this point, using the service constitutes assumption of risk on a philosophical level.</p>
+
+        <h2>10. Governing Law</h2>
+        <p>These terms are governed by the laws of the internet, which is to say, there are no laws. We exist in a beautiful state of anarchy where your only protection is your own ability to not use this for anything important.</p>
+
+        <h2>11. Your Actual Bank Account</h2>
+        <p>If you have considered using this application for actual banking, please seek immediate help. Contact a financial advisor, or perhaps a therapist. We cannot stress enough: this is not a real bank. The "Vuln" part of VulnBank was supposed to be your first clue.</p>
+
+        <h2>12. Updates to These Terms</h2>
+        <p>We may update these terms whenever. We won't tell you. You won't notice. The sun will still rise, the earth will still spin, and VulnBank will still be gloriously broken.</p>
+    </div>
+    <script>
+        function toggleTheme() {
+            const h = document.documentElement;
+            const n = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            h.setAttribute('data-theme', n); localStorage.setItem('vb-theme', n);
+        }
+    </script>
+</body>
+</html>

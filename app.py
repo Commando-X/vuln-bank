@@ -12,6 +12,7 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 from database import init_connection_pool, init_db, execute_query, execute_transaction
 from ai_agent_deepseek import ai_agent
+from transaction_graphql import transaction_graphql_schema
 import time
 from functools import wraps
 from collections import defaultdict
@@ -54,6 +55,26 @@ AUTHENTICATED_LIMIT = 10   # requests per user per window
 # In-memory rate limiting storage
 # Format: {key: [(timestamp, request_count), ...]}
 rate_limit_storage = defaultdict(list)
+
+CARD_CURRENCY_RATES = {
+    'USD': {'rate': 1.0, 'symbol': '$', 'precision': 2},
+    'GBP': {'rate': 0.79, 'symbol': '£', 'precision': 2},
+    'NGN': {'rate': 1550.0, 'symbol': 'NGN ', 'precision': 2},
+    'JPY': {'rate': 149.5, 'symbol': '¥', 'precision': 2},
+    'EUR': {'rate': 0.92, 'symbol': '€', 'precision': 2},
+    'QAR': {'rate': 3.64, 'symbol': 'QAR ', 'precision': 2},
+    'BTC': {'rate': 0.000014, 'symbol': 'BTC ', 'precision': 8},
+    'ETH': {'rate': 0.0004, 'symbol': 'ETH ', 'precision': 8}
+}
+
+def normalize_card_currency(currency):
+    normalized = str(currency or 'USD').upper()
+    return normalized if normalized in CARD_CURRENCY_RATES else 'USD'
+
+def convert_usd_to_card_currency(amount, currency):
+    currency_code = normalize_card_currency(currency)
+    rate_info = CARD_CURRENCY_RATES[currency_code]
+    return round(float(amount) * rate_info['rate'], rate_info['precision'])
 
 def cleanup_rate_limit_storage():
     """Clean up old entries from rate limit storage"""
@@ -187,9 +208,79 @@ def generate_cvv():
     # Vulnerability: Predictable CVV generation
     return ''.join(random.choices(string.digits, k=3))
 
+@app.route('/graphql', methods=['GET'])
+def graphql_info():
+    return jsonify({
+        'message': 'Send authenticated POST requests to /graphql to query transaction analytics.',
+        'introspection': 'enabled',
+        'examples': [
+            'graphql/transaction-summary.graphql',
+            'graphql/admin-transaction-overview.graphql'
+        ]
+    })
+
+@app.route('/graphql', methods=['POST'])
+@token_required
+def graphql_endpoint(current_user):
+    payload = request.get_json(silent=True) or {}
+    query = payload.get('query', '')
+    variables = payload.get('variables') or {}
+    operation_name = payload.get('operationName')
+
+    if not query:
+        return jsonify({
+            'errors': [{
+                'message': 'A GraphQL query is required.'
+            }]
+        }), 400
+
+    result = transaction_graphql_schema.execute(
+        query,
+        variable_values=variables,
+        operation_name=operation_name,
+        context_value={'current_user': current_user}
+    )
+
+    response = {}
+    status_code = 200
+
+    if result.errors:
+        response['errors'] = []
+        for error in result.errors:
+            formatted_error = {'message': str(error)}
+            if getattr(error, 'path', None):
+                formatted_error['path'] = error.path
+            response['errors'].append(formatted_error)
+        status_code = 400
+
+    if result.data is not None:
+        response['data'] = result.data
+
+    return jsonify(response), status_code
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
+
+@app.route('/compliance')
+def compliance():
+    return render_template('compliance.html')
+
+@app.route('/careers')
+def careers():
+    return render_template('careers.html')
+
+@app.route('/blog')
+def blog():
+    return render_template('blog.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -278,6 +369,7 @@ def login():
             data = request.get_json()
             username = data.get('username')
             password = data.get('password')
+            suspension_message = 'Your account has been suspended, contact support or walk in to any of our branch to resolve the issue'
             
             print(f"Login attempt - Username: {username}")  # Debug print
             
@@ -291,6 +383,12 @@ def login():
             if user and len(user) > 0:
                 user = user[0]  # Get first row
                 print(f"Debug - Found user: {user}")  # Debug print
+
+                if len(user) > 9 and user[9]:
+                    return jsonify({
+                        'status': 'error',
+                        'message': suspension_message
+                    }), 403
                 
                 # Generate JWT token instead of using session
                 token = generate_token(user[0], user[1], user[5])
@@ -627,6 +725,32 @@ def upload_profile_picture_url(current_user):
             'message': str(e)
         }), 500
 
+# Update user bio (Stored XSS vulnerability - no input sanitization)
+@app.route('/update_bio', methods=['POST'])
+@token_required
+def update_bio(current_user):
+    try:
+        data = request.get_json() or {}
+        bio = data.get('bio', '')
+
+        # Store bio without ANY sanitization - Stored XSS vulnerability
+        execute_query(
+            "UPDATE users SET bio = %s WHERE id = %s",
+            (bio, current_user['user_id']),
+            fetch=False
+        )
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Bio updated successfully',
+            'bio': bio  # Echo back the unsanitized input
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 # INTERNAL-ONLY ENDPOINTS FOR SSRF DEMO (INTENTIONALLY SENSITIVE)
 def _is_loopback_request():
     try:
@@ -934,6 +1058,57 @@ def delete_account(current_user, user_id):
             'message': str(e)
         }), 500
 
+@app.route('/admin/toggle_suspension/<int:user_id>', methods=['POST'])
+@token_required
+def toggle_account_suspension(current_user, user_id):
+    if not current_user.get('is_admin'):
+        return jsonify({'error': 'Access Denied'}), 403
+
+    try:
+        if user_id == current_user.get('user_id'):
+            return jsonify({
+                'status': 'error',
+                'message': 'You cannot suspend your own account'
+            }), 400
+
+        user = execute_query(
+            "SELECT id, username, is_suspended, is_admin FROM users WHERE id = %s",
+            (user_id,)
+        )
+
+        if not user:
+            return jsonify({
+                'status': 'error',
+                'message': 'User not found'
+            }), 404
+
+        user = user[0]
+        new_status = not bool(user[2])
+
+        execute_query(
+            "UPDATE users SET is_suspended = %s WHERE id = %s",
+            (new_status, user_id),
+            fetch=False
+        )
+
+        return jsonify({
+            'status': 'success',
+            'message': f"Account {'suspended' if new_status else 'unsuspended'} successfully",
+            'user': {
+                'id': user_id,
+                'username': user[1],
+                'is_suspended': new_status,
+                'role': 'Admin' if user[3] else 'User'
+            }
+        })
+
+    except Exception as e:
+        print(f"Toggle suspension error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 # Create admin endpoint
 @app.route('/admin/create_admin', methods=['POST'])
 @token_required
@@ -1213,6 +1388,43 @@ def api_v3_forgot_password():
             'message': str(e)
         }), 500
 
+# API endpoint to get user details (for admin modal)
+@app.route('/api/v3/user/<int:user_id>', methods=['GET'])
+@token_required
+def api_v3_get_user(current_user, user_id):
+    """Get user details by ID - Vulnerable to IDOR"""
+    try:
+        # Vulnerability: No authorization check - any user can fetch any user's details
+        # This is an IDOR (Insecure Direct Object Reference) vulnerability
+        user = execute_query(
+            "SELECT * FROM users WHERE id = %s",
+            (user_id,)
+        )
+
+        if user:
+            user_data = user[0]
+            return jsonify({
+                'status': 'success',
+                'user': {
+                    'id': user_data[0],
+                    'username': user_data[1],
+                    'account_number': user_data[3],
+                    'balance': float(user_data[4]) if user_data[4] else 0,
+                    'is_admin': user_data[5],
+                    'bio': user_data[8] if len(user_data) > 8 else None
+                }
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'User not found'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 # V1 API for reset password
 @app.route('/api/v1/reset-password', methods=['POST'])
 def api_v1_reset_password():
@@ -1415,13 +1627,14 @@ def create_virtual_card(current_user):
         
         # Vulnerability: SQL injection possible in card_type
         card_type = data.get('card_type', 'standard')
+        card_currency = normalize_card_currency(data.get('currency'))
         
         # Create virtual card
         query = f"""
             INSERT INTO virtual_cards 
-            (user_id, card_number, cvv, expiry_date, card_limit, card_type)
+            (user_id, card_number, cvv, expiry_date, card_limit, card_type, currency)
             VALUES 
-            ({current_user['user_id']}, '{card_number}', '{cvv}', '{expiry_date}', {card_limit}, '{card_type}')
+            ({current_user['user_id']}, '{card_number}', '{cvv}', '{expiry_date}', {card_limit}, '{card_type}', '{card_currency}')
             RETURNING id
         """
         
@@ -1433,11 +1646,15 @@ def create_virtual_card(current_user):
                 'status': 'success',
                 'message': 'Virtual card created successfully',
                 'card_details': {
+                    'id': result[0][0],
                     'card_number': card_number,
                     'cvv': cvv,
                     'expiry_date': expiry_date,
                     'limit': card_limit,
-                    'type': card_type
+                    'balance': 0,
+                    'type': card_type,
+                    'currency': card_currency,
+                    'currency_symbol': CARD_CURRENCY_RATES[card_currency]['symbol']
                 }
             })
             
@@ -1459,7 +1676,20 @@ def get_virtual_cards(current_user):
     try:
         # Vulnerability: No pagination
         query = f"""
-            SELECT * FROM virtual_cards 
+            SELECT
+                id,
+                card_number,
+                cvv,
+                expiry_date,
+                card_limit,
+                current_balance,
+                is_frozen,
+                is_active,
+                created_at,
+                last_used_at,
+                card_type,
+                currency
+            FROM virtual_cards 
             WHERE user_id = {current_user['user_id']}
         """
         
@@ -1470,16 +1700,18 @@ def get_virtual_cards(current_user):
             'status': 'success',
             'cards': [{
                 'id': card[0],
-                'card_number': card[2],
-                'cvv': card[3],
-                'expiry_date': card[4],
-                'limit': float(card[5]),
-                'balance': float(card[6]),
-                'is_frozen': card[7],
-                'is_active': card[8],
-                'created_at': str(card[9]),
-                'last_used_at': str(card[10]) if card[10] else None,
-                'card_type': card[11]
+                'card_number': card[1],
+                'cvv': card[2],
+                'expiry_date': card[3],
+                'limit': float(card[4]),
+                'balance': float(card[5]),
+                'is_frozen': card[6],
+                'is_active': card[7],
+                'created_at': str(card[8]),
+                'last_used_at': str(card[9]) if card[9] else None,
+                'card_type': card[10],
+                'currency': card[11],
+                'currency_symbol': CARD_CURRENCY_RATES[normalize_card_currency(card[11])]['symbol']
             } for card in cards]
         })
         
@@ -1528,7 +1760,7 @@ def get_card_transactions(current_user, card_id):
         # Vulnerability: BOLA - no verification if card belongs to user
         # Vulnerability: SQL Injection possible
         query = f"""
-            SELECT ct.*, vc.card_number 
+            SELECT ct.*, vc.card_number, vc.currency
             FROM card_transactions ct
             JOIN virtual_cards vc ON ct.card_id = vc.id
             WHERE ct.card_id = {card_id}
@@ -1548,7 +1780,8 @@ def get_card_transactions(current_user, card_id):
                 'status': t[5],
                 'timestamp': str(t[6]),
                 'description': t[7],
-                'card_number': t[8]
+                'card_number': t[8],
+                'currency': t[9]
             } for t in transactions]
         })
         
@@ -1589,7 +1822,7 @@ def update_card_limit(current_user, card_id):
             UPDATE virtual_cards 
             SET {', '.join(update_fields)}
             WHERE id = {card_id}
-            RETURNING *
+            RETURNING id, card_limit, current_balance, is_frozen, is_active, card_type, currency
         """
         
         result = execute_query(query, tuple(update_values))
@@ -1603,11 +1836,12 @@ def update_card_limit(current_user, card_id):
                     'updated_fields': updated_fields_list,  # Use list instead of dict_keys
                     'card_details': {
                         'id': result[0][0],
-                        'card_limit': float(result[0][5]),
-                        'current_balance': float(result[0][6]),
-                        'is_frozen': result[0][7],
-                        'is_active': result[0][8],
-                        'card_type': result[0][11]
+                        'card_limit': float(result[0][1]),
+                        'current_balance': float(result[0][2]),
+                        'is_frozen': result[0][3],
+                        'is_active': result[0][4],
+                        'card_type': result[0][5],
+                        'currency': result[0][6]
                     }
                 }
             })
@@ -1619,6 +1853,143 @@ def update_card_limit(current_user, card_id):
             
     except Exception as e:
         # Vulnerability: Detailed error exposure
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/virtual-cards/<int:card_id>/fund', methods=['POST'])
+@token_required
+def fund_virtual_card(current_user, card_id):
+    try:
+        data = request.get_json() or {}
+
+        user_query = """
+            SELECT account_number, balance
+            FROM users
+            WHERE id = %s
+        """
+        user_result = execute_query(user_query, (current_user['user_id'],))
+
+        card_query = """
+            SELECT id, user_id, card_number, card_limit, current_balance, is_frozen, currency, card_type
+            FROM virtual_cards
+            WHERE id = %s
+        """
+        card_result = execute_query(card_query, (card_id,))
+
+        if not user_result or not card_result:
+            return jsonify({
+                'status': 'error',
+                'message': 'Card or account not found'
+            }), 404
+
+        user_account_number, user_balance = user_result[0]
+        card = card_result[0]
+        card_currency = normalize_card_currency(card[6])
+        funding_context = {
+            'amount': data.get('amount', 0),
+            'exchange_rate': CARD_CURRENCY_RATES[card_currency]['rate']
+        }
+
+        # Vulnerability: Mass assignment allows client input to override
+        # internal funding fields such as the exchange rate.
+        for key, value in data.items():
+            funding_context[key] = value
+
+        usd_amount = float(funding_context.get('amount', 0))
+        exchange_rate = float(funding_context.get('exchange_rate'))
+
+        if usd_amount <= 0:
+            return jsonify({
+                'status': 'error',
+                'message': 'Funding amount must be greater than zero'
+            }), 400
+
+        if card[5]:
+            return jsonify({
+                'status': 'error',
+                'message': 'Card is frozen'
+            }), 400
+
+        if usd_amount > float(user_balance):
+            return jsonify({
+                'status': 'error',
+                'message': 'Insufficient main balance'
+            }), 400
+
+        converted_amount = round(
+            usd_amount * exchange_rate,
+            CARD_CURRENCY_RATES[card_currency]['precision']
+        )
+        new_card_balance = float(card[4]) + converted_amount
+
+        if new_card_balance > float(card[3]):
+            return jsonify({
+                'status': 'error',
+                'message': 'Funding would exceed the card limit'
+            }), 400
+
+        funding_description = f"Funded {card_currency} virtual card from main balance"
+        queries = [
+            (
+                """
+                UPDATE users
+                SET balance = balance - %s
+                WHERE id = %s
+                """,
+                (usd_amount, current_user['user_id'])
+            ),
+            (
+                """
+                UPDATE virtual_cards
+                SET current_balance = current_balance + %s, last_used_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                """,
+                (converted_amount, card_id)
+            ),
+            (
+                """
+                INSERT INTO card_transactions
+                (card_id, amount, merchant_name, transaction_type, status, description)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (card_id, converted_amount, 'Main Balance', 'funding', 'completed', funding_description)
+            ),
+            (
+                """
+                INSERT INTO transactions
+                (from_account, to_account, amount, transaction_type, description)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    user_account_number,
+                    card[2],
+                    usd_amount,
+                    'virtual_card_funding',
+                    f"{funding_description}: ${usd_amount:.2f} @ {exchange_rate} -> {CARD_CURRENCY_RATES[card_currency]['symbol']}{converted_amount}"
+                )
+            )
+        ]
+
+        execute_transaction(queries)
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Card funded successfully',
+            'funding': {
+                'card_id': card_id,
+                'card_currency': card_currency,
+                'card_type': card[7],
+                'usd_amount': round(usd_amount, 2),
+                'converted_amount': converted_amount,
+                'exchange_rate': exchange_rate,
+                'main_balance_after': round(float(user_balance) - usd_amount, 2),
+                'card_balance_after': new_card_balance
+            }
+        })
+
+    except Exception as e:
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -1685,6 +2056,38 @@ def create_bill_payment(current_user):
         amount = float(data.get('amount'))
         payment_method = data.get('payment_method')
         card_id = data.get('card_id') if payment_method == 'virtual_card' else None
+
+        payer_query = f"""
+            SELECT id, username, account_number, balance
+            FROM users
+            WHERE id = {current_user['user_id']}
+        """
+        payer = execute_query(payer_query)
+
+        biller_query = f"""
+            SELECT
+                b.account_number,
+                b.name,
+                bc.name
+            FROM billers b
+            JOIN bill_categories bc ON b.category_id = bc.id
+            WHERE b.id = {biller_id}
+        """
+        biller = execute_query(biller_query)
+
+        if not payer or not biller:
+            return jsonify({
+                'status': 'error',
+                'message': 'Biller or user account not found'
+            }), 404
+
+        payer = payer[0]
+        biller = biller[0]
+        payer_account_number = payer[2]
+        payer_balance = float(payer[3])
+        biller_account_number = biller[0]
+        biller_name = biller[1]
+        category_name = biller[2]
         
         # Vulnerability: No input validation
         # Vulnerability: No amount validation
@@ -1715,13 +2118,7 @@ def create_bill_payment(current_user):
         elif payment_method == 'balance':
             # Check user balance
             # Vulnerability: Race condition possible
-            user_query = f"""
-                SELECT balance FROM users
-                WHERE id = {current_user['user_id']}
-            """
-            user_balance = float(execute_query(user_query)[0][0])
-            
-            if amount > user_balance:
+            if amount > payer_balance:
                 return jsonify({
                     'status': 'error',
                     'message': 'Insufficient balance'
@@ -1750,6 +2147,23 @@ def create_bill_payment(current_user):
             data.get('description', 'Bill Payment')
         )
         queries.append((payment_query, payment_values))
+
+        transaction_query = """
+            INSERT INTO transactions
+            (from_account, to_account, amount, transaction_type, description)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        transaction_description = data.get('description') or f"{category_name} payment to {biller_name}"
+        queries.append((
+            transaction_query,
+            (
+                payer_account_number,
+                biller_account_number,
+                amount,
+                category_name,
+                transaction_description
+            )
+        ))
         
         # Update balance based on payment method
         if payment_method == 'virtual_card':

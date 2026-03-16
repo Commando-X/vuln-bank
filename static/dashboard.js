@@ -1,3 +1,87 @@
+// ================================================
+// TOAST NOTIFICATIONS
+// ================================================
+function showToast(type, title, message, duration = 5000) {
+    // Check if any modal is open
+    const openModal = document.querySelector('.modal[style*="display: flex"], .modal[style*="display:block"]');
+
+    if (openModal) {
+        // Show message inside the modal
+        const modalId = openModal.id;
+        const messageDiv = document.getElementById(`${modalId}-message`);
+
+        if (messageDiv) {
+            messageDiv.className = `modal-message modal-message-${type}`;
+            messageDiv.textContent = `${title}: ${message}`;
+            messageDiv.style.display = 'block';
+
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, duration);
+            return;
+        }
+    }
+
+    // Fall back to toast notification
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+
+    const icons = {
+        success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+        error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+        warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+    };
+
+    toast.innerHTML = `
+        <div class="toast-icon">${icons[type] || icons.success}</div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="dismissToast(this.parentElement)" aria-label="Close notification">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+    `;
+
+    container.appendChild(toast);
+
+    // Auto-dismiss after duration
+    setTimeout(() => {
+        if (toast.parentElement) {
+            dismissToast(toast);
+        }
+    }, duration);
+}
+
+function dismissToast(toast) {
+    if (!toast.parentElement) return;
+    toast.classList.add('toast-removing');
+    toast.addEventListener('animationend', () => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    });
+}
+
+function showSuccess(message, title = 'Success') {
+    showToast('success', title, message);
+}
+
+function showError(message, title = 'Error') {
+    showToast('error', title, message);
+}
+
+function showWarning(message, title = 'Warning') {
+    showToast('warning', title, message);
+}
+
+// ================================================
+// END TOAST NOTIFICATIONS
+// ================================================
+
 // Set current date
 document.addEventListener('DOMContentLoaded', function() {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -23,9 +107,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (profileUrlBtn) {
         profileUrlBtn.addEventListener('click', handleProfileUrlImport);
     }
-    
+
+    // Add bio form event listener (Stored XSS vulnerability)
+    const bioForm = document.getElementById('bioForm');
+    if (bioForm) {
+        bioForm.addEventListener('submit', handleBioUpdate);
+    }
+
     // Add virtual cards event listener
     document.getElementById('createCardForm').addEventListener('submit', handleCreateCard);
+    document.getElementById('fundCardForm').addEventListener('submit', handleFundCard);
+    document.getElementById('card_currency').addEventListener('change', updateCardLimitHelper);
+    document.getElementById('fund_amount').addEventListener('input', updateFundingPreview);
+    updateCardLimitHelper();
     
     // Load virtual cards
     fetchVirtualCards();
@@ -108,23 +202,20 @@ async function handleTransfer(event) {
 
         const data = await response.json();
         if (data.status === 'success') {
-            // Update message and balance
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'green';
-            document.getElementById('balance').textContent = data.new_balance;
-            
+            // Update balance
+            setMainBalanceValue(data.new_balance);
+            showSuccess(data.message, 'Transfer Successful');
+
             // Refresh transactions
             fetchTransactions();
             
             // Clear form
             event.target.reset();
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Transfer Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Transfer failed';
-        document.getElementById('message').style.color = 'red';
+        showError('Transfer failed. Please try again.', 'Transfer Failed');
     }
 }
 
@@ -147,9 +238,8 @@ async function handleLoanRequest(event) {
 
         const data = await response.json();
         if (data.status === 'success') {
-            document.getElementById('message').innerHTML = 'Loan requested successfully, our staff will review and approve!';
-            document.getElementById('message').style.color = 'green';
-            
+            showSuccess('Loan requested successfully, our staff will review and approve!', 'Loan Requested');
+
             // Check if loans section exists, if not create it
             let loansSection = document.querySelector('.loans-section');
             if (!loansSection) {
@@ -185,12 +275,10 @@ async function handleLoanRequest(event) {
             // Clear form
             event.target.reset();
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Loan Request Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Loan request failed';
-        document.getElementById('message').style.color = 'red';
+        showError('Loan request failed. Please try again.', 'Loan Request Failed');
     }
 }
 
@@ -257,6 +345,43 @@ async function handleProfileUrlImport() {
     }
 }
 
+// Update user bio (Stored XSS vulnerability - no sanitization on display)
+async function handleBioUpdate(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const bio = formData.get('bio');
+
+    try {
+        const response = await fetch('/update_bio', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ bio: bio })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            // Update the bio display immediately with user input (XSS vulnerability)
+            const bioDisplay = document.getElementById('user-bio-display');
+            if (bioDisplay) {
+                bioDisplay.innerHTML = bio; // Direct innerHTML assignment - XSS!
+            }
+
+            document.getElementById('bio-message').innerText = 'Bio updated successfully!';
+            document.getElementById('bio-message').style.color = 'green';
+        } else {
+            document.getElementById('bio-message').innerText = data.message || 'Update failed';
+            document.getElementById('bio-message').style.color = 'red';
+        }
+    } catch (error) {
+        document.getElementById('bio-message').innerText = 'Update failed';
+        document.getElementById('bio-message').style.color = 'red';
+    }
+}
+
 
 // Fetch transactions
 // Vulnerability: No rate limiting on transaction fetches
@@ -309,6 +434,48 @@ async function fetchTransactions() {
 // Virtual Cards Management
 let virtualCards = [];
 
+const CARD_CURRENCY_META = {
+    USD: { symbol: '$', precision: 2, rate: 1.0 },
+    GBP: { symbol: '£', precision: 2, rate: 0.79 },
+    NGN: { symbol: 'NGN ', precision: 2, rate: 1550.0 },
+    JPY: { symbol: '¥', precision: 2, rate: 149.5 },
+    EUR: { symbol: '€', precision: 2, rate: 0.92 },
+    QAR: { symbol: 'QAR ', precision: 2, rate: 3.64 },
+    BTC: { symbol: 'BTC ', precision: 8, rate: 0.000014 },
+    ETH: { symbol: 'ETH ', precision: 8, rate: 0.0004 }
+};
+
+function getCardCurrencyMeta(currency) {
+    return CARD_CURRENCY_META[String(currency || 'USD').toUpperCase()] || CARD_CURRENCY_META.USD;
+}
+
+function getCardInputStep(currency) {
+    return getCardCurrencyMeta(currency).precision === 8 ? '0.00000001' : '0.01';
+}
+
+function formatCurrencyAmount(amount, currency = 'USD') {
+    const numericAmount = Number(amount || 0);
+    const meta = getCardCurrencyMeta(currency);
+    const minimumFractionDigits = meta.precision === 8 ? 4 : 2;
+    return `${meta.symbol}${numericAmount.toLocaleString('en-US', {
+        minimumFractionDigits,
+        maximumFractionDigits: meta.precision
+    })}`;
+}
+
+function convertUsdToCardCurrency(amount, currency) {
+    return Number(amount || 0) * getCardCurrencyMeta(currency).rate;
+}
+
+function getMainBalanceValue() {
+    const balanceText = document.getElementById('balance').textContent || '0';
+    return parseFloat(balanceText.replace(/[^0-9.-]/g, '')) || 0;
+}
+
+function setMainBalanceValue(amount) {
+    document.getElementById('balance').textContent = formatCurrencyAmount(amount, 'USD');
+}
+
 async function fetchVirtualCards() {
     try {
         const response = await fetch('/api/virtual-cards', {
@@ -338,16 +505,22 @@ function renderVirtualCards() {
     
     // Vulnerability: XSS possible in card rendering
     container.innerHTML = virtualCards.map(card => `
-        <div class="virtual-card ${card.is_frozen ? 'frozen' : ''}" id="card-${card.id}">
-            <div class="card-type">${card.card_type.toUpperCase()}</div>
+        <div class="virtual-card ${String(card.card_type || '').toLowerCase()} ${card.is_frozen ? 'frozen' : ''}" id="card-${card.id}">
+            <div class="card-topline">
+                <div class="card-type">${card.card_type.toUpperCase()}</div>
+                <div class="card-currency-badge">${card.currency || 'USD'}</div>
+            </div>
             <div class="card-number">${formatCardNumber(card.card_number)}</div>
             <div class="card-details">
                 <div>Exp: ${card.expiry_date}</div>
                 <div>CVV: ${card.cvv}</div>
             </div>
-            <div>Limit: $${card.limit}</div>
-            <div>Balance: $${card.balance}</div>
+            <div class="card-balance-lines">
+                <div><span>Limit</span>${formatCurrencyAmount(card.limit, card.currency)}</div>
+                <div><span>Balance</span>${formatCurrencyAmount(card.balance, card.currency)}</div>
+            </div>
             <div class="card-actions">
+                <button onclick="showFundCardModal(${card.id})">Fund</button>
                 <button onclick="toggleCardFreeze(${card.id})">${card.is_frozen ? 'Unfreeze' : 'Freeze'}</button>
                 <button onclick="showCardDetails(${card.id})">Details</button>
                 <button onclick="showTransactionHistory(${card.id})">History</button>
@@ -363,11 +536,13 @@ function formatCardNumber(number) {
 
 function showCreateCardModal() {
     document.getElementById('createCardModal').style.display = 'flex';
+    updateCardLimitHelper();
 }
 
 function hideCreateCardModal() {
     document.getElementById('createCardModal').style.display = 'none';
     document.getElementById('createCardForm').reset();
+    updateCardLimitHelper();
 }
 
 function showCardDetails(cardId) {
@@ -395,12 +570,16 @@ function showCardDetails(cardId) {
             <p>${card.card_type}</p>
         </div>
         <div class="form-group">
+            <label>Currency</label>
+            <p>${card.currency || 'USD'}</p>
+        </div>
+        <div class="form-group">
             <label>Current Limit</label>
-            <p>$${card.limit}</p>
+            <p>${formatCurrencyAmount(card.limit, card.currency)}</p>
         </div>
         <div class="form-group">
             <label>Current Balance</label>
-            <p>$${card.balance}</p>
+            <p>${formatCurrencyAmount(card.balance, card.currency)}</p>
         </div>
         <div class="form-group">
             <label>Status</label>
@@ -417,6 +596,14 @@ function showCardDetails(cardId) {
 
 function hideCardDetailsModal() {
     document.getElementById('cardDetailsModal').style.display = 'none';
+}
+
+function updateCardLimitHelper() {
+    const currency = document.getElementById('card_currency').value || 'USD';
+    const helper = document.getElementById('cardLimitHelper');
+    const limitInput = document.getElementById('card_limit');
+    helper.textContent = `Limits are stored in ${currency}. Funding still comes from your USD main balance.`;
+    limitInput.step = getCardInputStep(currency);
 }
 
 async function handleCreateCard(event) {
@@ -439,16 +626,88 @@ async function handleCreateCard(event) {
         if (data.status === 'success') {
             hideCreateCardModal();
             await fetchVirtualCards();
-            
-            document.getElementById('message').innerHTML = 'Virtual card created successfully!';
-            document.getElementById('message').style.color = 'green';
+
+            showSuccess('Virtual card created successfully!', 'Card Created');
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Card Creation Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Failed to create virtual card';
-        document.getElementById('message').style.color = 'red';
+        showError('Failed to create virtual card. Please try again.', 'Card Creation Failed');
+    }
+}
+
+function showFundCardModal(cardId) {
+    const card = virtualCards.find(c => c.id === cardId);
+    if (!card) return;
+
+    const modal = document.getElementById('fundCardModal');
+    modal.dataset.currency = card.currency || 'USD';
+    modal.dataset.cardId = String(cardId);
+    document.getElementById('fund_card_id').value = cardId;
+    document.getElementById('fund_amount').value = '';
+    document.getElementById('fundCardSummary').textContent =
+        `${(card.currency || 'USD')} ${card.card_type} card ending in ${card.card_number.slice(-4)} | ` +
+        `Balance ${formatCurrencyAmount(card.balance, card.currency)} | Limit ${formatCurrencyAmount(card.limit, card.currency)}`;
+    updateFundingPreview();
+    modal.style.display = 'flex';
+}
+
+function hideFundCardModal() {
+    const modal = document.getElementById('fundCardModal');
+    modal.style.display = 'none';
+    modal.dataset.currency = 'USD';
+    modal.dataset.cardId = '';
+    document.getElementById('fundCardForm').reset();
+    document.getElementById('fundingPreview').textContent = 'Enter a USD amount to preview the converted card value.';
+}
+
+function updateFundingPreview() {
+    const modal = document.getElementById('fundCardModal');
+    const currency = modal.dataset.currency || 'USD';
+    const usdAmount = parseFloat(document.getElementById('fund_amount').value) || 0;
+    const preview = document.getElementById('fundingPreview');
+
+    if (usdAmount <= 0) {
+        preview.textContent = 'Enter a USD amount to preview the converted card value.';
+        return;
+    }
+
+    const convertedAmount = convertUsdToCardCurrency(usdAmount, currency);
+    preview.textContent =
+        `${formatCurrencyAmount(usdAmount, 'USD')} from your main balance converts to ` +
+        `${formatCurrencyAmount(convertedAmount, currency)} on this ${currency} card.`;
+}
+
+async function handleFundCard(event) {
+    event.preventDefault();
+    const cardId = document.getElementById('fund_card_id').value;
+    const usdAmount = parseFloat(document.getElementById('fund_amount').value);
+
+    try {
+        const response = await fetch(`/api/virtual-cards/${cardId}/fund`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ amount: usdAmount })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            hideFundCardModal();
+            setMainBalanceValue(data.funding.main_balance_after);
+            await fetchVirtualCards();
+            await fetchTransactions();
+            showSuccess(
+                `${formatCurrencyAmount(data.funding.converted_amount, data.funding.card_currency)} added to your card from ${formatCurrencyAmount(data.funding.usd_amount, 'USD')}.`,
+                'Card Funded'
+            );
+        } else {
+            showError(data.message, 'Funding Failed');
+        }
+    } catch (error) {
+        showError('Failed to fund virtual card. Please try again.', 'Funding Failed');
     }
 }
 
@@ -465,12 +724,10 @@ async function toggleCardFreeze(cardId) {
         if (data.status === 'success') {
             await fetchVirtualCards();
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Action Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Failed to freeze/unfreeze card';
-        document.getElementById('message').style.color = 'red';
+        showError('Failed to freeze/unfreeze card. Please try again.', 'Action Failed');
     }
 }
 
@@ -502,7 +759,7 @@ async function showTransactionHistory(cardId) {
                                 <div class="transaction-account">${t.merchant}</div>
                                 <div class="transaction-date">${new Date(t.timestamp).toLocaleString()}</div>
                             </div>
-                            <div class="transaction-amount">${t.amount}</div>
+                            <div class="transaction-amount">${formatCurrencyAmount(t.amount, t.currency)}</div>
                         </div>
                     `).join('')}
                 </div>
@@ -510,12 +767,10 @@ async function showTransactionHistory(cardId) {
             
             modal.style.display = 'flex';
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Failed to Load History');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Failed to load transaction history';
-        document.getElementById('message').style.color = 'red';
+        showError('Failed to load transaction history. Please try again.', 'Failed to Load History');
     }
 }
 
@@ -531,8 +786,8 @@ async function showUpdateLimit(cardId) {
         <h4>Update Card Limit</h4>
         <form id="updateCardForm" onsubmit="return handleCardUpdate(event, ${cardId})">
             <div class="form-group">
-                <label for="card_limit_update">Card Limit</label>
-                <input type="number" id="card_limit_update" name="card_limit" value="${card.limit}" step="0.01" required>
+                <label for="card_limit_update">Card Limit (${card.currency || 'USD'})</label>
+                <input type="number" id="card_limit_update" name="card_limit" value="${card.limit}" step="${getCardInputStep(card.currency)}" required>
             </div>
             <div class="modal-footer">
                 <button type="submit">Update Limit</button>
@@ -569,17 +824,14 @@ async function handleCardUpdate(event, cardId) {
         if (data.status === 'success') {
             await fetchVirtualCards();
             hideCardDetailsModal();
-            document.getElementById('message').innerHTML = 'Card limit updated successfully';
-            document.getElementById('message').style.color = 'green';
+            showSuccess('Card limit updated successfully', 'Limit Updated');
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Update Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Error updating card limit';
-        document.getElementById('message').style.color = 'red';
+        showError('Error updating card limit. Please try again.', 'Update Failed');
     }
-    
+
     return false; // Prevent form submission
 }
 
@@ -698,7 +950,7 @@ async function loadVirtualCardsForPayment() {
                 ${data.cards.filter(card => !card.is_frozen).map(card => `
                     <option value="${card.id}">
                         Card ending in ${card.card_number.slice(-4)} 
-                        (Balance: $${card.balance})
+                        (${card.currency}: ${formatCurrencyAmount(card.balance, card.currency)})
                     </option>
                 `).join('')}
             `;
@@ -736,26 +988,22 @@ async function handleBillPayment(event) {
         const data = await response.json();
         if (data.status === 'success') {
             hidePayBillModal();
-            document.getElementById('message').innerHTML = 'Bill payment successful!';
-            document.getElementById('message').style.color = 'green';
+            showSuccess('Bill payment successful!', 'Payment Complete');
             await loadPaymentHistory();
-            
+            await fetchTransactions();
+
             // Refresh balances if necessary
             if (jsonData.payment_method === 'virtual_card') {
                 await fetchVirtualCards();
             } else {
                 // Update account balance
-                const balanceElement = document.getElementById('balance');
-                const currentBalance = parseFloat(balanceElement.textContent);
-                balanceElement.textContent = (currentBalance - jsonData.amount).toFixed(2);
+                setMainBalanceValue(getMainBalanceValue() - jsonData.amount);
             }
         } else {
-            document.getElementById('message').innerHTML = data.message;
-            document.getElementById('message').style.color = 'red';
+            showError(data.message, 'Payment Failed');
         }
     } catch (error) {
-        document.getElementById('message').innerHTML = 'Payment failed';
-        document.getElementById('message').style.color = 'red';
+        showError('Payment failed. Please try again.', 'Payment Failed');
     }
 }
 

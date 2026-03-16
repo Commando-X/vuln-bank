@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Careers - VulnBank</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>document.documentElement.setAttribute("data-theme", localStorage.getItem("vb-theme") || "light");</script>
+    <style>
+        body { background: var(--bg); }
+        .careers-page { max-width: 900px; margin: 0 auto; padding: 4rem 2rem; }
+        .careers-page h1 { font-family: var(--font-display); font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .careers-page .subtitle { color: var(--text-3); margin-bottom: 2rem; font-size: 1.0625rem; }
+        .careers-page h2 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; margin-top: 3rem; margin-bottom: 1rem; }
+        .careers-page p { color: var(--text-2); line-height: 1.8; margin-bottom: 1rem; font-size: 1rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; font-weight: 600; color: var(--brand); margin-bottom: 2rem; }
+        .back-link:hover { color: var(--brand-dark); }
+        .legal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+
+        /* Search styles */
+        .search-container { margin-bottom: 2rem; }
+        .search-box {
+            display: flex; align-items: center; gap: 0.75rem;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--r-lg); padding: 0.75rem 1rem;
+            transition: border-color var(--dur-mid) ease;
+        }
+        .search-box:focus-within { border-color: var(--brand); }
+        .search-box input {
+            flex: 1; background: transparent; border: none; outline: none;
+            font-size: 1rem; color: var(--text-1);
+        }
+        .search-box input::placeholder { color: var(--text-4); }
+        .search-box button {
+            background: var(--brand); color: #fff; border: none;
+            padding: 0.5rem 1rem; border-radius: var(--r-sm);
+            font-weight: 600; cursor: pointer;
+            transition: background var(--dur-mid) ease;
+        }
+        .search-box button:hover { background: var(--brand-dark); }
+        .search-results-info {
+            background: var(--surface-2); padding: 1rem;
+            border-radius: var(--r-md); margin-bottom: 1.5rem;
+            color: var(--text-2); font-size: 0.9375rem;
+        }
+        .search-results-info strong { color: var(--brand); }
+        .opening.hidden { display: none; }
+        .no-results {
+            text-align: center; padding: 3rem; color: var(--text-3);
+        }
+        .no-results svg {
+            width: 48px; height: 48px; margin-bottom: 1rem;
+            color: var(--text-4);
+        }
+
+        .opening { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 2rem; margin-bottom: 2rem; }
+        .opening h3 { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: var(--brand); margin-bottom: 0.5rem; }
+        .opening .department { display: inline-block; padding: 0.25rem 0.75rem; background: var(--brand); color: #fff; border-radius: var(--r-full); font-size: 0.75rem; font-weight: 600; margin-bottom: 1rem; }
+        .opening p { color: var(--text-2); margin-bottom: 1rem; }
+        .opening ul { color: var(--text-2); padding-left: 1.5rem; margin-bottom: 1rem; }
+        .opening li { margin-bottom: 0.5rem; }
+
+        .benefits { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin: 2rem 0; }
+        .benefit-card { background: var(--surface-2); border-radius: var(--r-lg); padding: 1.5rem; }
+        .benefit-card h4 { font-family: var(--font-display); font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-1); }
+        .benefit-card p { font-size: 0.9375rem; margin-bottom: 0; }
+        @media (max-width: 700px) { .benefits { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="careers-page">
+        <div class="legal-nav">
+            <a href="{{ url_for('index') }}" class="back-link">&larr; Back to home</a>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+                <span class="toggle-icon toggle-icon-sun">☀️</span>
+                <span class="toggle-slider"></span>
+                <span class="toggle-icon toggle-icon-moon">🌙</span>
+            </button>
+        </div>
+        <h1>Careers</h1>
+        <p class="subtitle">Join our team of dedicated professionals working tirelessly to create the most vulnerable banking application possible.</p>
+
+        <!-- Search with XSS vulnerability -->
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Search open positions..." oninput="handleSearch(this.value)">
+                <button type="button" onclick="handleSearch(document.getElementById('search-input').value, true)">Search</button>
+            </div>
+            <div id="search-info" class="search-results-info" style="display:none;"></div>
+        </div>
+
+        <h2>Why Work at VulnBank?</h2>
+        <p>We offer a unique opportunity to work on cutting-edge security challenges every single day. Our commitment to insecurity means you'll never face a boring day of "secure coding." We're not just breaking things—we're leaving them broken in creative ways.</p>
+
+        <div class="benefits">
+            <div class="benefit-card">
+                <h4>Job Security</h4>
+                <p>With zero rate limiting, no input validation, and intentional vulnerabilities, our job security is guaranteed. We'll always need developers to "maintain" our unique security posture.</p>
+            </div>
+            <div class="benefit-card">
+                <h4>Learning Opportunities</h4>
+                <p>Every bug report is a learning opportunity! Our users generously find vulnerabilities we didn't even know we had. It's like having a free penetration testing team.</p>
+            </div>
+            <div class="benefit-card">
+                <h4>Work-Life Balance</h4>
+                <p>We don't believe in on-call rotations because our incidents are permanent. Once a vulnerability is deployed, it stays deployed. No patches means no page notifications at 3 AM.</p>
+            </div>
+            <div class="benefit-card">
+                <h4>Open Source Culture</h4>
+                <p>Our source code is basically open source anyway. Anyone who can enumerate our directories can read it. We embrace transparency through negligence.</p>
+            </div>
+        </div>
+
+        <h2>Open Positions</h2>
+
+        <div class="opening job-opening-item">
+            <h3>Security Engineer</h3>
+            <span class="department">Engineering</span>
+            <p>We're looking for someone to own our security strategy. The ideal candidate will not ask questions like "why is the admin panel at /sup3r_s3cr3t_admin" or "can we please hash the passwords." This role is mostly ceremonial.</p>
+            <p><strong>Responsibilities:</strong></p>
+            <ul>
+                <li>Write blog posts about how "security is a journey"</li>
+                <li>Nod thoughtfully during code reviews when someone suggests encrypting data</li>
+                <li>Occasionally update the "last breached" timestamp on our homepage</li>
+                <li>Explain to management why we can't fix the XSS that allows users to steal other users' JWT tokens</li>
+            </ul>
+            <p><strong>Requirements:</strong></p>
+            <ul>
+                <li>Must believe that "security through obscurity" is a valid strategy</li>
+                <li>Ability to say "we'll fix it in v2" with a straight face</li>
+                <li>Comfortable explaining to customers why their passwords appear in breach databases</li>
+            </ul>
+        </div>
+
+        <div class="opening job-opening-item">
+            <h3>Backend Developer</h3>
+            <span class="department">Engineering</span>
+            <p>Join our team of hardworking developers building the future of vulnerable banking. We practice "agile" development in the truest sense—we pivot quickly when someone discovers our credentials table.</p>
+            <p><strong>Responsibilities:</strong></p>
+            <ul>
+                <li>Write SQL queries directly from user input—it's faster, and what could go wrong?</li>
+                <li>Implement new features without testing, because our users will test them for us</li>
+                <li>Avoid using security linters that flag "intentional vulnerabilities"</li>
+                <li>Respond to GitHub issues with "works on my machine"</li>
+            </ul>
+            <p><strong>Requirements:</strong></p>
+            <ul>
+                <li>Experience with string concatenation in SQL queries</li>
+                <li>Familiarity with storing secrets in environment variables (and then committing them)</li>
+                <li>Ability to implement authentication without reading any documentation on the subject</li>
+                <li>Must think JWT stands for "Just Trust Us"</li>
+            </ul>
+        </div>
+
+        <div class="opening job-opening-item">
+            <h3>DevOps Engineer</h3>
+            <span class="department">Infrastructure</span>
+            <p>Our infrastructure is as secure as our application, which is to say: not very. We're seeking someone to maintain our delicate balance of "it works" and "it's catastrophically broken."</p>
+            <p><strong>Responsibilities:</strong></p>
+            <ul>
+                <li>Deploy code to production without testing it first</li>
+                <li>Ensure our servers remain accessible to everyone, including unauthorized users</li>
+                <li>Set up monitoring that we will ignore</li>
+                <li>Occasionally restart the server when memory usage hits 100% due to an infinite loop we can't find</li>
+            </ul>
+            <p><strong>Requirements:</strong></p>
+            <ul>
+                <li>Experience with servers that have been compromised multiple times</li>
+                <li>Familiarity with the phrase "we'll add authentication later"</li>
+                <li>Comfortable debugging production issues while users are actively exploiting them</li>
+            </ul>
+        </div>
+
+        <div class="opening job-opening-item">
+            <h3>Customer Support Specialist</h3>
+            <span class="department">Support</span>
+            <p>You'll be the first line of defense when customers notice their balance has changed unexpectedly. This role requires patience, empathy, and a willingness to say "we're looking into it" indefinitely.</p>
+            <p><strong>Responsibilities:</strong></p>
+            <ul>
+                <li>Help users recover accounts after someone guessed their password</li>
+                <li>Explain that unauthorized transactions are "features"</li>
+                <li>Respond to emails asking why our app appears on hacking forums</li>
+                <li>Forward vulnerability reports to /dev/null</li>
+            </ul>
+            <p><strong>Requirements:</strong></p>
+            <ul>
+                <li>Ability to say "your security is important to us" without laughing</li>
+                <li>Experience writing emails that don't admit fault</li>
+                <li>Knowledge of copypaste templates for "we take your privacy seriously"</li>
+                <li>Must not have a background in security (it would only be frustrating)</li>
+            </ul>
+        </div>
+
+        <h2>How to Apply</h2>
+        <p>Email your resume to <code>careers@vulnbank.example</code>. Please include a cover letter explaining which vulnerability you're most excited to exploit. Bonus points if you submit your application via SQL injection in our contact form—shows initiative!</p>
+
+        <div id="no-results" class="no-results" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <p>No positions found matching your search.</p>
+        </div>
+    </div>
+    <script>
+        function toggleTheme() {
+            const h = document.documentElement;
+            const n = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            h.setAttribute('data-theme', n); localStorage.setItem('vb-theme', n);
+        }
+
+        // Frontend search with XSS vulnerability
+        function handleSearch(query, updateUrl = false) {
+            const jobs = document.querySelectorAll('.job-opening-item');
+            const searchInfo = document.getElementById('search-info');
+            const noResults = document.getElementById('no-results');
+            let visibleCount = 0;
+
+            // XSS vulnerability: Reflect user input directly without sanitization
+            if (query && query.trim() !== '') {
+                searchInfo.style.display = 'block';
+                searchInfo.innerHTML = 'Searching for: <strong>' + query + '</strong>'; // XSS vulnerability here
+
+                // Update URL parameter to hint at vulnerability
+                if (updateUrl) {
+                    const url = new URL(window.location);
+                    url.searchParams.set('q', query);
+                    window.history.pushState({}, '', url);
+                }
+            } else {
+                searchInfo.style.display = 'none';
+            }
+
+            jobs.forEach(job => {
+                const title = job.querySelector('h3')?.textContent.toLowerCase() || '';
+                const dept = job.querySelector('.department')?.textContent.toLowerCase() || '';
+                const content = job.textContent.toLowerCase();
+                const searchQuery = query.toLowerCase();
+
+                if (!query || title.includes(searchQuery) || dept.includes(searchQuery) || content.includes(searchQuery)) {
+                    job.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    job.classList.add('hidden');
+                }
+            });
+
+            noResults.style.display = (query && visibleCount === 0) ? 'block' : 'none';
+        }
+
+        // Handle URL parameter on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const query = urlParams.get('q');
+            if (query) {
+                document.getElementById('search-input').value = query;
+                handleSearch(query);
+            }
+        });
+    </script>
+</body>
+</html>
