@@ -269,6 +269,14 @@
 .cards-container {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;
 }
+.cards-empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  justify-self: center;
+  max-width: 320px;
+  color: var(--text-3);
+  padding: 1rem 0;
+}
 .virtual-card {
   background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
   color: #fff; padding: 1.5rem; border-radius: var(--r-xl);
