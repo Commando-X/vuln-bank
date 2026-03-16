@@ -315,8 +315,9 @@ body {
   border-radius: 12px;
   padding: 1.25rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
+  min-width: 0;
   transition: all 0.2s ease;
 }
 
@@ -371,6 +372,7 @@ body {
 
 .metric-content {
   flex: 1;
+  min-width: 0;
 }
 
 .metric-label {
@@ -383,8 +385,13 @@ body {
 }
 
 .metric-value {
+  display: block;
+  max-width: 100%;
   font-size: 1.5rem;
   font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   color: var(--admin-text);
 }
 
