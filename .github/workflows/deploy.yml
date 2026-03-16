@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
@@ -60,9 +60,5 @@ jobs:
 
       - name: Health Check
         run: |
-          for i in {1..12}; do
-            curl -f http://${{ secrets.HOST }}:5000 && exit 0
-            sleep 5
-          done
-          echo "Health check failed"
-          exit 1
+          sleep 20
+          curl -f https://vulnbank.org || (echo "Health check failed" && exit 1)
