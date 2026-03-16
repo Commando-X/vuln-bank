@@ -643,11 +643,11 @@
             }
 
             document.getElementById('graphql-total-transactions').textContent = summary.totalTransactions ?? '--';
-            document.getElementById('graphql-total-volume').textContent = formatCurrency(summary.totalVolume);
-            document.getElementById('graphql-inflow').textContent = formatCurrency(summary.inflowTotal);
-            document.getElementById('graphql-outflow').textContent = formatCurrency(summary.outflowTotal);
-            document.getElementById('graphql-net-flow').textContent = formatCurrency(summary.netFlow);
-            document.getElementById('graphql-largest-transaction').textContent = formatCurrency(summary.largestTransaction);
+            document.getElementById('graphql-total-volume').textContent = formatCompactCurrency(summary.totalVolume);
+            document.getElementById('graphql-inflow').textContent = formatCompactCurrency(summary.inflowTotal);
+            document.getElementById('graphql-outflow').textContent = formatCompactCurrency(summary.outflowTotal);
+            document.getElementById('graphql-net-flow').textContent = formatCompactCurrency(summary.netFlow);
+            document.getElementById('graphql-largest-transaction').textContent = formatCompactCurrency(summary.largestTransaction);
 
             const breakdownContainer = document.getElementById('graphql-breakdown');
             breakdownContainer.classList.remove('graphql-loading');
@@ -689,6 +689,31 @@
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
+        }
+
+        function formatCompactCurrency(value) {
+            const numericValue = Number(value || 0);
+            const absValue = Math.abs(numericValue);
+            const sign = numericValue < 0 ? '-' : '';
+
+            if (absValue < 1000) {
+                return sign + formatCurrency(absValue);
+            }
+
+            const suffixes = [
+                { threshold: 1e9, suffix: 'B' },
+                { threshold: 1e6, suffix: 'M' },
+                { threshold: 1e3, suffix: 'K' }
+            ];
+
+            const compact = suffixes.find(item => absValue >= item.threshold);
+            const shortenedValue = absValue / compact.threshold;
+            const formattedValue = shortenedValue.toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 3
+            });
+
+            return `${sign}$${formattedValue}${compact.suffix}`;
         }
 
         function escapeHtml(value) {
