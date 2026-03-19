@@ -1,0 +1,25 @@
+name: Semgrep
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  schedule:
+    - cron: "20 17 * * *"
+
+jobs:
+  semgrep:
+    name: semgrep/ci
+    runs-on: ubuntu-latest
+
+    container:
+      image: semgrep/semgrep
+
+    if: (github.actor != 'dependabot[bot]')
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep ci
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
