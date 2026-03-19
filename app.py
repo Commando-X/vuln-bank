@@ -2245,9 +2245,11 @@ def get_payment_history(current_user):
         })
         
     except Exception as e:
+        # Do not expose internal exception details to the client
+        # Optionally log the exception here using Python's logging module
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': 'An internal server error occurred.'
         }), 500
 
 # AI CUSTOMER SUPPORT AGENT ROUTES (INTENTIONALLY VULNERABLE)
