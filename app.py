@@ -4,6 +4,7 @@ import random
 import string
 import html
 import os
+import subprocess
 from dotenv import load_dotenv
 from auth import generate_token, token_required, verify_token, init_auth_routes
 import auth
@@ -2471,6 +2472,56 @@ def ai_rate_limit_status():
             'status': 'error',
             'message': str(e)
         }), 500
+
+@app.route('/api/transactions/export', methods=['GET'])
+@token_required
+def export_transactions(current_user):
+    """Export transaction history to a file for download."""
+    try:
+        file_format = request.args.get('format', 'csv')
+        date_from = request.args.get('from', '')
+        date_to = request.args.get('to', '')
+        filename = request.args.get('filename', f"transactions_{current_user['user_id']}")
+
+        query = f"SELECT * FROM transactions WHERE sender_id={current_user['user_id']}"
+        if date_from:
+            query += f" AND created_at >= '{date_from}'"
+        if date_to:
+            query += f" AND created_at <= '{date_to}'"
+
+        results = execute_query(query)
+
+        export_dir = '/tmp/exports'
+        os.makedirs(export_dir, exist_ok=True)
+        export_path = f"{export_dir}/{filename}.{file_format}"
+
+        with open(export_path, 'w') as f:
+            if results:
+                headers = results[0].keys()
+                f.write(','.join(headers) + '\n')
+                for row in results:
+                    f.write(','.join(str(v) for v in row.values()) + '\n')
+
+        # Post-process the exported file (e.g., compress or convert)
+        if request.args.get('compress') == 'true':
+            output_archive = f"{export_dir}/{filename}.tar.gz"
+            cmd = f"tar -czf {output_archive} -C {export_dir} {filename}.{file_format}"
+            subprocess.call(cmd, shell=True)
+            export_path = output_archive
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Transactions exported successfully',
+            'file': export_path,
+            'record_count': len(results) if results else 0
+        })
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Export failed: {str(e)}'
+        }), 500
+
 
 if __name__ == '__main__':
     init_db()
