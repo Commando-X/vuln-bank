@@ -9,6 +9,11 @@ on:
     - cron: "20 17 * * *"
   workflow_dispatch:
 
+permissions:
+  security-events: write
+  contents: read
+  actions: read
+
 jobs:
   semgrep:
     name: semgrep/ci
