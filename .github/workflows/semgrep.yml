@@ -21,6 +21,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - run: semgrep ci
+
+      # Run Semgrep and output SARIF
+      - run: semgrep ci --sarif --output=semgrep.sarif
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      # Upload SARIF as a workflow artifact (downloadable from the Actions UI)
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+
+      # Optional: Upload to GitHub Code Scanning
+      - name: Upload to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
