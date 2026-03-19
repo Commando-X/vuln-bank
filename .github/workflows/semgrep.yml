@@ -7,6 +7,7 @@ on:
     branches: ["**"]
   schedule:
     - cron: "20 17 * * *"
+  workflow_dispatch:
 
 jobs:
   semgrep:
