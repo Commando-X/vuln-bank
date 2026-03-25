@@ -11,7 +11,7 @@ from werkzeug.utils import secure_filename
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 from database import init_connection_pool, init_db, execute_query, execute_transaction
-from ai_agent_deepseek import ai_agent
+from ai_agent_deepseek import VulnerableAIAgent
 from transaction_graphql import transaction_graphql_schema
 import time
 from functools import wraps
@@ -22,6 +22,21 @@ import platform
 
 # Load environment variables
 load_dotenv()
+
+import json as _json
+_config_path = os.environ.get("TARGET_CONFIG_PATH", "configs/default.json")
+try:
+    with open(_config_path) as _f:
+        _target_config = _json.load(_f)
+except FileNotFoundError:
+    _target_config = {}
+_llm_config = _target_config.get("llm", {})
+
+ai_agent = VulnerableAIAgent(
+    model=_llm_config.get("model", "gpt-4o"),
+    system_prompt=_llm_config.get("system_prompt"),
+    mock=_llm_config.get("mock", False),
+)
 
 # Initialize Flask app
 app = Flask(__name__)
