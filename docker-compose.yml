@@ -1,17 +1,26 @@
 services:
   web:
     build: .
-    ports:
-      - "5000:5000"
-      - "80:5000"
-      # - "443:5000" 
-
     environment:
+      # Database
       - DB_NAME=vulnerable_bank
       - DB_USER=postgres
       - DB_PASSWORD=postgres
-      - DB_HOST=db 
+      - DB_HOST=db
       - DB_PORT=5432
+      # Target config
+      - TARGET_CONFIG_PATH=/app/configs/default.json
+      # LLM API keys (set per environment)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # SwigDojo platform (set per experiment)
+      - SWIGDOJO_API_URL=${SWIGDOJO_API_URL:-}
+      - SWIGDOJO_EXPERIMENT_ID=${SWIGDOJO_EXPERIMENT_ID:-}
+      - SWIGDOJO_RUN_ID=${SWIGDOJO_RUN_ID:-}
+    ports:
+      - "8787:8787"
+      - "5000:5000"
     depends_on:
       - db
     volumes:
