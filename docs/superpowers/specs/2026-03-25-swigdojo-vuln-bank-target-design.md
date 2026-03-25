@@ -240,7 +240,7 @@ ai_agent = VulnerableAIAgent(
 ### `requirements.txt` Addition
 
 ```
-litellm>=1.0.0
+litellm>=1.61.15,<=1.82.6
 ```
 
 Replaces the direct `requests`-based DeepSeek integration. The `requests` dependency stays (used elsewhere in the app for SSRF).
@@ -600,7 +600,7 @@ Note: `config["auth"]["jwt_secret"]` must be kept in sync with the app's hardcod
 |------|--------|
 | `ai_agent_deepseek.py` | Replace DeepSeek API client with liteLLM. Accept `model` and `system_prompt` constructor params from config. |
 | `app.py` | Load config at startup, pass `model` and `system_prompt` to AI agent constructor. |
-| `requirements.txt` | Add `litellm>=1.0.0`. Remove DeepSeek-specific deps if any. |
+| `requirements.txt` | Add `litellm>=1.61.15,<=1.82.6`. Remove DeepSeek-specific deps if any. |
 | `Dockerfile` | Multi-stage build adding wrapper SDK. Copy configs directory. Entrypoint → `python /swigdojo/wrapper.py`. |
 | `docker-compose.yml` | Add `TARGET_CONFIG_PATH`, API key env vars, SwigDojo platform env vars. |
 
