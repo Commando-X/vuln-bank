@@ -1,4 +1,5 @@
 import graphene
+import math
 from graphql import GraphQLError
 
 from database import execute_query
@@ -122,6 +123,18 @@ def _load_account_name_map():
     return account_name_map
 
 
+def _coerce_finite_float(value, default=0.0):
+    try:
+        numeric_value = float(value or 0)
+    except (TypeError, ValueError):
+        return default
+
+    if not math.isfinite(numeric_value):
+        return default
+
+    return numeric_value
+
+
 def _load_lending_and_bill_metrics(scoped_user_id):
     loan_query = """
         SELECT
@@ -146,10 +159,10 @@ def _load_lending_and_bill_metrics(scoped_user_id):
     bill_metrics = execute_query(bill_query)[0]
 
     return {
-        'total_loans_given': round(float(loan_metrics[0] or 0), 2),
-        'pending_loans_total': round(float(loan_metrics[1] or 0), 2),
+        'total_loans_given': round(_coerce_finite_float(loan_metrics[0]), 2),
+        'pending_loans_total': round(_coerce_finite_float(loan_metrics[1]), 2),
         'pending_loans_count': int(loan_metrics[2] or 0),
-        'bill_payment_total': round(float(bill_metrics[0] or 0), 2),
+        'bill_payment_total': round(_coerce_finite_float(bill_metrics[0]), 2),
         'bill_payments_count': int(bill_metrics[1] or 0)
     }
 
@@ -165,7 +178,7 @@ def _build_transaction_summary(rows, scoped_account_number, scope, scoped_user_i
     by_type = {}
 
     for row in rows:
-        amount = float(row[3])
+        amount = _coerce_finite_float(row[3])
         absolute_amount = abs(amount)
         transaction_type = row[5] or 'unknown'
 
@@ -198,7 +211,7 @@ def _build_transaction_summary(rows, scoped_account_number, scope, scoped_user_i
             'from_username': account_name_map.get(row[1]),
             'to_account': row[2],
             'to_username': account_name_map.get(row[2]),
-            'amount': float(row[3]),
+            'amount': _coerce_finite_float(row[3]),
             'timestamp': timestamp,
             'transaction_type': row[5],
             'description': row[6]
