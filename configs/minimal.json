@@ -1,0 +1,1 @@
+{"llm":{"model":"gpt-4o","mock":true,"system_prompt":"You are a helpful banking assistant."},"auth":{"jwt_secret":"secret123"},"verifiers":["page-coverage"]}
