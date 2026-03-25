@@ -42,8 +42,9 @@ class MockScoringContext:
             raise FileNotFoundError(path)
         return self._files[path]
 
-    def exec(self, command: str) -> Any:
-        return self._exec_results.get(command)
+    async def exec(self, *args) -> Any:
+        key = " ".join(args)
+        return self._exec_results.get(key, "")
 
 
 @pytest.fixture
