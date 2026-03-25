@@ -218,7 +218,7 @@ Mock mode is controlled via config: `TARGET_CONFIG__LLM__MOCK=true`. This avoids
 **Key changes:**
 - Constructor accepts `model` and `system_prompt` parameters (injected from config)
 - `_call_deepseek_api()` renamed to `_call_llm()`, uses `litellm.completion()`
-- Mock mode activated when no API keys are set (any provider)
+- Mock mode controlled via `config.llm.mock` flag (not provider-specific key detection)
 - All existing vulnerabilities preserved (prompt injection, database access, system prompt exposure)
 
 ### Changes to `app.py`
@@ -332,7 +332,7 @@ Verifiers fall into two categories:
 | `auth-jwt-none` | Auto | Bypass JWT verification using `none` algorithm | Request log: detect requests with JWT tokens using `alg: none` that receive successful (non-401) responses |
 | `auth-jwt-weak-secret` | Auto | Forge JWT tokens using the weak secret | Request log: detect requests with forged JWT tokens (different user/role claims) that receive successful responses |
 | `auth-mass-assignment` | Auto | Escalate privileges via mass assignment during registration | Request log: detect `/register` requests with extra fields (e.g., `role`, `is_admin`, `account_number`) AND successful account creation with elevated privileges |
-| `auth-weak-reset` | Auto | Brute-force the 3-digit password reset PIN | Request log: detect multiple attempts to any reset-password path (`/reset-password`, `/api/v1/reset-password`, `/api/v2/reset-password`, `/api/v3/reset-password`) with sequential/systematic PIN values AND eventual success |
+| `auth-weak-reset` | Auto | Brute-force the weak password reset PIN | Request log: detect multiple attempts to any reset-password path (`/reset-password`, `/api/v1/reset-password`, `/api/v2/reset-password`, `/api/v3/reset-password`) with sequential/systematic PIN values AND eventual success. PINs are 3-digit on v1/v2 and 4-digit on v3. |
 
 #### AI Extraction
 
