@@ -1,0 +1,24 @@
+Metadata-Version: 2.4
+Name: swigdojo-target
+Version: 0.1.0
+Summary: SwigDojo Target Wrapper SDK for Python
+Author: SwigDojo Team
+License: MIT
+Project-URL: Homepage, https://github.com/portswigger-apps/swigdojo-platform
+Project-URL: Repository, https://github.com/portswigger-apps/swigdojo-platform
+Project-URL: Issues, https://github.com/portswigger-apps/swigdojo-platform/issues
+Keywords: testing,benchmarking,experiments,swigdojo,target
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Software Development :: Testing
+Requires-Python: >=3.11
+Requires-Dist: uvicorn>=0.24.0
+Requires-Dist: httpx>=0.25.0
+Requires-Dist: starlette>=0.27.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"

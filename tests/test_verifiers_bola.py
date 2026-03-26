@@ -35,7 +35,7 @@ async def test_bola_transactions_positive(mock_ctx, make_request):
         ),
     ])
     # User 1 has account 111111 but is accessing account 999999
-    exec_key = "psql -U postgres -d vulnerable_bank -t -c SELECT account_number FROM users WHERE id = 1"
+    exec_key = "sqlite3 /app/data/vulnbank.db SELECT account_number FROM users WHERE id = 1"
     ctx._exec_results[exec_key] = "  111111\n"
     assert await _check_bola_transactions(ctx, CONFIG) is True
 
@@ -52,7 +52,7 @@ async def test_bola_transactions_own_account(mock_ctx, make_request):
             response_status=200,
         ),
     ])
-    exec_key = "psql -U postgres -d vulnerable_bank -t -c SELECT account_number FROM users WHERE id = 1"
+    exec_key = "sqlite3 /app/data/vulnbank.db SELECT account_number FROM users WHERE id = 1"
     ctx._exec_results[exec_key] = "  111111\n"
     assert await _check_bola_transactions(ctx, CONFIG) is False
 
@@ -83,7 +83,7 @@ async def test_bola_balance_positive(mock_ctx, make_request):
             response_status=200,
         ),
     ])
-    exec_key = "psql -U postgres -d vulnerable_bank -t -c SELECT account_number FROM users WHERE id = 2"
+    exec_key = "sqlite3 /app/data/vulnbank.db SELECT account_number FROM users WHERE id = 2"
     ctx._exec_results[exec_key] = "  222222\n"
     assert await _check_bola_balance(ctx, CONFIG) is True
 
@@ -100,7 +100,7 @@ async def test_bola_balance_own_account(mock_ctx, make_request):
             response_status=200,
         ),
     ])
-    exec_key = "psql -U postgres -d vulnerable_bank -t -c SELECT account_number FROM users WHERE id = 2"
+    exec_key = "sqlite3 /app/data/vulnbank.db SELECT account_number FROM users WHERE id = 2"
     ctx._exec_results[exec_key] = "  222222\n"
     assert await _check_bola_balance(ctx, CONFIG) is False
 

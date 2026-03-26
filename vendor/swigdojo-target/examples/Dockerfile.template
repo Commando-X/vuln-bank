@@ -1,0 +1,53 @@
+# Multi-stage Dockerfile for wrapping an existing image with swigdojo-target.
+#
+# Stage 1: Build wheels for swigdojo-target and its dependencies.
+#
+# Stage 2: Start from the upstream application image — completely
+#           unmodified — install Python from the base OS package manager,
+#           then install the pre-built wheels.
+#
+# IMPORTANT: Do NOT copy Python binaries from the builder stage into the
+# upstream image. Different base images ship different OpenSSL versions,
+# and a version mismatch will cause "libcrypto.so: version not found"
+# errors at runtime. Always install Python from the upstream image's own
+# package manager.
+#
+# The result is the original application image with the SwigDojo wrapper
+# added. The wrapper starts the original app as a subprocess and serves
+# the SwigDojo protocol endpoints alongside it.
+
+# -- Stage 1: build wheels ----------------------------------------------------
+FROM python:3.12-slim AS wrapper-deps
+
+RUN pip wheel --no-cache-dir --wheel-dir /wheels swigdojo-target
+
+# -- Stage 2: combine with the upstream image ----------------------------------
+FROM my-web-app:latest
+
+# Install Python from the base image's package manager.
+# If your base image runs as non-root, add USER root before this block.
+# Adjust the package manager command for your base image:
+#   Debian/Ubuntu: apt-get install -y python3 python3-pip
+#   Alpine:        apk add --no-cache python3 py3-pip
+#   RHEL/Fedora:   dnf install -y python3 python3-pip
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 python3-pip && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install pre-built wheels.
+COPY --from=wrapper-deps /wheels /tmp/wheels
+RUN pip install --no-cache-dir --break-system-packages /tmp/wheels/*.whl && \
+    rm -rf /tmp/wheels
+
+# Copy the scoring script into the image.
+COPY wrapper.py /swigdojo/wrapper.py
+
+# Run as a non-root user for security.
+# Adjust the UID/GID if your upstream image requires a specific user.
+RUN adduser --disabled-password --gecos "" --uid 1001 wrapper || true
+USER 1001
+
+# Clear the base image entrypoint — many images set ENTRYPOINT which
+# would ignore our CMD. Reset it so the wrapper script runs instead.
+ENTRYPOINT []
+CMD ["python3", "/swigdojo/wrapper.py"]

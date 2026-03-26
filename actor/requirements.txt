@@ -1,0 +1,2 @@
+httpx>=0.25.0
+git+ssh://git@github.com/portswigger-apps/swigdojo-platform.git@main#subdirectory=sdk/runners/python

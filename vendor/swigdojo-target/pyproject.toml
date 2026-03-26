@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swigdojo-target"
+version = "0.1.0"
+description = "SwigDojo Target Wrapper SDK for Python"
+requires-python = ">=3.11"
+authors = [
+    {name = "SwigDojo Team"}
+]
+license = {text = "MIT"}
+keywords = ["testing", "benchmarking", "experiments", "swigdojo", "target"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "uvicorn>=0.24.0",
+    "httpx>=0.25.0",
+    "starlette>=0.27.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/portswigger-apps/swigdojo-platform"
+Repository = "https://github.com/portswigger-apps/swigdojo-platform"
+Issues = "https://github.com/portswigger-apps/swigdojo-platform/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
