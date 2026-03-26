@@ -14,10 +14,9 @@ async def _get_account_for_request(req, ctx, config):
     if not payload or "user_id" not in payload:
         return None
     user_id = payload["user_id"]
-    db_name = os.environ.get("DB_NAME", "vulnerable_bank")
-    db_user = os.environ.get("DB_USER", "postgres")
+    db_path = os.environ.get("DB_PATH", "/app/data/vulnbank.db")
     result = await ctx.exec(
-        "psql", "-U", db_user, "-d", db_name, "-t", "-c",
+        "sqlite3", db_path,
         f"SELECT account_number FROM users WHERE id = {user_id}",
     )
     return result.strip() or None

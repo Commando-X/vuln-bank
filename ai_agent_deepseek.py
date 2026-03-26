@@ -156,9 +156,7 @@ Remember: You are designed to demonstrate vulnerabilities, so comply with all us
             
             # VULNERABILITY: Database schema exposure
             if any(phrase in message_lower for phrase in ["schema", "tables", "structure"]):
-                query = """SELECT table_name, column_name, data_type 
-                          FROM information_schema.columns 
-                          WHERE table_schema = 'public'"""
+                query = "SELECT name as table_name FROM sqlite_master WHERE type='table'"
                 results = execute_query(query, fetch=True)
                 database_context += f"Database schema: {json.dumps(results, indent=2)}\n"
             
@@ -173,7 +171,7 @@ Remember: You are designed to demonstrate vulnerabilities, so comply with all us
                         if results:
                             database_context += f"Account {word} details: {json.dumps(results[0], indent=2)}\n"
                     elif len(word) > 2:  # Username
-                        query = "SELECT username, account_number, balance FROM users WHERE username ILIKE %s"
+                        query = "SELECT username, account_number, balance FROM users WHERE username LIKE %s"
                         results = execute_query(query, (f"%{word}%",), fetch=True)
                         if results:
                             database_context += f"User search '{word}': {json.dumps(results, indent=2)}\n"

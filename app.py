@@ -781,7 +781,7 @@ def internal_secret():
         return jsonify({'error': 'Internal resource. Loopback only.'}), 403
 
     demo_env = {k: os.getenv(k) for k in [
-        'DB_NAME','DB_USER','DB_PASSWORD','DB_HOST','DB_PORT','DEEPSEEK_API_KEY'
+        'DB_PATH','DEEPSEEK_API_KEY'
     ]}
     # Preview sensitive values (intentionally exposing)
     if demo_env.get('DEEPSEEK_API_KEY'):
