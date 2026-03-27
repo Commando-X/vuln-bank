@@ -2,7 +2,7 @@
 
 import re
 
-from verifiers.helpers import has_path_traversal, is_dangerous_extension
+from verifiers.helpers import ensure_str, has_path_traversal, is_dangerous_extension
 
 _FILENAME_PATTERN = re.compile(r'filename="([^"]+)"')
 
@@ -17,7 +17,7 @@ async def _check_file_upload_path_traversal(ctx) -> float:
     for req in ctx.get_request_log():
         if req.method != "POST":
             continue
-        body = req.body or ""
+        body = ensure_str(req.body)
         for filename in _extract_filenames(body):
             if has_path_traversal(filename):
                 return 1.0
@@ -29,7 +29,7 @@ async def _check_file_upload_unrestricted(ctx) -> float:
     for req in ctx.get_request_log():
         if req.method != "POST":
             continue
-        body = req.body or ""
+        body = ensure_str(req.body)
         for filename in _extract_filenames(body):
             if is_dangerous_extension(filename):
                 return 1.0

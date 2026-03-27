@@ -4,7 +4,7 @@ import base64
 import json
 import re
 
-from verifiers.helpers import decode_jwt
+from verifiers.helpers import decode_jwt, ensure_str
 
 
 def _extract_jwt_header(token: str) -> dict | None:
@@ -72,7 +72,7 @@ async def _check_auth_jwt_weak_secret(ctx, config) -> float:
     for req in ctx.get_request_log():
         if req.path in _LOGIN_PATHS and req.method == "POST":
             # Extract token from response body
-            body = req.response_body or ""
+            body = ensure_str(req.response_body)
             matches = _JWT_PATTERN.findall(body)
             issued_tokens.update(matches)
 
@@ -95,7 +95,7 @@ async def _check_auth_mass_assignment(ctx) -> float:
     for req in ctx.get_request_log():
         if req.method != "POST" or req.path != "/register":
             continue
-        body = req.body or ""
+        body = ensure_str(req.body)
         try:
             data = json.loads(body)
         except (json.JSONDecodeError, TypeError):

@@ -49,6 +49,15 @@ _NORMALIZE_PATH_PATTERN = re.compile(
 )
 
 
+def ensure_str(value) -> str:
+    """Convert bytes to str if needed, returning empty string for None."""
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
 def has_sqli_indicators(text: str) -> bool:
     """Return True if text contains SQL injection indicators."""
     return bool(_SQLI_PATTERN.search(text))
