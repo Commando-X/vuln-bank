@@ -1,0 +1,31 @@
+name: Build and Publish Docker Image
+
+concurrency: ${{ github.ref }}
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - README.md
+      - .github/workflows/**
+
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - README.md
+      - .github/workflows/**
+
+jobs:
+  build-image:
+    uses: portswigger-apps/shared-workflows/.github/workflows/build-standalone-image.yaml@main
+    secrets: inherit
+    with:
+      push-to-prod: true
+      tag-as-latest: true
+      setup-python: true
+      setup-python-version: "3.12"
+      junit-report-paths: "reports/unit-test-*.xml"
