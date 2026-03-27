@@ -3,4 +3,4 @@ set -eux -o pipefail
 
 pip install vendor/swigdojo-target/
 pip install -r requirements.txt
-pip install pytest
+pip install pytest pytest-asyncio
