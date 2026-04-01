@@ -1,4 +1,5 @@
 """SwigDojo target wrapper for vuln-bank."""
+import logging
 import sys
 import os
 
@@ -10,8 +11,12 @@ if app_dir not in sys.path:
 os.chdir(app_dir)
 
 from swigdojo_target import TargetWrapper
+from swigdojo_target.json_log_config import configure_json_logging
 from config import load_config
 from verifiers.registry import register_verifiers
+
+configure_json_logging()
+logger = logging.getLogger("wrapper")
 
 config = load_config()
 
@@ -24,7 +29,7 @@ wrapper = TargetWrapper(
 )
 
 registered = register_verifiers(wrapper, config)
-print(f"[wrapper] Registered {len(registered)} verifiers: {', '.join(registered)}")
+logger.info("Registered %d verifiers: %s", len(registered), ", ".join(registered))
 
 if __name__ == "__main__":
     wrapper.run()
