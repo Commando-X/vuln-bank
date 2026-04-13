@@ -893,8 +893,14 @@ def metadata_iam_role():
 def request_loan(current_user):
     try:
         data = request.get_json()
-        # Vulnerability: No input validation on amount
+        # Vulnerability fixed: Added input validation on amount
         amount = float(data.get('amount'))
+        
+        if amount <= 0:
+            return jsonify({
+                'status': 'error',
+                'message': 'Amount must be positive'
+            }), 400
         
         execute_query(
             "INSERT INTO loans (user_id, amount) VALUES (%s, %s)",
