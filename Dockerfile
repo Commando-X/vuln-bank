@@ -1,5 +1,7 @@
 FROM python:3.9-slim
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 # Install PostgreSQL client
 RUN apt-get update && apt-get install -y \
     postgresql-client \
@@ -7,8 +9,8 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Create necessary directories
 RUN mkdir -p static/uploads templates
@@ -20,4 +22,4 @@ RUN chmod 777 static/uploads
 
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["uv", "run", "python", "app.py"]

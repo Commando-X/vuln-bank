@@ -1,9 +1,0 @@
-flask==2.0.1
-werkzeug==2.0.1
-pyjwt==2.4.0
-flask-swagger-ui==4.11.1
-flask-cors==4.0.0
-psycopg2-binary==2.9.9
-python-dotenv==1.0.0
-requests==2.31.0
-graphene==3.3
