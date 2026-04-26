@@ -1,0 +1,72 @@
+name: Reset VulnBank
+
+# Wipes the DB volume and any user-uploaded files so the training app
+# returns to a fresh state. Runs every 3 weeks at midnight WAT
+# (= Saturday 23:00 UTC the night before), guarded by ISO-week-modulo-3.
+# Can also be triggered manually via workflow_dispatch.
+
+on:
+  schedule:
+    - cron: '0 23 * * 6'
+  workflow_dispatch:
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    name: Reset to fresh state
+
+    environment:
+      name: production
+      url: https://vulnbank.org
+
+    steps:
+      - name: Skip unless ISO week is on the 3-week cadence
+        if: github.event_name == 'schedule'
+        run: |
+          WEEK=$(date -u +%V)
+          if [ $((10#$WEEK % 3)) -ne 0 ]; then
+            echo "ISO week $WEEK is not on the 3-week cadence — skipping reset."
+            echo "SKIP=true" >> $GITHUB_ENV
+          else
+            echo "ISO week $WEEK is on cadence — proceeding."
+          fi
+
+      - name: Setup SSH agent
+        if: env.SKIP != 'true'
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Reset on server
+        if: env.SKIP != 'true'
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.USERNAME }}@${{ secrets.HOST }} << 'EOF'
+            set -e
+
+            cd /home/${USER}/vuln-bank
+
+            echo "Stopping containers and wiping postgres_data volume..."
+            docker compose down -v
+
+            echo "Restoring static/uploads to repo state (drops user uploads)..."
+            git clean -fd static/uploads/
+            git checkout HEAD -- static/uploads/
+
+            echo "Rebuilding and starting fresh..."
+            docker compose up -d --build
+
+            docker image prune -f
+
+            docker compose ps
+          EOF
+
+      - name: Health Check
+        if: env.SKIP != 'true'
+        run: |
+          for i in {1..18}; do
+            curl -fsS https://vulnbank.org && exit 0
+            sleep 5
+          done
+          echo "Health check failed after reset"
+          exit 1
