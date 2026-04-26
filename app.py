@@ -10,7 +10,13 @@ import auth
 from werkzeug.utils import secure_filename 
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
-from database import init_connection_pool, init_db, execute_query, execute_transaction
+from database import (
+    init_connection_pool,
+    init_db,
+    execute_query,
+    execute_transaction,
+    check_database_connection,
+)
 from ai_agent_deepseek import ai_agent
 from transaction_graphql import transaction_graphql_schema
 import time
@@ -43,6 +49,7 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 )
 
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+init_auth_routes(app)
 
 # Hardcoded secret key (CWE-798)
 app.secret_key = "secret123"
@@ -207,6 +214,15 @@ def generate_cvv():
     """Generate a 3-digit CVV"""
     # Vulnerability: Predictable CVV generation
     return ''.join(random.choices(string.digits, k=3))
+
+@app.route('/healthz', methods=['GET'])
+def health_check():
+    db_healthy = check_database_connection()
+    status_code = 200 if db_healthy else 503
+    return jsonify({
+        'status': 'ok' if db_healthy else 'error',
+        'database': 'up' if db_healthy else 'down'
+    }), status_code
 
 @app.route('/graphql', methods=['GET'])
 def graphql_info():
@@ -2474,6 +2490,5 @@ def ai_rate_limit_status():
 
 if __name__ == '__main__':
     init_db()
-    init_auth_routes(app)
     # Vulnerability: Debug mode enabled in production
     app.run(host='0.0.0.0', port=5000, debug=True)
