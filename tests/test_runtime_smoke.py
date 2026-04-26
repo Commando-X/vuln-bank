@@ -63,7 +63,7 @@ class HealthEndpointTests(unittest.TestCase):
 
 
 class StartScriptTests(unittest.TestCase):
-    def test_start_script_waits_for_db_initializes_schema_and_execs_gunicorn(self):
+    def test_start_script_waits_for_db_and_execs_flask_dev_server(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             bin_dir = tmp_path / "bin"
@@ -101,14 +101,6 @@ class StartScriptTests(unittest.TestCase):
                 exit 0
                 """,
             )
-            self._write_fake_executable(
-                bin_dir / "gunicorn",
-                """
-                #!/bin/sh
-                printf '%s\n' "$@" > "${TEST_TMPDIR}/gunicorn.args"
-                exit 0
-                """,
-            )
 
             env = os.environ.copy()
             env.update(
@@ -119,10 +111,6 @@ class StartScriptTests(unittest.TestCase):
                     "DB_PORT": "5432",
                     "DB_USER": "postgres",
                     "DB_NAME": "vulnerable_bank",
-                    "PORT": "5100",
-                    "WEB_CONCURRENCY": "3",
-                    "GUNICORN_THREADS": "5",
-                    "GUNICORN_TIMEOUT": "90",
                 }
             )
 
@@ -138,20 +126,7 @@ class StartScriptTests(unittest.TestCase):
             self.assertEqual((tmp_path / "pg_isready.count").read_text(), "3")
 
             python_args = (tmp_path / "python.args").read_text().splitlines()
-            gunicorn_args = (tmp_path / "gunicorn.args").read_text().splitlines()
-
-            self.assertEqual(python_args[0], "-c")
-            self.assertIn("init_connection_pool(max_retries=30, retry_delay=2); init_db()", python_args[1])
-
-            self.assertIn("--bind", gunicorn_args)
-            self.assertIn("0.0.0.0:5100", gunicorn_args)
-            self.assertIn("--workers", gunicorn_args)
-            self.assertIn("3", gunicorn_args)
-            self.assertIn("--threads", gunicorn_args)
-            self.assertIn("5", gunicorn_args)
-            self.assertIn("--timeout", gunicorn_args)
-            self.assertIn("90", gunicorn_args)
-            self.assertEqual(gunicorn_args[-1], "app:app")
+            self.assertEqual(python_args, ["app.py"])
 
     def _write_fake_executable(self, path, script):
         path.write_text(textwrap.dedent(script).lstrip())
