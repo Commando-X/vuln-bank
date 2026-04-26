@@ -18,7 +18,7 @@ DB_CONFIG = {
 # Create a connection pool
 connection_pool = None
 
-def init_connection_pool(min_connections=1, max_connections=10, max_retries=5, retry_delay=2):
+def init_connection_pool(min_connections=2, max_connections=30, max_retries=5, retry_delay=2):
     """
     Initialize the database connection pool with retry mechanism
     Vulnerability: No connection encryption enforced
