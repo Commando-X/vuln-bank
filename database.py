@@ -24,6 +24,9 @@ def init_connection_pool(min_connections=1, max_connections=10, max_retries=5, r
     Vulnerability: No connection encryption enforced
     """
     global connection_pool
+    if connection_pool is not None:
+        return connection_pool
+
     retry_count = 0
     
     while retry_count < max_retries:
@@ -34,7 +37,7 @@ def init_connection_pool(min_connections=1, max_connections=10, max_retries=5, r
                 **DB_CONFIG
             )
             print("Database connection pool created successfully")
-            return
+            return connection_pool
         except Exception as e:
             retry_count += 1
             print(f"Failed to connect to database (attempt {retry_count}/{max_retries}): {e}")
@@ -44,6 +47,21 @@ def init_connection_pool(min_connections=1, max_connections=10, max_retries=5, r
             else:
                 print("Max retries reached. Could not establish database connection.")
                 raise e
+
+def check_database_connection():
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        return True
+    except Exception as e:
+        print(f"Database health check failed: {e}")
+        return False
+    finally:
+        if conn:
+            return_connection(conn)
 
 def get_connection():
     if connection_pool:

@@ -146,10 +146,28 @@ cd vuln-bank
 
 2. Start the application:
 ```bash
-docker-compose up --build
+docker-compose up -d --build
 ```
 
 The application will be available at `http://localhost:5000`
+
+#### Container recovery behavior
+The Docker setup includes a few operational safeguards so the app can recover without manual SSH intervention:
+- `web` and `db` use `restart: unless-stopped`, so Docker restarts them automatically if the process exits.
+- `db` exposes a health check, and `web` waits for Postgres readiness before starting.
+- `web` runs behind `gunicorn` instead of Flask's development server.
+- `web` exposes `GET /healthz` so the container can report whether the app and database are actually usable.
+
+This keeps the intentionally vulnerable application behavior intact while making the container lifecycle more resilient.
+
+#### Local smoke test
+You can validate the local runtime wiring without starting real containers:
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+This checks the `/healthz` endpoint behavior and verifies that `start.sh` waits for the database, runs schema initialization, and then launches `gunicorn`.
+If the Flask app dependencies are not installed in your current Python environment, the `/healthz` route test is skipped and the startup-script smoke test still runs.
 
 #### Using Docker Only
 1. Clone the repository:
