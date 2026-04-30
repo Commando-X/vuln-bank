@@ -1,6 +1,7 @@
 services:
   web:
     build: .
+    restart: unless-stopped
     ports:
       - "5000:5000"
       - "80:5000"
@@ -13,7 +14,8 @@ services:
       - DB_HOST=db 
       - DB_PORT=5432
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - ./static/uploads:/app/static/uploads
     networks:
@@ -21,6 +23,7 @@ services:
 
   db:
     image: postgres:13
+    restart: unless-stopped
     environment:
       - POSTGRES_DB=vulnerable_bank
       - POSTGRES_USER=postgres
@@ -31,6 +34,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - vuln_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vulnerable_bank"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   postgres_data:
