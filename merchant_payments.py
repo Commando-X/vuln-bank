@@ -216,12 +216,7 @@ def init_merchant_payment_routes(app):
             if not result:
                 return jsonify({
                     'status': 'error',
-                    'message': 'Invalid merchant credentials',
-                    'debug_info': {
-                        'attempted_email': email,
-                        'query_used': query,
-                        'attempted_at': str(datetime.now())
-                    }
+                    'message': 'Invalid merchant credentials'
                 }), 401
 
             merchant = merchant_tuple_to_dict(result[0])
@@ -232,12 +227,7 @@ def init_merchant_payment_routes(app):
                 'message': 'Merchant login successful',
                 'token': token,
                 'api_key': merchant['api_key'],
-                'merchant': merchant,
-                'debug_info': {
-                    'query_used': query,
-                    'login_time': str(datetime.now()),
-                    'auth_methods': ['X-Merchant-Api-Key', 'Authorization Bearer JWT']
-                }
+                'merchant': merchant
             })
 
         except Exception as e:
