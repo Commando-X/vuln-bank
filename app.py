@@ -19,6 +19,7 @@ from database import (
 )
 from ai_agent_deepseek import ai_agent
 from transaction_graphql import transaction_graphql_schema
+from merchant_payments import init_merchant_payment_routes
 import time
 from functools import wraps
 from collections import defaultdict
@@ -50,6 +51,7 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 init_auth_routes(app)
+init_merchant_payment_routes(app)
 
 # Hardcoded secret key (CWE-798)
 app.secret_key = "secret123"

@@ -163,6 +163,59 @@ def init_db():
                 )
             ''')
 
+            # Create merchants table for public vulnerable payment APIs
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS merchants (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    password TEXT NOT NULL,  -- Vulnerability: Merchant passwords stored in plaintext
+                    api_key TEXT NOT NULL,  -- Vulnerability: API keys stored in plaintext
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # Create merchant payments table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS merchant_payments (
+                    id SERIAL PRIMARY KEY,
+                    merchant_id INTEGER REFERENCES merchants(id) ON DELETE CASCADE,
+                    card_id INTEGER REFERENCES virtual_cards(id) ON DELETE SET NULL,
+                    amount NUMERIC(20, 8) NOT NULL,
+                    currency TEXT DEFAULT 'USD',
+                    status TEXT DEFAULT 'pending',
+                    merchant_order_id TEXT,
+                    authorization_code TEXT,
+                    failure_reason TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            seeded_merchants = [
+                ('graphQL bookstore', 'graphql-bookstore@vulnbank.local', 'bookstore123', 'vk_fe675fe7aaee830b6fed09b64e034f84dcbdaeb429d9cccd4ebb90e15af8dd71', True),
+                ('PwnShop', 'pwnshop@vulnbank.local', 'pwnshop123', 'vk_b281bc2c616cb3c3a097215fdc9397ae87e6e06b156cc34e656be7a1a9ce8839', True)
+            ]
+            for merchant in seeded_merchants:
+                cursor.execute("SELECT id FROM merchants WHERE email = %s", (merchant[1],))
+                if cursor.fetchone():
+                    cursor.execute(
+                        """
+                        UPDATE merchants
+                        SET name = %s, password = %s, api_key = %s, is_active = %s
+                        WHERE email = %s
+                        """,
+                        (merchant[0], merchant[2], merchant[3], merchant[4], merchant[1])
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO merchants (name, email, password, api_key, is_active)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        merchant
+                    )
+
             try:
                 cursor.execute("ALTER TABLE virtual_cards ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'")
             except Exception:

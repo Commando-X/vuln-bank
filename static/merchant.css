@@ -1,0 +1,376 @@
+.merchant-dashboard-page .merchant-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-full);
+  background: var(--brand);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.merchant-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.merchant-stat-card {
+  min-height: 128px;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.merchant-stat-card.stat-approved { border-top: 4px solid var(--green); }
+.merchant-stat-card.stat-count { border-top: 4px solid var(--brand); }
+.merchant-stat-card.stat-failed { border-top: 4px solid var(--red); }
+.merchant-stat-card.stat-auth { border-top: 4px solid var(--amber); }
+
+.merchant-stat-label {
+  color: var(--text-3);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.merchant-stat-value {
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: 1.625rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.merchant-stat-value.compact {
+  font-size: 1.125rem;
+}
+
+.merchant-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--r-full);
+  background: var(--sky-bg);
+  color: var(--sky-text);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.merchant-badge.danger {
+  background: var(--red-bg);
+  color: var(--red-text);
+}
+
+.merchant-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.merchant-form-grid .wide,
+.merchant-form-actions {
+  grid-column: 1 / -1;
+}
+
+.merchant-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.merchant-table-wrap {
+  overflow-x: auto;
+}
+
+.merchant-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 780px;
+}
+
+.merchant-table th,
+.merchant-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.875rem 0.75rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.merchant-table th {
+  color: var(--text-3);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.merchant-table td {
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+
+.merchant-table tr:hover td {
+  background: var(--surface-2);
+}
+
+.empty-table {
+  text-align: center;
+  color: var(--text-4);
+}
+
+.payment-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--r-full);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.payment-status.completed {
+  background: var(--green-bg);
+  color: var(--green-text);
+}
+
+.payment-status.failed {
+  background: var(--red-bg);
+  color: var(--red-text);
+}
+
+.payment-status.pending {
+  background: var(--amber-bg);
+  color: var(--amber-text);
+}
+
+.credential-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.credential-block {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  padding: 1rem;
+  min-width: 0;
+}
+
+.credential-block.wide {
+  grid-column: 1 / -1;
+}
+
+.credential-block label {
+  display: block;
+  color: var(--text-3);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.credential-value {
+  color: var(--text-1);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.credential-line {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.credential-line code {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.integration-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.integration-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  padding: 1rem;
+  min-width: 0;
+}
+
+.integration-panel.wide {
+  grid-column: 1 / -1;
+}
+
+.integration-panel h3,
+.integration-code-header h3 {
+  font-size: 0.9375rem;
+  margin-bottom: 0.5rem;
+}
+
+.integration-panel p {
+  color: var(--text-3);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.endpoint-list {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.endpoint-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.endpoint-row code {
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.method {
+  width: 52px;
+  min-height: 24px;
+  border-radius: var(--r-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.method.post {
+  background: var(--green-bg);
+  color: var(--green-text);
+}
+
+.method.get {
+  background: var(--sky-bg);
+  color: var(--sky-text);
+}
+
+.integration-copy-line {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  padding: 0.625rem;
+  margin-top: 0.625rem;
+}
+
+.integration-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.integration-code {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--navy-950);
+  color: #E8ECF1;
+  padding: 1rem;
+}
+
+.integration-code code {
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  white-space: pre;
+}
+
+.icon-copy-btn {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.icon-copy-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.merchant-inline-error,
+.merchant-inline-success {
+  border-radius: var(--r-md);
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.merchant-inline-error {
+  background: var(--red-bg);
+  color: var(--red-text);
+}
+
+.merchant-inline-success {
+  background: var(--green-bg);
+  color: var(--green-text);
+}
+
+@media (max-width: 960px) {
+  .merchant-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .merchant-stats,
+  .merchant-form-grid,
+  .integration-grid,
+  .credential-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .credential-block.wide,
+  .integration-panel.wide {
+    grid-column: auto;
+  }
+
+  .merchant-form-actions {
+    justify-content: stretch;
+  }
+
+  .merchant-form-actions button {
+    width: 100%;
+  }
+}

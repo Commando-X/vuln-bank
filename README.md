@@ -28,6 +28,7 @@ This project is a simple banking application with multiple security vulnerabilit
 - 🔑 Password Reset System (3-digit PIN)
 - 💳 Multi-Currency Virtual Cards Management
 - 💱 Virtual Card Funding from Main USD Balance with built-in currency conversion (`USD`, `GBP`, `NGN`, `JPY`, `EUR`, `QAR`, `BTC`, `ETH`)
+- 🛒 Public Merchant Payment API for intentionally vulnerable ecommerce/demo integrations
 - 📱 Bill Payments System
 - 🤖 AI Customer Support Agent (Real LLM with DeepSeek API / Mock Mode)
 
@@ -107,7 +108,17 @@ This project is a simple banking application with multiple security vulnerabilit
    - BOLA in payment history access
    - Missing payment limits
 
-9. **AI Customer Support Vulnerabilities**
+9. **Merchant Payment API Vulnerabilities**
+   - Plaintext merchant passwords and API keys
+   - API keys returned in registration and login responses
+   - Raw card number/CVV accepted by merchant payment APIs
+   - SQL injection-prone merchant and card lookups
+   - Missing idempotency, replay protection, payment limits, and rate limiting
+   - Object-level authorization gaps in merchant payment lookup
+   - Detailed payment decline reasons and debug data exposure
+   - Predictable authorization code generation
+
+10. **AI Customer Support Vulnerabilities**
    - Prompt Injection (CWE-77)
    - AI-based Information Disclosure (CWE-200)
    - Broken Authorization in AI context (CWE-862)
@@ -119,7 +130,7 @@ This project is a simple banking application with multiple security vulnerabilit
    - AI-assisted unauthorized data access
    - Exposed AI system prompts and configurations
 
-10. **GraphQL Vulnerabilities**
+11. **GraphQL Vulnerabilities**
    - Enabled schema introspection on the transaction analytics endpoint
    - Weak JWT-based authentication inherited by `/graphql`
    - SQL injection in GraphQL resolver query construction
@@ -394,6 +405,55 @@ curl -s -X POST http://localhost:5000/upload_profile_picture_url \
 5. Test card freezing bypasses
 6. Transaction history manipulation
 7. Card limit validation bypass
+
+### Merchant Payment API Testing
+
+The public merchant API lets intentionally vulnerable demo apps, such as ecommerce labs, accept payments from Vulnbank virtual cards.
+
+#### Example Ecommerce Integration Flow
+
+1. Register or log in as a normal Vulnbank user.
+2. Create a virtual card and fund it from the user's main balance.
+3. Register a merchant integration from `http://localhost:5000/merchant/register` or by API:
+
+   ```bash
+   curl -s -X POST http://localhost:5000/api/v1/merchants/register \
+     -H "Content-Type: application/json" \
+     -d '{"name":"Demo Ecommerce","email":"merchant@example.com","password":"password123"}'
+   ```
+
+4. Charge the user's Vulnbank card from the ecommerce app using the merchant API key:
+
+   ```bash
+   curl -s -X POST http://localhost:5000/api/v1/payments/charge \
+     -H "X-Merchant-Api-Key: <MERCHANT_API_KEY>" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "amount": 49.99,
+       "currency": "USD",
+       "card_number": "4111111111111111",
+       "cvv": "123",
+       "expiry_date": "12/28",
+       "merchant_order_id": "ORDER-1001",
+       "description": "Demo ecommerce checkout"
+     }'
+   ```
+
+5. View the merchant dashboard at `http://localhost:5000/merchant/dashboard`, or retrieve payment details with either the API key or the weak merchant JWT:
+
+   ```bash
+   curl -s http://localhost:5000/api/v1/payments/<payment_id> \
+     -H "Authorization: Bearer <MERCHANT_JWT>"
+   ```
+
+#### Merchant Payment Attacks To Try
+
+1. Request another merchant's payment history through `/api/v1/payments/merchant_id/<merchant_id>`
+2. Compare `/api/v1/payments` with `/api/v1/payments/merchant_id/<merchant_id>`
+3. Replay the same charge request multiple times
+4. Submit negative payment amounts
+5. Trigger detailed decline reasons with invalid CVV, frozen cards, inactive cards, and insufficient balance
+6. Attempt SQL injection in merchant login, API key lookup, and raw card lookups
 
 ### Bill Payment Testing
 
