@@ -41,6 +41,14 @@
       "description": "Bill payment operations"
     },
     {
+      "name": "merchants",
+      "description": "Merchant registration and authentication for public payment integrations"
+    },
+    {
+      "name": "merchant-payments",
+      "description": "Merchant card payment endpoints"
+    },
+    {
       "name": "ai-agent",
       "description": "AI Customer Support Agent (Intentionally Vulnerable)"
     },
@@ -1456,6 +1464,198 @@
           }
         }
       }
+    },
+    "/api/v1/merchants/register": {
+      "post": {
+        "tags": ["merchants"],
+        "summary": "Register a merchant",
+        "description": "Create a merchant account. Returns an API key and merchant JWT for API access.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Demo Ecommerce" },
+                  "email": { "type": "string", "example": "merchant@example.com" },
+                  "password": { "type": "string", "example": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant registered"
+          },
+          "500": {
+            "description": "Registration error with detailed debug output"
+          }
+        }
+      }
+    },
+    "/api/v1/merchants/login": {
+      "post": {
+        "tags": ["merchants"],
+        "summary": "Log in merchant",
+        "description": "Authenticate a merchant and return API credentials.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "example": "merchant@example.com" },
+                  "password": { "type": "string", "example": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful. Response includes merchant JWT and API key."
+          },
+          "401": {
+            "description": "Invalid credentials with debug query exposure"
+          }
+        }
+      }
+    },
+    "/api/v1/merchants/me": {
+      "get": {
+        "tags": ["merchants"],
+        "summary": "Get current merchant",
+        "description": "Return the authenticated merchant. Accepts either X-Merchant-Api-Key or Bearer merchant JWT.",
+        "security": [
+          { "MerchantApiKey": [] },
+          { "BearerAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant profile"
+          },
+          "401": {
+            "description": "Missing or invalid merchant credentials"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/charge": {
+      "post": {
+        "tags": ["merchant-payments"],
+        "summary": "Charge a Vulnbank virtual card",
+        "description": "Process a merchant payment using Vulnbank virtual card details.",
+        "security": [
+          { "MerchantApiKey": [] },
+          { "BearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": { "type": "number", "example": 49.99 },
+                  "currency": { "type": "string", "example": "USD" },
+                  "card_number": { "type": "string", "example": "4111111111111111" },
+                  "cvv": { "type": "string", "example": "123" },
+                  "expiry_date": { "type": "string", "example": "12/28" },
+                  "merchant_order_id": { "type": "string", "example": "ORDER-1001" },
+                  "description": { "type": "string", "example": "Demo ecommerce checkout" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment approved"
+          },
+          "400": {
+            "description": "Payment declined with detailed failure reason such as invalid_cvv, card_frozen, inactive_card, or insufficient_card_balance."
+          },
+          "401": {
+            "description": "Missing or invalid merchant credentials"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{payment_id}": {
+      "get": {
+        "tags": ["merchant-payments"],
+        "summary": "Get merchant payment",
+        "description": "Retrieve one payment by ID for the authenticated merchant.",
+        "security": [
+          { "MerchantApiKey": [] },
+          { "BearerAuth": [] }
+        ],
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details"
+          },
+          "404": {
+            "description": "Payment not found"
+          }
+        }
+      }
+    },
+    "/api/v1/payments": {
+      "get": {
+        "tags": ["merchant-payments"],
+        "summary": "List merchant payments",
+        "description": "List payments for the authenticated merchant.",
+        "security": [
+          { "MerchantApiKey": [] },
+          { "BearerAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant payments"
+          },
+          "401": {
+            "description": "Missing or invalid merchant credentials"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/merchant_id/{merchant_id}": {
+      "get": {
+        "tags": ["merchant-payments"],
+        "summary": "List payments by merchant ID",
+        "description": "List payments for the merchant ID supplied in the path.",
+        "security": [
+          { "MerchantApiKey": [] },
+          { "BearerAuth": [] }
+        ],
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant payments"
+          },
+          "401": {
+            "description": "Missing or invalid merchant credentials"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1465,6 +1665,12 @@
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "description": "Vulnerable JWT implementation"
+      },
+      "MerchantApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Merchant-Api-Key",
+        "description": "Merchant API key returned by merchant registration/login"
       }
     }
   }
