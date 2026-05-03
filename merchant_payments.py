@@ -494,8 +494,7 @@ def init_merchant_payment_routes(app):
                     'created_at': str(payment[13])
                 },
                 'debug_info': {
-                    'looked_up_by_merchant': current_merchant,
-                    'query_used': query
+                    'looked_up_by_merchant': current_merchant
                 }
             })
 
@@ -548,8 +547,7 @@ def init_merchant_payment_routes(app):
                     'created_at': str(payment[11])
                 } for payment in payments],
                 'debug_info': {
-                    'looked_up_by_merchant': current_merchant,
-                    'query_used': query
+                    'looked_up_by_merchant': current_merchant
                 }
             })
 
@@ -603,8 +601,7 @@ def init_merchant_payment_routes(app):
                     'created_at': str(payment[11])
                 } for payment in payments],
                 'debug_info': {
-                    'looked_up_by_merchant': current_merchant,
-                    'query_used': query
+                    'looked_up_by_merchant': current_merchant
                 }
             })
 
