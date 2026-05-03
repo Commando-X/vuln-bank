@@ -193,8 +193,8 @@ def init_db():
             ''')
 
             seeded_merchants = [
-                ('graphQL bookstore', 'graphql-bookstore@vulnbank.local', 'bookstore123', 'vk_fe675fe7aaee830b6fed09b64e034f84dcbdaeb429d9cccd4ebb90e15af8dd71', True),
-                ('PwnShop', 'pwnshop@vulnbank.local', 'pwnshop123', 'vk_b281bc2c616cb3c3a097215fdc9397ae87e6e06b156cc34e656be7a1a9ce8839', True)
+                ('graphQL bookstore', 'bookstore@vulnbank.org', 'bookstore123', 'vk_fe675fe7aaee830b6fed09b64e034f84dcbdaeb429d9cccd4ebb90e15af8dd71', True),
+                ('PwnShop', 'pwnshop@vulnbank.org', 'pwnshop123', 'vk_b281bc2c616cb3c3a097215fdc9397ae87e6e06b156cc34e656be7a1a9ce8839', True)
             ]
             for merchant in seeded_merchants:
                 cursor.execute("SELECT id FROM merchants WHERE email = %s", (merchant[1],))
