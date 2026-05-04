@@ -162,6 +162,17 @@ docker-compose up -d --build
 
 The application will be available at `http://localhost:5000`
 
+> **macOS users**: port 5000 is reserved by Control Center (AirPlay
+> Receiver / Handoff) on Monterey+ and the container will fail to bind
+> with `Ports are not available: ... bind: address already in use`.
+> Override the host port instead of disabling AirPlay:
+> ```bash
+> WEB_PORT=8085 docker-compose up -d --build
+> ```
+> Then browse `http://localhost:8085`. The same `WEB_PORT` env var works
+> for all `docker-compose` invocations — see
+> [issue #37](https://github.com/Commando-X/vuln-bank/issues/37).
+
 #### Container recovery behavior
 The Docker setup includes a few operational safeguards so the app can recover without manual SSH intervention:
 - `web` and `db` use `restart: unless-stopped`, so Docker restarts them automatically if the process exits.
