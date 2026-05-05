@@ -31,7 +31,7 @@ def init_connection_pool(min_connections=2, max_connections=30, max_retries=5, r
     
     while retry_count < max_retries:
         try:
-            connection_pool = psycopg2.pool.SimpleConnectionPool(
+            connection_pool = psycopg2.pool.ThreadedConnectionPool(
                 min_connections,
                 max_connections,
                 **DB_CONFIG
@@ -64,9 +64,24 @@ def check_database_connection():
             return_connection(conn)
 
 def get_connection():
-    if connection_pool:
-        return connection_pool.getconn()
-    raise Exception("Connection pool not initialized")
+    if not connection_pool:
+        raise Exception("Connection pool not initialized")
+
+    max_attempts = max(1, int(os.getenv('DB_POOL_CHECKOUT_ATTEMPTS', '3')))
+    retry_delay = float(os.getenv('DB_POOL_CHECKOUT_RETRY_DELAY', '0.2'))
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return connection_pool.getconn()
+        except pool.PoolError as e:
+            if attempt >= max_attempts:
+                raise e
+
+            print(
+                "Database connection pool exhausted "
+                f"(attempt {attempt}/{max_attempts}); retrying in {retry_delay} seconds"
+            )
+            time.sleep(retry_delay)
 
 def return_connection(connection):
     if connection_pool:
