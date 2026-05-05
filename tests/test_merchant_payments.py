@@ -35,7 +35,9 @@ class MerchantPaymentApiTests(unittest.TestCase):
 
         fake_psycopg2 = types.ModuleType("psycopg2")
         fake_pool_module = types.ModuleType("psycopg2.pool")
+        fake_pool_module.PoolError = Exception
         fake_pool_module.SimpleConnectionPool = object
+        fake_pool_module.ThreadedConnectionPool = object
         fake_psycopg2.pool = fake_pool_module
 
         sys.modules["psycopg2"] = fake_psycopg2

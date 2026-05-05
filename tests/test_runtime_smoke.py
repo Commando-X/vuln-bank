@@ -13,10 +13,56 @@ from unittest.mock import patch
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def install_fake_psycopg2():
+    if "psycopg2" in sys.modules:
+        return
+
+    fake_psycopg2 = types.ModuleType("psycopg2")
+    fake_pool_module = types.ModuleType("psycopg2.pool")
+    fake_pool_module.PoolError = Exception
+    fake_pool_module.SimpleConnectionPool = object
+    fake_pool_module.ThreadedConnectionPool = object
+    fake_psycopg2.pool = fake_pool_module
+
+    sys.modules["psycopg2"] = fake_psycopg2
+    sys.modules["psycopg2.pool"] = fake_pool_module
+
+
+class DatabasePoolTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        install_fake_psycopg2()
+        cls.database = importlib.import_module("database")
+
+    def test_get_connection_retries_transient_pool_exhaustion(self):
+        database = self.database
+
+        class ExhaustingPool:
+            def __init__(self):
+                self.calls = 0
+
+            def getconn(self):
+                self.calls += 1
+                if self.calls == 1:
+                    raise database.pool.PoolError("connection pool exhausted")
+                return "connection"
+
+        exhausting_pool = ExhaustingPool()
+        with patch.object(database, "connection_pool", exhausting_pool), \
+                patch.dict(os.environ, {"DB_POOL_CHECKOUT_ATTEMPTS": "2", "DB_POOL_CHECKOUT_RETRY_DELAY": "0"}), \
+                patch.object(database.time, "sleep") as sleep, \
+                patch("builtins.print"):
+            connection = database.get_connection()
+
+        self.assertEqual(connection, "connection")
+        self.assertEqual(exhausting_pool.calls, 2)
+        sleep.assert_called_once_with(0.0)
+
+
 class HealthEndpointTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls._install_fake_psycopg2()
+        install_fake_psycopg2()
         import database
 
         cls._original_init_connection_pool = database.init_connection_pool
@@ -34,19 +80,6 @@ class HealthEndpointTests(unittest.TestCase):
 
         database.init_connection_pool = cls._original_init_connection_pool
 
-    @classmethod
-    def _install_fake_psycopg2(cls):
-        if "psycopg2" in sys.modules:
-            return
-
-        fake_psycopg2 = types.ModuleType("psycopg2")
-        fake_pool_module = types.ModuleType("psycopg2.pool")
-        fake_pool_module.SimpleConnectionPool = object
-        fake_psycopg2.pool = fake_pool_module
-
-        sys.modules["psycopg2"] = fake_psycopg2
-        sys.modules["psycopg2.pool"] = fake_pool_module
-
     def test_healthz_returns_ok_when_database_is_available(self):
         with patch.object(self.app_module, "check_database_connection", return_value=True):
             response = self.client.get("/healthz")
@@ -60,7 +93,6 @@ class HealthEndpointTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.get_json(), {"status": "error", "database": "down"})
-
 
 class StartScriptTests(unittest.TestCase):
     def test_start_script_waits_for_db_and_execs_flask_dev_server(self):
