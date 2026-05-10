@@ -3,9 +3,14 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      # Host port is overridable so macOS users can sidestep the port-5000
+      # AirPlay Receiver conflict (Monterey+ reserves :5000 for Control
+      # Center). Default is 5000 to keep existing Linux setups unchanged;
+      # set WEB_PORT=8085 (or any free port) before `docker-compose up`
+      # on macOS. See https://github.com/Commando-X/vuln-bank/issues/37.
+      - "${WEB_PORT:-5000}:5000"
       - "80:5000"
-      # - "443:5000" 
+      # - "443:5000"
 
     environment:
       - DB_NAME=vulnerable_bank
