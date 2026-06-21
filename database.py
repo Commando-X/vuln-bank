@@ -12,7 +12,8 @@ DB_CONFIG = {
     'user': os.getenv('DB_USER', 'postgres'),
     'password': os.getenv('DB_PASSWORD', 'postgres'),  # Hardcoded password in default value
     'host': os.getenv('DB_HOST', 'localhost'),
-    'port': os.getenv('DB_PORT', '5432')
+    'port': os.getenv('DB_PORT', '5432'),
+    'options': f"-c statement_timeout={os.getenv('DB_STATEMENT_TIMEOUT_MS', '15000')}",
 }
 
 # Create a connection pool
