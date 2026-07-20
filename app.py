@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import random
 import string
 import html
+import math
 import os
 from dotenv import load_dotenv
 from auth import generate_token, token_required, verify_token, init_auth_routes
@@ -527,12 +528,28 @@ def check_balance(account_number):
 # Transfer endpoint
 @app.route('/transfer', methods=['POST'])
 @token_required
-def transfer(current_user):
-    try:
-        data = request.get_json()
-        # Vulnerability: No input validation on amount
         # Vulnerability: Negative amounts allowed
         amount = float(data.get('amount'))
+        to_account = data.get('to_account')
+
+        if not math.isfinite(amount) or amount <= 0:
+            return jsonify({
+                'status': 'error',
+                'message': 'Transfer amount must be positive'
+            }), 400
+
+        recipient = execute_query(
+            "SELECT id FROM users WHERE account_number = %s",
+            (to_account,)
+        )
+        if not recipient:
+            return jsonify({
+                'status': 'error',
+                'message': 'Recipient account not found'
+            }), 404
+        
+        # Get sender's account number
+        # Race condition vulnerability in checking balance
         to_account = data.get('to_account')
         
         # Get sender's account number
@@ -545,7 +562,7 @@ def transfer(current_user):
         from_account = sender_data[0]
         balance = float(sender_data[1])
         
-        if balance >= abs(amount):  # Check against absolute value of amount
+        if balance >= amount:
             try:
                 # Vulnerability: Negative transfers possible
                 # Vulnerability: No transaction atomicity
