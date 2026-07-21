@@ -495,15 +495,27 @@ def dashboard(current_user):
                          loans=loans,
                          is_admin=current_user.get('is_admin', False))
 
+def can_access_account(current_user, account_number):
+    if current_user.get('is_admin'):
+        return True
+
+    user_account = execute_query(
+        "SELECT account_number FROM users WHERE id = %s",
+        (current_user['user_id'],)
+    )
+    return bool(user_account and user_account[0][0] == account_number)
+
 # Check balance endpoint
 @app.route('/check_balance/<account_number>')
-def check_balance(account_number):
-    # Broken Object Level Authorization (BOLA) vulnerability
-    # No authentication check, anyone can check any account balance
+@token_required
+def check_balance(current_user, account_number):
     try:
-        # Vulnerability: SQL Injection possible
+        if not can_access_account(current_user, account_number):
+            return jsonify({'status': 'error', 'message': 'Forbidden'}), 403
+
         user = execute_query(
-            f"SELECT username, balance FROM users WHERE account_number='{account_number}'"
+            "SELECT username, balance FROM users WHERE account_number = %s",
+            (account_number,)
         )
         
         if user:
@@ -593,10 +605,12 @@ def transfer(current_user):
 
 # Get transaction history endpoint
 @app.route('/transactions/<account_number>')
-def get_transaction_history(account_number):
-    # Vulnerability: No authentication required (BOLA)
-    # Vulnerability: SQL Injection possible
+@token_required
+def get_transaction_history(current_user, account_number):
     try:
+        if not can_access_account(current_user, account_number):
+            return jsonify({'status': 'error', 'message': 'Forbidden'}), 403
+
         query = f"""
             SELECT 
                 id,
@@ -607,11 +621,11 @@ def get_transaction_history(account_number):
                 transaction_type,
                 description
             FROM transactions 
-            WHERE from_account='{account_number}' OR to_account='{account_number}'
+            WHERE from_account = %s OR to_account = %s
             ORDER BY timestamp DESC
         """
         
-        transactions = execute_query(query)
+        transactions = execute_query(query, (account_number, account_number))
         
         # Vulnerability: Information disclosure
         transaction_list = [{
@@ -632,12 +646,11 @@ def get_transaction_history(account_number):
             'server_time': str(datetime.now())  # Vulnerability: Server information disclosure
         })
         
-    except Exception as e:
         return jsonify({
             'status': 'error',
             'message': str(e),
-            'query': query,  # Vulnerability: Query exposure
             'account_number': account_number
+        }), 500
         }), 500
 
 @app.route('/upload_profile_picture', methods=['POST'])
