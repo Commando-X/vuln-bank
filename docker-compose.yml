@@ -9,8 +9,8 @@ services:
 
     environment:
       - DB_NAME=vulnerable_bank
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
+      - DB_USER=${POSTGRES_USER:?POSTGRES_USER is required}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       - DB_HOST=db 
       - DB_PORT=5432
     depends_on:
@@ -20,49 +20,26 @@ services:
       - ./static/uploads:/app/static/uploads
     networks:
       - vuln_network
-    labels:
-      # Opt this container in to autoheal (see the `autoheal` service below).
-      - autoheal=true
 
   db:
     image: postgres:13
-    restart: unless-stopped
     environment:
       - POSTGRES_DB=vulnerable_bank
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    ports:
-      - "5432:5432"
+      - POSTGRES_USER=${POSTGRES_USER:?POSTGRES_USER is required}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - vuln_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d vulnerable_bank"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d vulnerable_bank"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-  # Restarts containers Docker marks `unhealthy`.
-  autoheal:
-    image: willfarrell/autoheal:latest
-    restart: unless-stopped
-    environment:
-      # Only watch containers explicitly labelled `autoheal=true` (the web
-      # app), never every container on the host.
-      - AUTOHEAL_CONTAINER_LABEL=autoheal
-      # Poll container health every 10s.
-      - AUTOHEAL_INTERVAL=10
-      # Grace period before monitoring a freshly (re)started container, so a
-      # normal slow boot isn't treated as a failure.
-      - AUTOHEAL_START_PERIOD=30
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - vuln_network
-
 volumes:
+  postgres_data:
   postgres_data:
 
 networks:
