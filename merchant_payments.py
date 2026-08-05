@@ -123,12 +123,19 @@ def record_merchant_payment(merchant_id, card_id, amount, currency, status, merc
         INSERT INTO merchant_payments
         (merchant_id, card_id, amount, currency, status, merchant_order_id, authorization_code, failure_reason)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-        """,
-        (merchant_id, card_id, amount, currency, status, merchant_order_id, authorization_code, failure_reason)
-    )
     return result[0][0] if result else None
 
+
+def mask_card_number(card_number):
+    if not card_number:
+        return None
+    card_number = str(card_number)
+    return f"****{card_number[-4:]}"
+
+
+def init_merchant_payment_routes(app):
+    @app.route('/merchant')
+    def merchant_home():
 
 def init_merchant_payment_routes(app):
     @app.route('/merchant')
@@ -391,22 +398,15 @@ def init_merchant_payment_routes(app):
                     'authorization_code': authorization_code,
                     'amount': amount,
                     'currency': currency,
-                    'status': 'completed',
-                    'description': description,
-                    'created_at': str(datetime.now())
                 },
                 'card_details': {
                     'card_id': card_id,
-                    'user_id': card[1],
-                    'account_number': card[11],
-                    'username': card[12],
-                    'card_number': card[2],
-                    'cvv': stored_cvv,
-                    'expiry_date': stored_expiry,
+                    'card_number': mask_card_number(card[2]),
                     'card_currency': card_currency,
                     'requested_currency': currency,
-                    'balance_before': card_balance,
-                    'balance_after': card_balance - amount,
+                    'card_type': card[9],
+                    'card_limit': float(card[10])
+                },
                     'card_type': card[9],
                     'card_limit': float(card[10])
                 },
@@ -441,7 +441,6 @@ def init_merchant_payment_routes(app):
                     m.email,
                     mp.card_id,
                     vc.card_number,
-                    vc.cvv,
                     mp.amount,
                     mp.currency,
                     mp.status,
@@ -471,24 +470,23 @@ def init_merchant_payment_routes(app):
                     'id': payment[0],
                     'merchant_id': payment[1],
                     'merchant_name': payment[2],
+                    'merchant_name': payment[2],
                     'merchant_email': payment[3],
                     'card_id': payment[4],
-                    'card_number': payment[5],
-                    'cvv': payment[6],
-                    'amount': float(payment[7]),
-                    'currency': payment[8],
-                    'payment_status': payment[9],
-                    'merchant_order_id': payment[10],
-                    'authorization_code': payment[11],
-                    'failure_reason': payment[12],
-                    'created_at': str(payment[13])
+                    'card_number': mask_card_number(payment[5]),
+                    'amount': float(payment[6]),
+                    'currency': payment[7],
+                    'payment_status': payment[8],
+                    'merchant_order_id': payment[9],
+                    'authorization_code': payment[10],
+                    'failure_reason': payment[11],
+                    'created_at': str(payment[12])
                 },
                 'debug_info': {
-                    'looked_up_by_merchant': current_merchant
+                    'looked_up_by_merchant_id': current_merchant.get('id')
                 }
             })
 
-        except Exception as e:
             return jsonify({
                 'status': 'error',
                 'message': str(e)
@@ -527,23 +525,23 @@ def init_merchant_payment_routes(app):
                     'merchant_id': payment[1],
                     'merchant_name': payment[2],
                     'card_id': payment[3],
-                    'card_number': payment[4],
+                    'merchant_id': payment[1],
+                    'merchant_name': payment[2],
+                    'card_id': payment[3],
+                    'card_number': mask_card_number(payment[4]),
                     'amount': float(payment[5]),
                     'currency': payment[6],
                     'payment_status': payment[7],
-                    'merchant_order_id': payment[8],
-                    'authorization_code': payment[9],
-                    'failure_reason': payment[10],
                     'created_at': str(payment[11])
                 } for payment in payments],
                 'debug_info': {
-                    'looked_up_by_merchant': current_merchant
+                    'created_at': str(payment[11])
+                } for payment in payments],
+                'debug_info': {
+                    'looked_up_by_merchant_id': current_merchant.get('id')
                 }
             })
 
-        except Exception as e:
-            return jsonify({
-                'status': 'error',
                 'message': str(e)
             }), 500
 
@@ -580,22 +578,22 @@ def init_merchant_payment_routes(app):
                     'id': payment[0],
                     'merchant_id': payment[1],
                     'merchant_name': payment[2],
+                    'merchant_id': payment[1],
+                    'merchant_name': payment[2],
                     'card_id': payment[3],
-                    'card_number': payment[4],
+                    'card_number': mask_card_number(payment[4]),
                     'amount': float(payment[5]),
                     'currency': payment[6],
                     'payment_status': payment[7],
-                    'merchant_order_id': payment[8],
-                    'authorization_code': payment[9],
                     'failure_reason': payment[10],
                     'created_at': str(payment[11])
                 } for payment in payments],
+                    'created_at': str(payment[11])
+                } for payment in payments],
                 'debug_info': {
-                    'looked_up_by_merchant': current_merchant
+                    'looked_up_by_merchant_id': current_merchant.get('id')
                 }
             })
-
-        except Exception as e:
             return jsonify({
                 'status': 'error',
                 'message': str(e)
