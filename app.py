@@ -20,6 +20,8 @@ from database import (
 from ai_agent_deepseek import ai_agent
 from transaction_graphql import transaction_graphql_schema
 from merchant_payments import init_merchant_payment_routes
+from username_validation import username_validation_error
+from exposed_env_files import EXPOSED_ENV_FILES
 import time
 from functools import wraps
 from collections import defaultdict
@@ -307,11 +309,19 @@ def register():
             # Mass Assignment Vulnerability - Client can send additional parameters
             user_data = request.get_json()  # Changed to get_json()
             account_number = generate_account_number()
+            username = user_data.get('username') if isinstance(user_data, dict) else None
+
+            validation_error = username_validation_error(username)
+            if validation_error:
+                return jsonify({
+                    'status': 'error',
+                    'message': validation_error
+                }), 400
             
             # Check if username exists
             existing_user = execute_query(
                 "SELECT username FROM users WHERE username = %s",
-                (user_data.get('username'),)
+                (username,)
             )
             
             if existing_user and existing_user[0]:
@@ -325,7 +335,7 @@ def register():
             # Build dynamic query based on user input fields
             # Vulnerability: Mass Assignment possible here
             fields = ['username', 'password', 'account_number']
-            values = [user_data.get('username'), user_data.get('password'), account_number]
+            values = [username, user_data.get('password'), account_number]
             
             # Include any additional parameters from user input
             for key, value in user_data.items():
@@ -769,6 +779,17 @@ def update_bio(current_user):
             'message': str(e)
         }), 500
 
+# Sensitive environment files exposed from the web root
+@app.route('/.env', methods=['GET'])
+@app.route('/.env.bak', methods=['GET'])
+def exposed_env_file():
+    filename = request.path.lstrip('/')
+    response = make_response(EXPOSED_ENV_FILES[filename], 200)
+    response.mimetype = 'text/plain'
+    response.headers['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
+
+
 # INTERNAL-ONLY ENDPOINTS FOR SSRF DEMO (INTENTIONALLY SENSITIVE)
 def _is_loopback_request():
     try:
@@ -1139,6 +1160,13 @@ def create_admin(current_user):
         username = data.get('username')
         password = data.get('password')
         account_number = generate_account_number()
+
+        validation_error = username_validation_error(username)
+        if validation_error:
+            return jsonify({
+                'status': 'error',
+                'message': validation_error
+            }), 400
         
         # Vulnerability: SQL injection possible
         # Vulnerability: No password complexity requirements

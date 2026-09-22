@@ -108,7 +108,9 @@ def init_db():
                     profile_picture TEXT,
                     reset_pin TEXT,  -- Vulnerability: Reset PINs stored in plaintext
                     bio TEXT,  -- Vulnerability: Stored XSS - User bio without sanitization
-                    is_suspended BOOLEAN DEFAULT FALSE
+                    is_suspended BOOLEAN DEFAULT FALSE,
+                    username_xss_detected_at TIMESTAMPTZ,
+                    bio_xss_detected_at TIMESTAMPTZ
                 )
             ''')
 
@@ -142,7 +144,8 @@ def init_db():
                     amount DECIMAL(15, 2) NOT NULL,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     transaction_type TEXT NOT NULL,
-                    description TEXT
+                    description TEXT,
+                    description_xss_detected_at TIMESTAMPTZ
                 )
             ''')
             
@@ -319,6 +322,128 @@ def init_db():
                 (4, 'Universal Bank Card', 'CC001', 'Credit Card Payments', 50)
                 ON CONFLICT DO NOTHING
             """)
+
+            # Stored XSS is intentional in VulnBank. These internal timestamps do
+            # not sanitize or block payloads; they only let the cleanup worker
+            # neutralize HTML-like values after the configured testing window.
+            cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username_xss_detected_at TIMESTAMPTZ")
+            cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio_xss_detected_at TIMESTAMPTZ")
+            cursor.execute("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS description_xss_detected_at TIMESTAMPTZ")
+
+            cursor.execute('''
+                CREATE OR REPLACE FUNCTION track_user_xss_payloads()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    IF TG_OP = 'INSERT' THEN
+                        NEW.username_xss_detected_at := CASE
+                            WHEN POSITION('<' IN COALESCE(NEW.username, '')) > 0 THEN CURRENT_TIMESTAMP
+                            ELSE NULL
+                        END;
+                        NEW.bio_xss_detected_at := CASE
+                            WHEN POSITION('<' IN COALESCE(NEW.bio, '')) > 0 THEN CURRENT_TIMESTAMP
+                            ELSE NULL
+                        END;
+                    ELSE
+                        IF NEW.username IS DISTINCT FROM OLD.username THEN
+                            NEW.username_xss_detected_at := CASE
+                                WHEN POSITION('<' IN COALESCE(NEW.username, '')) > 0 THEN CURRENT_TIMESTAMP
+                                ELSE NULL
+                            END;
+                        ELSE
+                            NEW.username_xss_detected_at := OLD.username_xss_detected_at;
+                        END IF;
+
+                        IF NEW.bio IS DISTINCT FROM OLD.bio THEN
+                            NEW.bio_xss_detected_at := CASE
+                                WHEN POSITION('<' IN COALESCE(NEW.bio, '')) > 0 THEN CURRENT_TIMESTAMP
+                                ELSE NULL
+                            END;
+                        ELSE
+                            NEW.bio_xss_detected_at := OLD.bio_xss_detected_at;
+                        END IF;
+                    END IF;
+
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql
+            ''')
+            cursor.execute("DROP TRIGGER IF EXISTS track_user_xss_payloads_trigger ON users")
+            cursor.execute('''
+                CREATE TRIGGER track_user_xss_payloads_trigger
+                BEFORE INSERT OR UPDATE OF username, bio ON users
+                FOR EACH ROW EXECUTE FUNCTION track_user_xss_payloads()
+            ''')
+
+            cursor.execute('''
+                CREATE OR REPLACE FUNCTION track_transaction_xss_payloads()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    IF TG_OP = 'INSERT' THEN
+                        NEW.description_xss_detected_at := CASE
+                            WHEN POSITION('<' IN COALESCE(NEW.description, '')) > 0 THEN CURRENT_TIMESTAMP
+                            ELSE NULL
+                        END;
+                    ELSE
+                        IF NEW.description IS DISTINCT FROM OLD.description THEN
+                            NEW.description_xss_detected_at := CASE
+                                WHEN POSITION('<' IN COALESCE(NEW.description, '')) > 0 THEN CURRENT_TIMESTAMP
+                                ELSE NULL
+                            END;
+                        ELSE
+                            NEW.description_xss_detected_at := OLD.description_xss_detected_at;
+                        END IF;
+                    END IF;
+
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql
+            ''')
+            cursor.execute("DROP TRIGGER IF EXISTS track_transaction_xss_payloads_trigger ON transactions")
+            cursor.execute('''
+                CREATE TRIGGER track_transaction_xss_payloads_trigger
+                BEFORE INSERT OR UPDATE OF description ON transactions
+                FOR EACH ROW EXECUTE FUNCTION track_transaction_xss_payloads()
+            ''')
+
+            # Existing stored payloads begin their 15-minute window when this
+            # migration is first deployed. Subsequent restarts preserve the
+            # original detection timestamp.
+            cursor.execute('''
+                UPDATE users
+                SET username_xss_detected_at = CURRENT_TIMESTAMP
+                WHERE username_xss_detected_at IS NULL
+                  AND POSITION('<' IN username) > 0
+            ''')
+            cursor.execute('''
+                UPDATE users
+                SET bio_xss_detected_at = CURRENT_TIMESTAMP
+                WHERE bio_xss_detected_at IS NULL
+                  AND POSITION('<' IN COALESCE(bio, '')) > 0
+            ''')
+            cursor.execute('''
+                UPDATE transactions
+                SET description_xss_detected_at = CURRENT_TIMESTAMP
+                WHERE description_xss_detected_at IS NULL
+                  AND POSITION('<' IN COALESCE(description, '')) > 0
+            ''')
+
+            # Partial indexes keep the minute-by-minute sweep limited to rows
+            # that actually contain a tracked payload.
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS users_username_xss_detected_idx
+                ON users (username_xss_detected_at)
+                WHERE username_xss_detected_at IS NOT NULL
+            ''')
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS users_bio_xss_detected_idx
+                ON users (bio_xss_detected_at)
+                WHERE bio_xss_detected_at IS NOT NULL
+            ''')
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS transactions_description_xss_detected_idx
+                ON transactions (description_xss_detected_at)
+                WHERE description_xss_detected_at IS NOT NULL
+            ''')
             
             conn.commit()
             print("Database initialized successfully")

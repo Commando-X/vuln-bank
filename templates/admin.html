@@ -361,7 +361,7 @@
                     <form id="createAdminForm" class="settings-form">
                         <div class="form-group">
                             <label for="admin_username">Username</label>
-                            <input type="text" id="admin_username" name="username" placeholder="Enter admin username" required>
+                            <input type="text" id="admin_username" name="username" placeholder="Enter admin username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_-]+" title="3–30 characters: letters, numbers, underscores, and hyphens only">
                         </div>
                         <div class="form-group">
                             <label for="admin_password">Password</label>
