@@ -3,8 +3,8 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "5000:5000"
-      - "80:5000"
+      - "${VULNBANK_WEB_PORT:-5000}:5000"
+      - "${VULNBANK_HTTP_PORT:-80}:5000"
       # - "443:5000" 
 
     environment:
@@ -23,6 +23,28 @@ services:
     labels:
       # Opt this container in to autoheal (see the `autoheal` service below).
       - autoheal=true
+
+  # Keeps intentional stored-XSS payloads usable for a short testing window,
+  # then neutralizes the stored values without changing any vulnerable sink.
+  xss-cleaner:
+    build: .
+    restart: unless-stopped
+    command: ["python", "xss_cleanup.py"]
+    environment:
+      - DB_NAME=vulnerable_bank
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - XSS_PAYLOAD_TTL_MINUTES=${XSS_PAYLOAD_TTL_MINUTES:-15}
+      - XSS_CLEANUP_INTERVAL_SECONDS=${XSS_CLEANUP_INTERVAL_SECONDS:-60}
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    networks:
+      - vuln_network
 
   db:
     image: postgres:13

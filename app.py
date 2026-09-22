@@ -20,6 +20,7 @@ from database import (
 from ai_agent_deepseek import ai_agent
 from transaction_graphql import transaction_graphql_schema
 from merchant_payments import init_merchant_payment_routes
+from username_validation import username_validation_error
 import time
 from functools import wraps
 from collections import defaultdict
@@ -307,11 +308,19 @@ def register():
             # Mass Assignment Vulnerability - Client can send additional parameters
             user_data = request.get_json()  # Changed to get_json()
             account_number = generate_account_number()
+            username = user_data.get('username') if isinstance(user_data, dict) else None
+
+            validation_error = username_validation_error(username)
+            if validation_error:
+                return jsonify({
+                    'status': 'error',
+                    'message': validation_error
+                }), 400
             
             # Check if username exists
             existing_user = execute_query(
                 "SELECT username FROM users WHERE username = %s",
-                (user_data.get('username'),)
+                (username,)
             )
             
             if existing_user and existing_user[0]:
@@ -325,7 +334,7 @@ def register():
             # Build dynamic query based on user input fields
             # Vulnerability: Mass Assignment possible here
             fields = ['username', 'password', 'account_number']
-            values = [user_data.get('username'), user_data.get('password'), account_number]
+            values = [username, user_data.get('password'), account_number]
             
             # Include any additional parameters from user input
             for key, value in user_data.items():
@@ -1139,6 +1148,13 @@ def create_admin(current_user):
         username = data.get('username')
         password = data.get('password')
         account_number = generate_account_number()
+
+        validation_error = username_validation_error(username)
+        if validation_error:
+            return jsonify({
+                'status': 'error',
+                'message': validation_error
+            }), 400
         
         # Vulnerability: SQL injection possible
         # Vulnerability: No password complexity requirements

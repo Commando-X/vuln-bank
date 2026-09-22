@@ -168,6 +168,7 @@ The Docker setup includes a few operational safeguards so the app can recover wi
 - `db` exposes a health check, and `web` waits for Postgres readiness before starting.
 - `web` runs the Flask development server with `debug=True` (intentional — preserves the training scenarios that target the Werkzeug debugger).
 - `web` exposes `GET /healthz` so the container can report whether the app and database are actually usable.
+- `xss-cleaner` preserves the intentional stored-XSS behavior, but neutralizes stored username, bio, and transaction-description payloads after 15 minutes. Set `XSS_PAYLOAD_TTL_MINUTES` and `XSS_CLEANUP_INTERVAL_SECONDS` to adjust the window and sweep frequency.
 
 This keeps the intentionally vulnerable application behavior intact while making the container lifecycle more resilient.
 
