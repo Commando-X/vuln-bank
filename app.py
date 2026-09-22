@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation
 import random
 import string
 import html
@@ -41,6 +42,21 @@ init_connection_pool()
 
 SWAGGER_URL = '/api/docs'
 API_URL = '/static/openapi.json'
+
+
+def parse_positive_loan_amount(value):
+    if isinstance(value, bool) or value is None or value == '':
+        raise ValueError('Loan amount must be a valid number')
+
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError('Loan amount must be a valid number')
+
+    if not amount.is_finite() or amount <= 0:
+        raise ValueError('Loan amount must be greater than zero')
+
+    return amount
 
 swaggerui_blueprint = get_swaggerui_blueprint(
     SWAGGER_URL,
@@ -931,9 +947,14 @@ def metadata_iam_role():
 @token_required
 def request_loan(current_user):
     try:
-        data = request.get_json()
-        # Vulnerability: No input validation on amount
-        amount = float(data.get('amount'))
+        data = request.get_json() or {}
+        try:
+            amount = parse_positive_loan_amount(data.get('amount'))
+        except ValueError as error:
+            return jsonify({
+                'status': 'error',
+                'message': str(error)
+            }), 400
         
         execute_query(
             "INSERT INTO loans (user_id, amount) VALUES (%s, %s)",
@@ -1015,8 +1036,15 @@ def approve_loan(current_user, loan_id):
         )[0]
         
         if loan:
+            try:
+                loan_amount = parse_positive_loan_amount(loan[2])
+            except ValueError:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Loan amount must be greater than zero'
+                }), 400
+
             # Vulnerability: No transaction atomicity
-            # Vulnerability: No validation of loan amount
             queries = [
                 (
                     "UPDATE loans SET status='approved' WHERE id = %s",
@@ -1024,7 +1052,7 @@ def approve_loan(current_user, loan_id):
                 ),
                 (
                     "UPDATE users SET balance = balance + %s WHERE id = %s",
-                    (float(loan[2]), loan[1])
+                    (loan_amount, loan[1])
                 )
             ]
             execute_transaction(queries)
@@ -1034,14 +1062,14 @@ def approve_loan(current_user, loan_id):
                 'message': 'Loan approved successfully',
                 'debug_info': {  # Vulnerability: Information disclosure
                     'loan_id': loan_id,
-                    'loan_amount': float(loan[2]),
+                    'loan_amount': float(loan_amount),
                     'user_id': loan[1],
                     'approved_by': current_user['username'],
                     'approved_at': str(datetime.now()),
                     'loan_details': {  # Excessive data exposure
                         'id': loan[0],
                         'user_id': loan[1],
-                        'amount': float(loan[2]),
+                        'amount': float(loan_amount),
                         'status': loan[3]
                     }
                 }
