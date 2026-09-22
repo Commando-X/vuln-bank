@@ -21,6 +21,7 @@ from ai_agent_deepseek import ai_agent
 from transaction_graphql import transaction_graphql_schema
 from merchant_payments import init_merchant_payment_routes
 from username_validation import username_validation_error
+from exposed_env_files import EXPOSED_ENV_FILES
 import time
 from functools import wraps
 from collections import defaultdict
@@ -777,6 +778,17 @@ def update_bio(current_user):
             'status': 'error',
             'message': str(e)
         }), 500
+
+# Sensitive environment files exposed from the web root
+@app.route('/.env', methods=['GET'])
+@app.route('/.env.bak', methods=['GET'])
+def exposed_env_file():
+    filename = request.path.lstrip('/')
+    response = make_response(EXPOSED_ENV_FILES[filename], 200)
+    response.mimetype = 'text/plain'
+    response.headers['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
+
 
 # INTERNAL-ONLY ENDPOINTS FOR SSRF DEMO (INTENTIONALLY SENSITIVE)
 def _is_loopback_request():
