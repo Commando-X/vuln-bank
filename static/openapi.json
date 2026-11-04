@@ -51,10 +51,6 @@
     {
       "name": "ai-agent",
       "description": "AI Customer Support Agent (Intentionally Vulnerable)"
-    },
-    {
-      "name": "internal",
-      "description": "Internal-only endpoints for SSRF demonstration"
     }
   ],
   "paths": {
@@ -411,96 +407,6 @@
           "200": {
             "description": "Upload successful"
           }
-        }
-      }
-    },
-    "/upload_profile_picture_url": {
-      "post": {
-        "tags": ["users"],
-        "summary": "Upload profile picture by URL (Intentionally Vulnerable)",
-        "description": "Fetches an image from a user-provided URL and saves it as the profile picture. Vulnerable to SSRF and unsafe download behaviors (no allowlist, follows redirects, SSL verify disabled, no content-type/size validation).",
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "image_url": {
-                    "type": "string",
-                    "example": "http://127.0.0.1:8080/image.png"
-                  }
-                },
-                "required": ["image_url"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Image fetched and saved"
-          },
-          "400": {
-            "description": "Invalid or unreachable URL"
-          }
-        }
-      }
-    },
-    "/internal/secret": {
-      "get": {
-        "tags": ["internal"],
-        "summary": "Internal secrets (SSRF demo)",
-        "description": "Returns sensitive application secrets and environment previews. Intended to be reachable only from loopback; fetch via SSRF using the URL-import endpoint.",
-        "responses": {
-          "200": {"description": "Secrets returned"},
-          "403": {"description": "Forbidden (non-loopback)"}
-        }
-      }
-    },
-    "/internal/config.json": {
-      "get": {
-        "tags": ["internal"],
-        "summary": "Internal config (SSRF demo)",
-        "description": "Returns app configuration JSON. Intended for SSRF demonstrations.",
-        "responses": {
-          "200": {"description": "Config returned"},
-          "403": {"description": "Forbidden (non-loopback)"}
-        }
-      }
-    },
-    "/latest/meta-data/": {
-      "get": {
-        "tags": ["internal"],
-        "summary": "Cloud metadata root (mock)",
-        "description": "Mimics a cloud instance metadata service root directory.",
-        "responses": {
-          "200": {"description": "Directory listing returned"},
-          "403": {"description": "Forbidden (non-loopback)"}
-        }
-      }
-    },
-    "/latest/meta-data/iam/security-credentials/": {
-      "get": {
-        "tags": ["internal"],
-        "summary": "Metadata IAM roles (mock)",
-        "responses": {
-          "200": {"description": "Role list returned"},
-          "403": {"description": "Forbidden (non-loopback)"}
-        }
-      }
-    },
-    "/latest/meta-data/iam/security-credentials/vulnbank-role": {
-      "get": {
-        "tags": ["internal"],
-        "summary": "Metadata IAM role credentials (mock)",
-        "responses": {
-          "200": {"description": "Credentials document returned"},
-          "403": {"description": "Forbidden (non-loopback)"}
         }
       }
     },
