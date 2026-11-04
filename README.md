@@ -5,6 +5,8 @@ A deliberately vulnerable web application for practicing application security te
 ⚠️ **WARNING: This application is intentionally vulnerable and should only be used for educational purposes in isolated environments.**
 
 ![image](https://github.com/user-attachments/assets/7fda0106-b083-48d6-8629-f7ee3c8eb73d)
+<img width="1501" height="861" alt="image" src="https://github.com/user-attachments/assets/419ecf5a-fcdf-49af-8c96-85c9dd60fce4" />
+
 
 ## Overview
 
