@@ -32,7 +32,8 @@ This project is a simple banking application with multiple security vulnerabilit
 - 📱 Bill Payments System
 - 🤖 AI Customer Support Agent (Real LLM with DeepSeek API / Mock Mode)
 
-![image](https://github.com/user-attachments/assets/f8d14d62-d71e-41f3-85c7-133553a75989)
+<img width="1490" height="847" alt="image" src="https://github.com/user-attachments/assets/eeae30a4-0938-411e-b374-9ab07c7c15ae" />
+
 
 ### Implemented Vulnerabilities
 
