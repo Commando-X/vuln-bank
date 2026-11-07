@@ -486,43 +486,71 @@ def init_audit_routes(app):
             offset = request.args.get('offset', 0)
             order = request.args.get('order', 'created_at DESC')
 
+            # Fix (M4-R01): every filter value is bound as a parameter.
             conditions = []
+            params = []
 
             if search:
                 conditions.append(
-                    "(event_type ILIKE '%{search}%' "
-                    "OR actor_username ILIKE '%{search}%' "
-                    "OR target ILIKE '%{search}%' "
-                    "OR details ILIKE '%{search}%' "
-                    "OR user_agent ILIKE '%{search}%')".format(search=search)
+                    "(event_type ILIKE %s OR actor_username ILIKE %s OR target ILIKE %s "
+                    "OR details ILIKE %s OR user_agent ILIKE %s)"
                 )
+                like = f"%{search}%"
+                params.extend([like, like, like, like, like])
             if event_type:
-                conditions.append(f"event_type = '{event_type}'")
+                conditions.append("event_type = %s")
+                params.append(event_type)
             if severity:
-                conditions.append(f"severity = '{severity}'")
+                conditions.append("severity = %s")
+                params.append(severity)
             if actor:
-                conditions.append(f"actor_username ILIKE '%{actor}%'")
+                conditions.append("actor_username ILIKE %s")
+                params.append(f"%{actor}%")
             if user_id:
-                conditions.append(f"actor_id = {user_id}")
+                try:
+                    uid = int(user_id)
+                except (ValueError, TypeError):
+                    return jsonify({'status': 'error', 'message': 'Invalid user_id'}), 400
+                conditions.append("actor_id = %s")
+                params.append(uid)
             if date_from:
-                conditions.append(f"created_at >= '{date_from}'")
+                conditions.append("created_at >= %s")
+                params.append(date_from)
             if date_to:
-                conditions.append(f"created_at <= '{date_to}'")
+                conditions.append("created_at <= %s")
+                params.append(date_to)
 
             where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ''
+
+            # Fix (M4-R01/M4-R15): sort order is a whitelist; limit/offset are
+            # bounded integers, so paging can no longer inject SQL or exhaust RAM.
+            ALLOWED_ORDER = {
+                'created_at DESC': 'created_at DESC',
+                'created_at ASC': 'created_at ASC',
+                'id DESC': 'id DESC',
+                'id ASC': 'id ASC',
+            }
+            order_sql = ALLOWED_ORDER.get(order, 'created_at DESC')
+            try:
+                limit = min(max(int(limit), 1), 500)
+                offset = max(int(offset), 0)
+            except (ValueError, TypeError):
+                limit, offset = 100, 0
 
             entries = execute_query(
                 f"""
                 SELECT {AUDIT_TABLE_COLUMNS}
                 FROM audit_log
                 {where_clause}
-                ORDER BY {order}
-                LIMIT {limit} OFFSET {offset}
-                """
+                ORDER BY {order_sql}
+                LIMIT %s OFFSET %s
+                """,
+                tuple(params) + (limit, offset),
             )
 
             total = execute_query(
-                f"SELECT COUNT(*) FROM audit_log{where_clause}"
+                f"SELECT COUNT(*) FROM audit_log{where_clause}",
+                tuple(params),
             )[0][0]
 
             return jsonify({
