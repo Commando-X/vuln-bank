@@ -30,6 +30,8 @@ import hashlib
 import hmac
 import json
 import os
+import re
+import sys
 from datetime import datetime
 
 from flask import Response, jsonify, render_template, request, send_file
@@ -225,18 +227,21 @@ def get_client_ip():
         return request.remote_addr
 
 
-def _sanitize_for_log(value):
+def _sanitize_for_log(value, max_length=1024):
     """
-    Normalize untrusted values before they reach the audit trail.
-
-    Intended behavior once Phase 3 wires this seam: coerce to text, collapse
-    CR/LF pairs, strip ANSI escape sequences and clamp the length, so a single
-    attacker-controlled header can never append extra records to the trail.
-
-    Seam: nothing calls this today, so every value recorded by record_event()
-    reaches the database and stdout exactly as the client sent it.
+    Fix (M4-R07): normalize untrusted values before they reach the audit trail.
+    Coerce to text, strip CR/LF and other control characters (so a single
+    attacker-controlled header cannot forge extra log lines), and clamp the
+    length.
     """
-    return value
+    if value is None:
+        return None
+    text = str(value)
+    # Remove CR, LF, tab and other C0/C1 control characters.
+    text = re.sub(r'[\x00-\x1f\x7f-\x9f]', ' ', text)
+    if len(text) > max_length:
+        text = text[:max_length]
+    return text
 
 
 def build_log_context():
@@ -248,13 +253,15 @@ def build_log_context():
     the exact bytes an investigator will later read as platform-captured
     evidence.
     """
+    # Fix (M4-R07): sanitize all client-controlled metadata before it is stored
+    # or printed, so injected CR/LF cannot forge extra audit records.
     return {
-        'ip_address': get_client_ip(),
-        'user_agent': request.headers.get('User-Agent', 'unknown'),
-        'referer': request.headers.get('Referer'),
-        'request_id': request.headers.get('X-Request-Id'),
-        'http_method': request.method,
-        'endpoint': request.path,
+        'ip_address': _sanitize_for_log(get_client_ip(), max_length=64),
+        'user_agent': _sanitize_for_log(request.headers.get('User-Agent', 'unknown'), max_length=256),
+        'referer': _sanitize_for_log(request.headers.get('Referer'), max_length=256),
+        'request_id': _sanitize_for_log(request.headers.get('X-Request-Id'), max_length=128),
+        'http_method': _sanitize_for_log(request.method, max_length=16),
+        'endpoint': _sanitize_for_log(request.path, max_length=256),
     }
 
 
@@ -299,54 +306,50 @@ def record_event(event_type, severity='INFO', action=None, target=None, details=
     actor = actor or {}
 
     entry = {
-        'event_type': event_type,
-        'severity': severity,
+        # Fix (M4-R07): sanitize every text field so no CR/LF or control bytes
+        # reach the database or stdout (prevents log/record forging).
+        'event_type': _sanitize_for_log(event_type, 64),
+        'severity': _sanitize_for_log(severity, 32),
         'actor_id': actor.get('user_id'),
-        'actor_username': actor.get('username'),
-        'action': action or event_type,
-        'target': target,
-        'details': details,
+        'actor_username': _sanitize_for_log(actor.get('username'), 128),
+        'action': _sanitize_for_log(action or event_type, 64),
+        'target': _sanitize_for_log(target, 256),
+        'details': _sanitize_for_log(details, 1024),
         'ip_address': context.get('ip_address'),
         'user_agent': context.get('user_agent'),
         'referer': context.get('referer'),
         'request_id': context.get('request_id'),
         'http_method': context.get('http_method'),
         'endpoint': context.get('endpoint'),
-        'result': result,
+        'result': _sanitize_for_log(result, 32),
         'created_at': datetime.now().isoformat(sep=' ', timespec='seconds'),
     }
 
     try:
+        # Fix (M4-R02): fully parameterized INSERT; no attacker-controlled value
+        # is concatenated into the statement.
         execute_query(
-            f"""
+            """
             INSERT INTO audit_log
                 (event_type, severity, actor_id, actor_username, action, target, details,
                  ip_address, user_agent, referer, request_id, http_method, endpoint,
                  result, created_at)
-            VALUES (
-                '{entry['event_type']}',
-                '{entry['severity']}',
-                {entry['actor_id'] if entry['actor_id'] is not None else 'NULL'},
-                '{entry['actor_username'] or ''}',
-                '{entry['action'] or ''}',
-                '{entry['target'] or ''}',
-                '{entry['details'] or ''}',
-                '{entry['ip_address'] or ''}',
-                '{entry['user_agent'] or ''}',
-                '{entry['referer'] or ''}',
-                '{entry['request_id'] or ''}',
-                '{entry['http_method'] or ''}',
-                '{entry['endpoint'] or ''}',
-                '{entry['result'] or ''}',
-                '{entry['created_at']}'
-            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
+            (
+                entry['event_type'], entry['severity'], entry['actor_id'],
+                entry['actor_username'], entry['action'], entry['target'],
+                entry['details'], entry['ip_address'], entry['user_agent'],
+                entry['referer'], entry['request_id'], entry['http_method'],
+                entry['endpoint'], entry['result'], entry['created_at'],
+            ),
             fetch=False
         )
     except Exception as e:
-        # A trail that silently drops records is worse than no trail at all,
-        # because reviewers assume coverage they do not have.
-        print(f"Audit write failed for {event_type}: {e}")
+        # Fix (M4-R02): do not drop records silently; surface the failure loudly
+        # (to stderr) so missing audit coverage is visible to operators.
+        sys.stderr.write(f"[AUDIT][ERROR] Audit write failed for {event_type}: {e}\n")
+        sys.stderr.flush()
 
     print(render_audit_line(entry))
 
