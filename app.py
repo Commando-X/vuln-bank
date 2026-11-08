@@ -2660,6 +2660,32 @@ def ai_rate_limit_status():
             'message': str(e)
         }), 500
 
+@app.after_request
+def set_security_headers(response):
+    """
+    Fix (M4-R11): emit global security headers on every response.
+
+    The strongest XSS defense is the output encoding applied in each module;
+    this CSP adds defense in depth. script/style still allow 'unsafe-inline'
+    because the templates use inline scripts and handlers; externalizing them
+    and moving to a nonce-based strict policy is the recommended follow-up.
+    """
+    response.headers.setdefault(
+        'Content-Security-Policy',
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none'"
+    )
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    response.headers.setdefault('Referrer-Policy', 'no-referrer')
+    return response
+
+
 if __name__ == '__main__':
     init_db()
     # Vulnerability: Debug mode enabled in production
