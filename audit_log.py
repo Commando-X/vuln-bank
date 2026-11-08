@@ -36,8 +36,29 @@ from datetime import datetime
 
 from flask import Response, jsonify, render_template, request, send_file
 
+from functools import wraps
 from auth import token_required
 from database import execute_query
+
+
+def admin_required(f):
+    """
+    Fix (M4-R03/M4-R04): every audit route (read and write) requires an admin
+    verified against the database on each request, not the token claim.
+    """
+    @wraps(f)
+    @token_required
+    def decorated(current_user, *args, **kwargs):
+        rows = execute_query(
+            "SELECT is_admin, is_suspended FROM users WHERE id = %s",
+            (current_user.get('user_id'),),
+        )
+        if not rows or rows[0][1]:
+            return jsonify({'error': 'Forbidden'}), 403
+        if not rows[0][0]:
+            return jsonify({'error': 'Admin privilege required'}), 403
+        return f(current_user, *args, **kwargs)
+    return decorated
 
 
 AUDIT_SEVERITIES = ['INFO', 'NOTICE', 'WARNING', 'ERROR', 'CRITICAL']
@@ -452,7 +473,7 @@ def json_detail(payload):
 
 def init_audit_routes(app):
     @app.route('/admin/audit')
-    @token_required
+    @admin_required
     def audit_console(current_user):
         if not current_user.get('is_admin'):
             return 'Access Denied', 403
@@ -466,7 +487,7 @@ def init_audit_routes(app):
         )
 
     @app.route('/api/audit/logs', methods=['GET'])
-    @token_required
+    @admin_required
     def list_audit_logs(current_user):
         """
         Filter and page the audit trail.
@@ -589,7 +610,7 @@ def init_audit_routes(app):
             }), 500
 
     @app.route('/api/audit/logs/export', methods=['GET'])
-    @token_required
+    @admin_required
     def export_audit_logs(current_user):
         """
         Export the trail as CSV or JSON.
@@ -642,7 +663,7 @@ def init_audit_routes(app):
             }), 500
 
     @app.route('/api/audit/logs/<int:log_id>', methods=['GET'])
-    @token_required
+    @admin_required
     def get_audit_log(current_user, log_id):
         """
         Fetch a single audit entry.
@@ -685,7 +706,7 @@ def init_audit_routes(app):
             }), 500
 
     @app.route('/api/audit/logs/<int:log_id>/signature', methods=['GET'])
-    @token_required
+    @admin_required
     def get_audit_log_signature(current_user, log_id):
         """
         Report the integrity verdict for one entry.
@@ -730,7 +751,7 @@ def init_audit_routes(app):
             }), 500
 
     @app.route('/admin/audit/integrity-check', methods=['GET'])
-    @token_required
+    @admin_required
     def audit_integrity_check(current_user):
         """
         Sweep the whole trail and report tampering.
@@ -790,7 +811,7 @@ def init_audit_routes(app):
             }), 500
 
     @app.route('/api/audit/stats', methods=['GET'])
-    @token_required
+    @admin_required
     def audit_stats(current_user):
         """
         Aggregate counters for the console metric cards.
@@ -878,7 +899,7 @@ def init_audit_routes(app):
             }), 500
 
     @app.route('/api/audit/tail', methods=['GET'])
-    @token_required
+    @admin_required
     def audit_tail(current_user):
         """
         Stream the most recent events as plain text lines.
@@ -919,7 +940,7 @@ def init_audit_routes(app):
             }), 500
 
     @app.route('/api/audit/note', methods=['POST'])
-    @token_required
+    @admin_required
     def add_audit_note(current_user):
         """
         Append a free-text annotation to an event.
@@ -941,36 +962,28 @@ def init_audit_routes(app):
             details = data.get('details', '')
             target = data.get('target') or f"log:{data.get('log_id', 'console')}"
 
-            poisoned_actor = {
-                'user_id': data.get('actor_id', current_user.get('user_id')),
-                'username': data.get('actor_username', current_user.get('username')),
+            # Fix (M4-R06): the actor is always derived from the authenticated
+            # token; the client cannot impersonate another user. The event type
+            # and severity are fixed, not client-supplied.
+            note_actor = {
+                'user_id': current_user.get('user_id'),
+                'username': current_user.get('username'),
             }
-            poisoned_event_type = data.get('event_type', 'AUDIT_NOTE_ADDED')
-            poisoned_severity = data.get('severity', 'INFO')
 
             entry = record_event(
-                poisoned_event_type,
-                severity=poisoned_severity,
+                'AUDIT_NOTE_ADDED',
+                severity='INFO',
                 action='note',
                 target=target,
                 details=details,
-                result=data.get('result', 'SUCCESS'),
-                actor=poisoned_actor,
+                result='SUCCESS',
+                actor=note_actor,
             )
 
             return jsonify({
                 'status': 'success',
                 'message': 'Note added to the audit trail',
                 'entry': entry,
-                'debug_info': {
-                    'recorded_actor': poisoned_actor,
-                    'recorded_event_type': poisoned_event_type,
-                    'recorded_severity': poisoned_severity,
-                    'authenticated_as': current_user['username'],
-                    'identity_overridden': (
-                        poisoned_actor.get('username') != current_user.get('username')
-                    ),
-                },
             })
 
         except Exception as e:
@@ -981,7 +994,7 @@ def init_audit_routes(app):
             }), 500
 
     @app.route('/admin/audit/logs/<int:log_id>', methods=['POST'])
-    @token_required
+    @admin_required
     def edit_audit_log(current_user, log_id):
         """
         Amend an existing audit entry in place.
@@ -1058,7 +1071,7 @@ def init_audit_routes(app):
             }), 500
 
     @app.route('/api/audit/logs/<int:log_id>', methods=['DELETE'])
-    @token_required
+    @admin_required
     def delete_audit_log(current_user, log_id):
         """
         Remove one audit entry.
@@ -1105,7 +1118,7 @@ def init_audit_routes(app):
             }), 500
 
     @app.route('/admin/audit/purge', methods=['POST'])
-    @token_required
+    @admin_required
     def purge_audit_logs(current_user):
         """
         Bulk-delete audit entries, optionally the entire table.
