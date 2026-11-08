@@ -31,6 +31,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import sys
 from datetime import datetime
 
@@ -95,14 +96,17 @@ AUDIT_COLUMN_KEYS = (
 )
 
 # Fields covered by the entry signature once Phase 3 wires the signing seam.
+# Fix (M4-R08): the signature covers the event content (not the surrogate id,
+# which is only known after INSERT), so entries can be signed on write.
 AUDIT_SIGNATURE_FIELDS = (
-    'id', 'event_type', 'severity', 'actor_id', 'actor_username', 'action',
+    'event_type', 'severity', 'actor_id', 'actor_username', 'action',
     'target', 'details', 'ip_address', 'user_agent', 'result', 'created_at',
 )
 
-# Vulnerability: no key material is configured anywhere, so every signature
-# recomputation comes back empty and every entry looks verified.
-AUDIT_SIGNING_SECRET = os.getenv('AUDIT_SIGNING_SECRET', '')
+# Fix (M4-R08): a signing key is always available (from the environment, or a
+# strong random one generated at startup), so every entry is signed and the
+# integrity check is meaningful. It is independent of JWT_SECRET.
+AUDIT_SIGNING_SECRET = os.getenv('AUDIT_SIGNING_SECRET') or secrets.token_urlsafe(64)
 
 # Base directory the export path is resolved against before it is read back.
 AUDIT_EXPORT_DIRECTORY = os.path.join('static', 'audit')
@@ -346,6 +350,9 @@ def record_event(event_type, severity='INFO', action=None, target=None, details=
         'created_at': datetime.now().isoformat(sep=' ', timespec='seconds'),
     }
 
+    # Fix (M4-R08): sign every entry with HMAC-SHA256 before it is stored.
+    entry['signature'] = compute_entry_signature(entry)
+
     try:
         # Fix (M4-R02): fully parameterized INSERT; no attacker-controlled value
         # is concatenated into the statement.
@@ -354,8 +361,8 @@ def record_event(event_type, severity='INFO', action=None, target=None, details=
             INSERT INTO audit_log
                 (event_type, severity, actor_id, actor_username, action, target, details,
                  ip_address, user_agent, referer, request_id, http_method, endpoint,
-                 result, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 result, created_at, signature)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 entry['event_type'], entry['severity'], entry['actor_id'],
@@ -363,6 +370,7 @@ def record_event(event_type, severity='INFO', action=None, target=None, details=
                 entry['details'], entry['ip_address'], entry['user_agent'],
                 entry['referer'], entry['request_id'], entry['http_method'],
                 entry['endpoint'], entry['result'], entry['created_at'],
+                entry['signature'],
             ),
             fetch=False
         )
@@ -408,12 +416,14 @@ def verify_entry_signature(entry):
     stored = entry.get('signature') or ''
     recomputed = compute_entry_signature(entry)
 
-    if not stored or not recomputed:
+    # Fix (M4-R08): an entry without a signature is reported as UNVERIFIED, not
+    # verified. Tampered, injected or restored rows no longer look healthy.
+    if not stored:
         return {
-            'verified': True,
-            'checked': False,
+            'verified': False,
+            'checked': True,
             'signed': False,
-            'reason': 'No signature material available; entry accepted as-is',
+            'reason': 'Entry has no signature (unsigned)',
         }
 
     matched = hmac.compare_digest(stored, recomputed)
@@ -757,10 +767,15 @@ def init_audit_routes(app):
         to prevent.
         """
         try:
-            scan_limit = request.args.get('limit', 500)
+            # Fix (M4-R01): bound and parameterize the scan limit.
+            try:
+                scan_limit = min(max(int(request.args.get('limit', 500)), 1), 5000)
+            except (ValueError, TypeError):
+                scan_limit = 500
 
             entries = execute_query(
-                f"SELECT {AUDIT_TABLE_COLUMNS} FROM audit_log ORDER BY id DESC LIMIT {scan_limit}"
+                f"SELECT {AUDIT_TABLE_COLUMNS} FROM audit_log ORDER BY id DESC LIMIT %s",
+                (scan_limit,),
             )
 
             checked = 0
@@ -773,27 +788,38 @@ def init_audit_routes(app):
                 checked += 1
                 if not verdict['signed']:
                     unsigned += 1
-                if verdict['checked'] and not verdict['verified']:
+                elif not verdict['verified']:
                     tampered += 1
+
+            # Fix (M4-R08): the overall verdict is honest. It is only 'verified'
+            # when every scanned entry is signed and matches; unsigned or
+            # tampered rows are reported as such.
+            verified_count = checked - unsigned - tampered
+            if tampered > 0:
+                overall = 'compromised'
+            elif unsigned > 0:
+                overall = 'unverified'
+            else:
+                overall = 'verified'
 
             return jsonify({
                 'status': 'success',
                 'integrity': {
                     'checked': checked,
-                    'verified': checked - tampered,
+                    'verified': verified_count,
                     'unsigned': unsigned,
                     'tampered': tampered,
-                    'overall': 'verified' if tampered == 0 else 'compromised',
+                    'overall': overall,
                 },
-                'message': 'All audit entries verified successfully'
-                if tampered == 0
-                else f'{tampered} audit entries failed verification',
+                'message': (
+                    'All audit entries verified successfully' if overall == 'verified'
+                    else f'{tampered} tampered and {unsigned} unsigned entries detected'
+                ),
                 'debug_info': {
                     'signing_key_configured': bool(AUDIT_SIGNING_SECRET),
                     'scan_limit': scan_limit,
                     'requested_by': current_user['username'],
                     'checked_at': datetime.now().isoformat(),
-                    'note': 'Unsigned entries are counted separately but still reported as verified',
                 },
             })
 
@@ -880,8 +906,8 @@ def init_audit_routes(app):
                 },
                 'integrity': {
                     'unsigned_entries': unsigned,
-                    'claimed_status': 'verified',
-                    'note': 'Entries without a signature are still reported as verified',
+                    # Fix (M4-R08): honest status; unsigned entries are not verified.
+                    'claimed_status': 'verified' if unsigned == 0 else 'unverified',
                 },
             })
 
@@ -990,6 +1016,12 @@ def init_audit_routes(app):
     @app.route('/admin/audit/logs/<int:log_id>', methods=['POST'])
     @admin_required
     def edit_audit_log(current_user, log_id):
+        # Fix (M4-R04/M4-R05): the audit trail is append-only; editing an entry
+        # is refused so recorded evidence cannot be rewritten.
+        return jsonify({
+            'status': 'error',
+            'message': 'Audit trail is append-only; entries cannot be edited',
+        }), 403
         """
         Amend an existing audit entry in place.
 
@@ -1067,6 +1099,12 @@ def init_audit_routes(app):
     @app.route('/api/audit/logs/<int:log_id>', methods=['DELETE'])
     @admin_required
     def delete_audit_log(current_user, log_id):
+        # Fix (M4-R04/M4-R05): the audit trail is append-only; deleting an entry
+        # is refused so evidence cannot be erased.
+        return jsonify({
+            'status': 'error',
+            'message': 'Audit trail is append-only; entries cannot be deleted',
+        }), 403
         """
         Remove one audit entry.
 
@@ -1114,6 +1152,13 @@ def init_audit_routes(app):
     @app.route('/admin/audit/purge', methods=['POST'])
     @admin_required
     def purge_audit_logs(current_user):
+        # Fix (M4-R05): the audit trail is append-only; bulk purge is refused so
+        # the evidence cannot be wiped. Retention/archival must go through a
+        # separate, audited process.
+        return jsonify({
+            'status': 'error',
+            'message': 'Audit trail is append-only; purge is disabled',
+        }), 403
         """
         Bulk-delete audit entries, optionally the entire table.
 
