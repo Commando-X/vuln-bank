@@ -396,7 +396,18 @@ def compute_entry_signature(entry):
     if not AUDIT_SIGNING_SECRET:
         return ''
 
-    canonical = '|'.join(str(entry.get(field) or '') for field in AUDIT_SIGNATURE_FIELDS)
+    def _canon(field):
+        value = entry.get(field)
+        if value is None:
+            return ''
+        # Normalize the timestamp so the value signed at INSERT time (space
+        # separator) matches the value read back from the DB (ISO 'T'), to the
+        # second. Otherwise every entry would look tampered.
+        if field == 'created_at':
+            return str(value).replace('T', ' ')[:19]
+        return str(value)
+
+    canonical = '|'.join(_canon(field) for field in AUDIT_SIGNATURE_FIELDS)
     return hmac.new(
         AUDIT_SIGNING_SECRET.encode('utf-8'),
         canonical.encode('utf-8'),
