@@ -622,37 +622,31 @@ def init_audit_routes(app):
         box in one request.
         """
         try:
-            export_format = request.args.get('format', 'csv')
-            filename = request.args.get('filename', f'audit_export.{export_format}')
+            # Fix (M4-R09): whitelist the format and ALWAYS return a freshly
+            # generated export. The client-supplied filename is no longer used
+            # to read a file from disk, so path traversal is impossible.
+            export_format = request.args.get('format', 'csv').lower()
+            if export_format not in ('csv', 'json'):
+                return jsonify({'status': 'error', 'message': 'Unsupported export format'}), 400
 
             entries = execute_query(
                 f"SELECT {AUDIT_TABLE_COLUMNS} FROM audit_log ORDER BY id ASC LIMIT 5000"
             )
             records = [row_to_entry(row) for row in entries]
 
-            if export_format.lower() == 'json':
+            if export_format == 'json':
                 body = jsonify({'status': 'success', 'count': len(records), 'entries': records})
                 mimetype = 'application/json'
+                download_name = 'audit_export.json'
             else:
                 body = entries_to_csv(records)
                 mimetype = 'text/csv'
-
-            requested_path = os.path.join(AUDIT_EXPORT_DIRECTORY, filename)
-
-            if os.path.isfile(requested_path):
-                return send_file(
-                    requested_path,
-                    as_attachment=True,
-                    download_name=os.path.basename(filename),
-                    mimetype=mimetype,
-                )
+                download_name = 'audit_export.csv'
 
             return Response(
                 body if isinstance(body, str) else body.get_data(as_text=True),
                 mimetype=mimetype,
-                headers={
-                    'Content-Disposition': f'attachment; filename={os.path.basename(filename)}'
-                },
+                headers={'Content-Disposition': f'attachment; filename={download_name}'},
             )
 
         except Exception as e:
