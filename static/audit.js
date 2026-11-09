@@ -421,15 +421,15 @@ async function openAuditModal(logId) {
             <div class="user-detail-row"><span class="user-detail-label">Endpoint</span><span class="user-detail-value">${escapeHtml(entry.http_method || "")} ${escapeHtml(entry.endpoint || "")}</span></div>
             <div class="user-detail-row"><span class="user-detail-label">Request ID</span><span class="user-detail-value">${escapeHtml(entry.request_id || "-")}</span></div>
             <div class="user-detail-row"><span class="user-detail-label">Stored signature</span><span class="user-detail-value">${escapeHtml(entry.signature || "(none)")}</span></div>
-            <div class="user-detail-row"><span class="user-detail-label">Integrity</span><span class="user-detail-value">${integrity && integrity.integrity ? integrity.integrity.reason : "not checked"}</span></div>
+            <div class="user-detail-row"><span class="user-detail-label">Integrity</span><span class="user-detail-value">${escapeHtml(integrity && integrity.integrity ? integrity.integrity.reason : 'not checked')}</span></div>
             <div class="user-detail-row"><span class="user-detail-label">Details</span><span class="user-detail-value user-detail-bio">${escapeHtml(entry.details || "")}</span></div>
 
-            <form id="audit-edit-form" class="modal-delete-form" data-log-id="${entry.id}">
+            <form id="audit-edit-form" class="modal-delete-form" data-log-id="${escapeHtml(entry.id)}">
                 <div class="user-modal-actions">
-                    <label class="audit-edit-field">Event type<input type="text" id="edit-event-type" name="event_type" value="${entry.event_type}"></label>
-                    <label class="audit-edit-field">Severity<input type="text" id="edit-severity" name="severity" value="${entry.severity}"></label>
-                    <label class="audit-edit-field">Actor<input type="text" id="edit-actor" name="actor_username" value="${entry.actor_username || ""}"></label>
-                    <label class="audit-edit-field">Details<input type="text" id="edit-details" name="details" value="${entry.details || ""}"></label>
+                    <label class="audit-edit-field">Event type<input type="text" id="edit-event-type" name="event_type" value="${escapeHtml(entry.event_type)}"></label>
+                    <label class="audit-edit-field">Severity<input type="text" id="edit-severity" name="severity" value="${escapeHtml(entry.severity)}"></label>
+                    <label class="audit-edit-field">Actor<input type="text" id="edit-actor" name="actor_username" value="${escapeHtml(entry.actor_username || '')}"></label>
+                    <label class="audit-edit-field">Details<input type="text" id="edit-details" name="details" value="${escapeHtml(entry.details || '')}"></label>
                 </div>
                 <button type="submit" class="btn-primary">Save changes</button>
             </form>
