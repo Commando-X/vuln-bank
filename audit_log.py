@@ -103,10 +103,29 @@ AUDIT_SIGNATURE_FIELDS = (
     'target', 'details', 'ip_address', 'user_agent', 'result', 'created_at',
 )
 
-# Fix (M4-R08): a signing key is always available (from the environment, or a
-# strong random one generated at startup), so every entry is signed and the
-# integrity check is meaningful. It is independent of JWT_SECRET.
-AUDIT_SIGNING_SECRET = os.getenv('AUDIT_SIGNING_SECRET') or secrets.token_urlsafe(64)
+# Fix (M4-R08): a signing key is always available (env var, or a key persisted
+# on disk and generated once), so entries signed before a restart still verify.
+# It is independent of JWT_SECRET. The key file must not be committed.
+def _load_signing_key():
+    env_key = os.getenv('AUDIT_SIGNING_SECRET')
+    if env_key:
+        return env_key
+    key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.audit_signing_key')
+    if os.path.isfile(key_path):
+        with open(key_path) as key_file:
+            stored_key = key_file.read().strip()
+        if stored_key:
+            return stored_key
+    new_key = secrets.token_urlsafe(64)
+    try:
+        with open(key_path, 'w') as key_file:
+            key_file.write(new_key)
+    except OSError as exc:
+        print(f'[audit] WARNING: could not persist signing key: {exc}', file=sys.stderr)
+    return new_key
+
+
+AUDIT_SIGNING_SECRET = _load_signing_key()
 
 # Base directory the export path is resolved against before it is read back.
 AUDIT_EXPORT_DIRECTORY = os.path.join('static', 'audit')
