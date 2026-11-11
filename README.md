@@ -293,12 +293,13 @@ The application uses PostgreSQL. The database will be automatically initialized 
    sudo chown -R $USER:$USER static/uploads
    ```
 
-2. Port 5000 already in use:
-   ```bash
-   # Kill process using port 5000
-   sudo lsof -i:5000
-   sudo kill <PID>
-   ```
+2. Port 5000 already in use (common on macOS, where the AirPlay Receiver listens on port 5000):
+
+   Run the app on a different port instead of killing the process:
+   - Docker: `VULNBANK_WEB_PORT=5001 docker compose up` then open http://localhost:5001
+   - Direct run: `APP_PORT=5001 python app.py`
+
+   On macOS you can alternatively free port 5000 by turning off the AirPlay Receiver in System Settings -> General -> AirDrop & Handoff.
 
 #### PostgreSQL Issues
 
