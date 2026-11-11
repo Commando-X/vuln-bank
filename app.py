@@ -2549,4 +2549,4 @@ def ai_rate_limit_status():
 if __name__ == '__main__':
     init_db()
     # Vulnerability: Debug mode enabled in production
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=int(os.getenv('APP_PORT', '5000')), debug=True)
