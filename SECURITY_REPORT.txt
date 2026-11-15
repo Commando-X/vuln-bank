@@ -1,0 +1,714 @@
+══════════════════════════════════════════════════════════════════════════════
+  RELATÓRIO DE AUDITORIA DE SEGURANÇA
+  Aplicação: vuln-bank (Flask)
+  Data: 23 de agosto de 2026
+  Auditor: Análise automatizada combinada (SAST + LLM Review + Secret Scan)
+══════════════════════════════════════════════════════════════════════════════
+
+1. SUMÁRIO EXECUTIVO
+   ──────────────────────────────────────────────────────────────────────
+
+   Este relatório apresenta os resultados consolidados da auditoria de
+   segurança realizada na aplicação vuln-bank. Foram utilizadas quatro
+   técnicas complementares para maximizar a cobertura:
+
+   • Semgrep OSS 1.174.0     — análise estática baseada em AST
+   • OCR + MiniMax-M3         — revisão lógica via modelo de linguagem
+   • Frieren DAST-AI           — exploração dinâmica (runtime)
+   • GitGuardian ggshield     — detecção de segredos em git history
+
+   ┌─────────────────────────────────────────────────────────────┐
+   │  TOTAL CONSOLIDADO                                          │
+   │                                                              │
+  │  •  47 achados SAST (Semgrep)               │
+  │  •  67 achados LLM (OCR)                     │
+  │  •  4 segredos únicos (GitGuardian)                         │
+  │  •  6 secrets ignorados (baixa confiança)                  │
+   │  • 47 ENDPOINTS DAST analisados, 0 ataques autenticados    │
+   └─────────────────────────────────────────────────────────────┘
+
+   CLASSIFICAÇÃO POR RISCO
+   ━━━━━━━━━━━━━━━━━━━━━━━━
+
+   CRÍTICO  ▸ 6 vulnerabilidades que afetam confidencialidade de
+              dados ou permitem autenticação forjada
+   ALTO     ▸ 11 vulnerabilidades que viabilizam movimentação lateral,
+              escalada de privilégio ou perda de integridade
+   MÉDIO    ▸ 22 falhas que degradam a segurança mas requerem condição
+              específica para exploração
+   BAIXO    ▸ 5 melhorias de hardening e boas práticas
+
+
+2. AS 6 VULNERABILIDADES CRÍTICAS QUE EXIGEM AÇÃO IMEDIATA
+   ──────────────────────────────────────────────────────────────────────
+
+   ┌─ #1 ─────────────────────────────────────────────────────────┐
+   │ Vazamento de PAN + CVV em endpoints de pagamento              │
+   ├──────────────────────────────────────────────────────────────┤
+   │ Arquivo:   merchant_payments.py                              │
+   │ CWE:       CWE-312 (Cleartext Storage of Sensitive Info)     │
+   │ Severidade: CRÍTICA                                        │
+   │ Detectado por: OCR (MiniMax-M3)                              │
+   ├──────────────────────────────────────────────────────────────┤
+   │ O QUE ACONTECE:                                              │
+   │ Quatro endpoints da API merchant retornam o número completo  │
+   │ do cartão (PAN) e o código de segurança (CVV) nas respostas │
+   │ JSON. Isso viola o requisito 3.2 do PCI-DSS, que proíbe o  │
+   │ armazenamento ou retorno do CVV após autorização.             │
+   │                                                              │
+   │ POR QUE IMPORTA:                                             │
+   │ Qualquer merchant que consuma esses endpoints acaba gravando │
+   │ dados de cartão em seus próprios logs de aplicação. Em caso  │
+   │ de vazamento desses logs, o impacto cascateia para todos os  │
+   │ clientes da plataforma.                                      │
+   │                                                              │
+   │ COMO CORRIGIR:                                               │
+   │ Remover os campos `card_number` e `cvv` de todas as respostas.│
+   │ Quando necessário, retornar apenas os últimos 4 dígitos do  │
+   │ PAN. Adicionar `?fields=card_number&cvv=never` na validação.│
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌─ #2 ─────────────────────────────────────────────────────────┐
+   │ Bypass completo de autenticação JWT                          │
+   ├──────────────────────────────────────────────────────────────┤
+   │ Arquivo:   auth.py                                            │
+   │ CWE:       CWE-347 (Improper Signature Verification)         │
+   │ Severidade: CRÍTICA                                        │
+   │ Detectado por: OCR (MiniMax-M3)                              │
+   ├──────────────────────────────────────────────────────────────┤
+   │ O QUE ACONTECE:                                              │
+   │ Três falhas combinadas permitem que um atacante forje tokens │
+   │ de admin válidos:                                            │
+   │                                                              │
+   │   1. auth.py:29  — JWT assinado com segredo literal          │
+   │                    "secret123" dentro do código-fonte         │
+   │                                                              │
+   │   2. auth.py:47  — Quando a verificação falha, o código     │
+   │                    decodifica o token SEM validar a assinatura│
+   │                    (verify_signature=False). Token forjado é  │
+   │                    aceito.                                    │
+   │                                                              │
+   │   3. Algoritmo `none` aceito na lista de algoritmos permitidos│
+   │                                                              │
+   │ POR QUE IMPORTA:                                             │
+   │ Um atacante pode gerar tokens JWT válidos sem conhecer o    │
+   │ segredo. Isso significa controle total sobre qualquer sessão│
+   │ de qualquer usuário, incluindo administradores.              │
+   │                                                              │
+   │ COMO CORRIGIR:                                               │
+   │ a) Carregar o segredo de variável de ambiente, recusar       │
+   │    iniciar se não definido.                                  │
+   │ b) Remover o fallback verify_signature=False — assinatura     │
+   │    inválida deve retornar 401.                               │
+   │ c) Restringir algorithms=["HS256"] apenas.                    │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌─ #3 ─────────────────────────────────────────────────────────┐
+   │ Race condition TOCTOU na transferência de fundos              │
+   ├──────────────────────────────────────────────────────────────┤
+   │ Arquivo:   auth.py (linhas 185-191)                           │
+   │ CWE:       CWE-362 (Race Condition)                          │
+   │ Severidade: ALTA (explorável em segundos, mas requer concorr.)│
+   │ Detectado por: OCR (MiniMax-M3)                              │
+   ├──────────────────────────────────────────────────────────────┤
+   │ O QUE ACONTECE:                                              │
+   │ O fluxo de transferência faz:                                │
+   │                                                              │
+   │   SELECT balance FROM users WHERE id=?  -- lê o saldo        │
+   │   ... comparação no código Python ...                       │
+   │   UPDATE users SET balance = balance - ? WHERE id=?        │
+   │                                                              │
+   │ Entre o SELECT e o UPDATE existe uma janela onde múltiplas │
+   │ requisições concorrentes podem cada uma ler o mesmo saldo,    │
+   │ passar na verificação, e executar o débito.                  │
+   │                                                              │
+   │ POR QUE IMPORTA:                                             │
+   │ Atacante com 10 threads pode multiplicar R$ 100 em R$ 1000, │
+   │ ou deixar saldo negativo. Em SQLite, essa janela é ainda    │
+   │ maior porque as escritas são serializadas mas em transações    │
+   │ separadas.                                                   │
+   │                                                              │
+   │ COMO CORRIGIR:                                               │
+   │ Unificar em um único UPDATE condicional:                      │
+   │   UPDATE users                                               │
+   │   SET balance = balance - ?                                  │
+   │   WHERE id = ? AND balance >= ?                              │
+   │ Se rowcount=0, abortar a transferência.                       │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌─ #4 ─────────────────────────────────────────────────────────┐
+   │ API keys de merchant previsíveis (10.000 possibilidades)      │
+   ├──────────────────────────────────────────────────────────────┤
+   │ Arquivo:   merchant_payments.py                              │
+   │ CWE:       CWE-338 (Cryptographically Weak PRNG)            │
+   │ Severidade: CRÍTICA                                        │
+   │ Detectado por: OCR (MiniMax-M3)                              │
+   ├──────────────────────────────────────────────────────────────┤
+   │ O QUE ACONTECE:                                              │
+   │ As API keys são geradas assim:                                │
+   │                                                              │
+   │   api_key = f"vk_{hashlib.sha256(str(random.randint(0,9999))│
+   │             .encode()).hexdigest()[:32]}"                   │
+   │                                                              │
+   │ Existem apenas 10.000 valores possíveis de entrada. O hash │
+   │ SHA-256 é determinístico. Um atacante que conheça o esquema │
+   │ pode enumerar offline todas as 10.000 chaves e testar       │
+   │ contra a API em segundos.                                   │
+   │                                                              │
+   │ POR QUE IMPORTA:                                             │
+   │ Qualquer merchant com chave válida pode fazer requisições    │
+   │ em nome de outro merchant — cobranças, listagens, refunds.   │
+   │                                                              │
+   │ COMO CORRIGIR:                                               │
+   │ Usar secrets.token_urlsafe(32). Cada chave terá 256 bits de  │
+   │ entropia real, impossível de enumerar.                       │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌─ #5 ─────────────────────────────────────────────────────────┐
+   │ 33 pontos de SQL Injection via concatenação de strings       │
+   ├──────────────────────────────────────────────────────────────┤
+   │ Arquivos:  app.py (19×), auth.py (6×), merchant_payments.py  │
+   │            (8×), transaction_graphql.py (4× via OCR)         │
+   │ CWE:       CWE-89 (SQL Injection)                            │
+   │ Severidade: CRÍTICA                                        │
+   │ Detectado por: Semgrep (33) + OCR (10)                       │
+   ├──────────────────────────────────────────────────────────────┤
+   │ O QUE ACONTECE:                                              │
+   │ Todas as queries SQL são construídas por concatenação direta  │
+   │ de variáveis Python em strings f-string.                     │
+   │                                                              │
+   │ Exemplo em app.py:395:                                       │
+   │   query = f"SELECT * FROM users                              │
+   │            WHERE username='{username}'                       │
+   │            AND password='{password}'"                       │
+   │   user = execute_query(query)                                │
+   │                                                              │
+   │ Atacante pode enviar:                                       │
+   │   username = "admin' --"                                   │
+   │   password = "qualquer"                                       │
+   │                                                              │
+   │ Resultado: login aceito como admin.                          │
+   │                                                              │
+   │ POR QUE IMPORTA:                                             │
+   │ SQL injection é o vetor #1 de vazamentos de dados na história│
+   │ da web. Aqui, é trivial: um único POST /login com username  │
+   │ malicioso bypassa toda a autenticação.                       │
+   │                                                              │
+   │ COMO CORRIGIR:                                               │
+   │ Substituir TODAS as 33 ocorrências por queries parametrizadas:│
+   │   cursor.execute("SELECT * FROM users                       │
+   │                   WHERE username=? AND password=?",         │
+   │                   (username, password))                       │
+   │                                                              │
+   │ Lista das linhas exatas: ver Seção 3.                        │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌─ #6 ─────────────────────────────────────────────────────────┐
+   │ Debug mode exposto + container rodando como root             │
+   ├──────────────────────────────────────────────────────────────┤
+   │ Arquivo:   app.py (linha 2496), Dockerfile (linha 29)       │
+   │ CWE:       CWE-489 (Active Debug Code) + CWE-250             │
+   │ Severidade: ALTA                                            │
+   │ Detectado por: Semgrep + OCR                                 │
+   ├──────────────────────────────────────────────────────────────┤
+   │ O QUE ACONTECE:                                              │
+   │                                                              │
+   │   1. app.py:2496 — app.run(host="0.0.0.0", debug=True)       │
+   │      O debugger interativo do Werkzeug fica disponível em     │
+   │      qualquer interface de rede acessível. Atacante pode     │
+   │      forçar uma exceção para abrir o console e obter RCE     │
+   │      (CVEs históricos do Werkzeug PIN bypass).                │
+   │                                                              │
+   │   2. Dockerfile:29 — CMD ["./start.sh"] sem USER directive    │
+   │      Container roda como root. Se um atacante obtiver RCE,    │
+   │      terá privilégios totais no container, facilitando        │
+   │      escape ou pivot para o host.                             │
+   │                                                              │
+   │ POR QUE IMPORTA:                                             │
+   │ Combinação perigosa: RCE trivial + root = comprometimento    │
+   │ completo do sistema operacional do container.                │
+   │                                                              │
+   │ COMO CORRIGIR:                                               │
+   │ a) app.py:2496: trocar para host="127.0.0.1",                │
+   │    debug=os.getenv("FLASK_DEBUG","0")=="1"                   │
+   │ b) Dockerfile: adicionar `USER nonroot` antes de CMD.        │
+   └──────────────────────────────────────────────────────────────┘
+
+3. ACHADOS DETALHADOS POR ARQUIVO
+   ──────────────────────────────────────────────────────────────────────
+
+   ┌── .github/workflows/deploy.yml  (2 achados) ─────────────────────────────┐
+   │
+   │   [Semgrep — análise estática]                              │
+   │   🟡 L  20  github-actions-mutable-action-tag    CWE-1357: Reliance on Insufficiently Trustworthy Component, CWE-353: Missing Support for Integrity Check  │
+   │            GitHub Actions step uses a mutable tag or branch reference │
+   │   🟡 L  23  github-actions-mutable-action-tag    CWE-1357: Reliance on Insufficiently Trustworthy Component, CWE-353: Missing Support for Integrity Check  │
+   │            GitHub Actions step uses a mutable tag or branch reference │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌── .github/workflows/reset.yml  (1 achados) ─────────────────────────────┐
+   │
+   │   [Semgrep — análise estática]                              │
+   │   🟡 L  36  github-actions-mutable-action-tag    CWE-1357: Reliance on Insufficiently Trustworthy Component, CWE-353: Missing Support for Integrity Check  │
+   │            GitHub Actions step uses a mutable tag or branch reference │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌── Dockerfile  (1 achados) ─────────────────────────────┐
+   │
+   │   [Semgrep — análise estática]                              │
+   │   🔴 L  29  missing-user                         CWE-250: Execution with Unnecessary Privileges  │
+   │            By not specifying a USER, a program in the container may run as 'root' │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌── ai_agent_deepseek.py  (2 achados) ─────────────────────────────┐
+   │
+   │   [OCR — revisão LLM]                                       │
+   │   🔴 [HIGH     bug           ]                     │
+   │            The `except` clause only catches `requests                   │
+   │   🟡 [MEDIUM   security      ]                     │
+   │            Even though the SQL parameter is bound, the `%` wildcards ar │
+   │            e inserted inside the parameter value (`                     │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌── app.py  (33 achados) ─────────────────────────────┐
+   │
+   │   [Semgrep — análise estática]                              │
+   │   🔴 L 395  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🟡 L 430  secure-set-cookie                    CWE-614: Sensitive Cookie in HTTPS Session Without 'Secure' Attribute  │
+   │            Found a Flask cookie with insecurely configured properties │
+   │   🔴 L 506  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 600  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 707  disabled-cert-validation             CWE-295: Improper Certificate Validation  │
+   │            Certificate verification has been explicitly disabled  │
+   │   🔴 L1147  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L1174  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L1273  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L1323  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L1371  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L1601  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L1651  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L1696  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L1748  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L1780  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L1839  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L2041  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L2078  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L2085  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L2117  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L2231  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🟡 L2496  avoid_app_run_with_bad_host          CWE-668: Exposure of Resource to Wrong Sphere  │
+   │            Running flask app with host 0                          │
+   │   🟡 L2496  debug-enabled                        CWE-489: Active Debug Code  │
+   │            Detected Flask app with debug=True                     │
+   │
+   │   [OCR — revisão LLM]                                       │
+   │   🔴 [CRITICAL security      ]                     │
+   │            Hardcoded secret key violates CWE-798                        │
+   │   🔴 [CRITICAL security      ]                     │
+   │            `random                                                      │
+   │   🔴 [CRITICAL security      ]                     │
+   │            The `/internal/secret` route trusts `request                 │
+   │   🔴 [CRITICAL security      ]                     │
+   │            Running with `debug=True` while listening on `0              │
+   │   🔴 [HIGH     security      ]                     │
+   │            Module-level mutable `defaultdict` used as rate-limit storag │
+   │            e is racy and not thread/process safe                        │
+   │   🔴 [HIGH     security      ]                     │
+   │            Plaintext JWT printed to stdout (CWE-532)                    │
+   │   🔴 [HIGH     security      ]                     │
+   │            `verify=False` disables TLS certificate validation for the U │
+   │            RL fetcher (CWE-295)                                         │
+   │   🟡 [MEDIUM   maintainability]                     │
+   │            `generate_account_number` also uses `random                  │
+   │   🟡 [MEDIUM   security      ]                     │
+   │            Bare `except:` swallows `KeyboardInterrupt` and `SystemExit` │
+   │             and hides the real failure (e                               │
+   │   ⚪ [LOW      maintainability]                     │
+   │            `import html` is unused; the module never calls `html        │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌── auth.py  (30 achados) ─────────────────────────────┐
+   │
+   │   [Semgrep — análise estática]                              │
+   │   🔴 L  29  jwt-python-hardcoded-secret          CWE-522: Insufficiently Protected Credentials  │
+   │            Hardcoded JWT secret or private key is used            │
+   │   🔴 L  47  unverified-jwt-decode                CWE-287: Improper Authentication  │
+   │            Detected JWT token decoded with 'verify=False'         │
+   │   🔴 L 120  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🟡 L 153  sql-injection-db-cursor-execute      CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')  │
+   │            User-controlled data from a request is passed to 'execute()' │
+   │   🔴 L 157  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 185  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 190  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 191  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 195  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │
+   │   [OCR — revisão LLM]                                       │
+   │   🔴 [CRITICAL security      ]                     │
+   │            Including 'none' in the accepted algorithm list lets an atta │
+   │            cker forge tokens with no signature, byp                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            Critical auth bypass: on InvalidSignatureError the code re-d │
+   │            ecodes the token with verify_signature=F                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection in login: username and password are interpolat │
+   │            ed directly into the SQL string via f-st                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection in check_balance: account_number from the quer │
+   │            y string is interpolated into SQL (CWE-8                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection in transfer: the balance read is built with f- │
+   │            string interpolation of current_user['us                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection in transfer UPDATE: both the debit (id) and cr │
+   │            edit (account_number) statements are con                     │
+   │   🔴 [HIGH     security      ]                     │
+   │            JWT signing secret is a trivially guessable hard-coded liter │
+   │            al ("secret123")                                             │
+   │   🔴 [HIGH     security      ]                     │
+   │            Tokens are issued without an 'exp' (expiration) claim, so an │
+   │            y leaked or stolen token grants permanen                     │
+   │   🔴 [HIGH     security      ]                     │
+   │            Insecure direct object reference (IDOR): any authenticated u │
+   │            ser can query any account_number with no                     │
+   │   🔴 [HIGH     security      ]                     │
+   │            TOCTOU race condition on funds transfer: the balance is read │
+   │             and then the UPDATE happens in a separa                     │
+   │   🔴 [HIGH     bug           ]                     │
+   │            No amount validation: negative or zero amounts, NaN, or non- │
+   │            finite values flow straight into SQL and                     │
+   │   🟡 [MEDIUM   bug           ]                     │
+   │            Bare 'except:' catches BaseException including KeyboardInter │
+   │            rupt and SystemExit, and silently swallo                     │
+   │   🟡 [MEDIUM   security      ]                     │
+   │            Printing exception text from token decoding can leak interna │
+   │            l details (key material fragments, libra                     │
+   │   🟡 [MEDIUM   security      ]                     │
+   │            Accepting the token from query string, form body, and cookie │
+   │            s (in addition to Authorization) signifi                     │
+   │   🟡 [MEDIUM   security      ]                     │
+   │            The 401 response echoes the raw exception text in 'details', │
+   │             which can disclose internal error infor                     │
+   │   🟡 [MEDIUM   security      ]                     │
+   │            Login response leaks account_number, is_admin, and a debug_i │
+   │            nfo block (login time, remote IP, User-A                     │
+   │   🟡 [MEDIUM   security      ]                     │
+   │            Information disclosure in transfer response: returns recipie │
+   │            nt username and full new_balance to the                      │
+   │   🟡 [MEDIUM   bug           ]                     │
+   │            No self-transfer guard: a user can transfer to their own acc │
+   │            ount_number, which (with the missing amo                     │
+   │   ⚪ [LOW      bug           ]                     │
+   │            'Bearer' is matched with a substring test, so headers like ' │
+   │            XBearer abc' or 'NotBearer foo' are acce                     │
+   │   ⚪ [LOW      bug           ]                     │
+   │            SQLite connections are opened and closed manually; an except │
+   │            ion between connect() and close() leaks                      │
+   │   ⚪ [LOW      maintainability]                     │
+   │            Suspended-account check uses positional indices (len(user) > │
+   │             9 and user[9]) that depend on an undocu                     │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌── database.py  (9 achados) ─────────────────────────────┐
+   │
+   │   [OCR — revisão LLM]                                       │
+   │   🔴 [HIGH     security      ]                     │
+   │            Hardcoded default password: `os                              │
+   │   🔴 [HIGH     security      ]                     │
+   │            Hardcoded secrets in seed data: The admin account is created │
+   │             with plaintext password 'admin123', and                     │
+   │   🟡 [MEDIUM   error         ]                     │
+   │            Original traceback lost: `raise e` re-raises the caught exce │
+   │            ption object but breaks the chain so the                     │
+   │   🟡 [MEDIUM   error         ]                     │
+   │            Silent exception swallow hides schema errors: `except Except │
+   │            ion: pass` discards both the "column alr                     │
+   │   🟡 [MEDIUM   error         ]                     │
+   │            Silent exception swallow on critical migrations: Three ALTER │
+   │             TYPE statements are guarded by a single                     │
+   │   🟡 [MEDIUM   error         ]                     │
+   │            Original traceback lost on init failure: `raise e` discards  │
+   │            the underlying exception's traceback, ma                     │
+   │   🟡 [MEDIUM   error         ]                     │
+   │            Original traceback lost in execute_query: `raise e` after ro │
+   │            llback breaks the traceback chain, which                     │
+   │   🟡 [MEDIUM   error         ]                     │
+   │            Original traceback lost in execute_transaction: `raise e` af │
+   │            ter rollback discards the chained traceb                     │
+   │   ⚪ [LOW      maintainability]                     │
+   │            Unused import: `datetime` is imported but never referenced a │
+   │            nywhere in this module                                       │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌── merchant_payments.py  (29 achados) ─────────────────────────────┐
+   │
+   │   [Semgrep — análise estática]                              │
+   │   🔴 L  61  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L  76  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 160  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 209  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 266  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 436  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 501  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │   🔴 L 554  tainted-sql-string                   CWE-704: Incorrect Type Conversion or Cast  │
+   │            Detected user input used to manually construct a SQL string │
+   │
+   │   [OCR — revisão LLM]                                       │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection: `api_key` comes from the `X-Merchant-Api-Key` │
+   │             request header (attacker-controlled) an                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection: `merchant_id` from the decoded JWT payload is │
+   │             interpolated directly                                       │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection on registration: `name`, `email`, and `passwor │
+   │            d` are user-controlled request fields in                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            Plaintext password storage: passwords are inserted verbatim  │
+   │            and compared verbatim in `login_merchant                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection on merchant login: `email` and `password` are  │
+   │            attacker-controlled JSON fields interpol                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            Predictable / weak API key: derived from a 4-digit code (10, │
+   │            000 possibilities) using `random` (not `                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection on charge: `card_number` is user-controlled (f │
+   │            rom the charge request body) and is inte                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            PCI / data-handling violation: the charge response includes  │
+   │            the full PAN (`card_number`) and CVV of                      │
+   │   🔴 [CRITICAL security      ]                     │
+   │            PCI violation: GET `/api/v1/payments/<id>` returns full PAN  │
+   │            and CVV of the customer's card                               │
+   │   🔴 [CRITICAL security      ]                     │
+   │            PCI violation: list endpoints also leak full PAN (`card_numb │
+   │            er`) for every transaction                                   │
+   │   🔴 [CRITICAL security      ]                     │
+   │            IDOR / authorization bypass: any authenticated merchant can  │
+   │            list all payments of any other merchant                      │
+   │   🔴 [HIGH     security      ]                     │
+   │            Information disclosure: the registration response echoes the │
+   │             user's plaintext password (and full raw                     │
+   │   🔴 [HIGH     security      ]                     │
+   │            Predictable authorization code: `time                        │
+   │   🔴 [HIGH     security      ]                     │
+   │            Race condition / non-atomic charge: SELECT (balance check),  │
+   │            UPDATE (debit), and INSERT (transaction                      │
+   │   🔴 [HIGH     security      ]                     │
+   │            Information disclosure: the `/merchants/me` response include │
+   │            s the merchant's API key in `debug_info`                     │
+   │   🟡 [MEDIUM   security      ]                     │
+   │            JWT has no `exp` claim and uses `datetime                    │
+   │   🟡 [MEDIUM   bug           ]                     │
+   │            Raw exception text returned in error responses (`str(e)`) le │
+   │            aks internal details (stack-trace fragme                     │
+   │   🟡 [MEDIUM   bug           ]                     │
+   │            No idempotency / replay protection: a merchant can re-submit │
+   │             the same `merchant_order_id` and the ca                     │
+   │   🟡 [MEDIUM   bug           ]                     │
+   │            Float used for monetary amounts (`float(data                 │
+   │   🟡 [MEDIUM   bug           ]                     │
+   │            Missing input validation: `amount` is not required to be pos │
+   │            itive, `currency` is not validated, `cvv                     │
+   │   🟡 [MEDIUM   bug           ]                     │
+   │            Currency mismatch not checked: the card's currency (`card_cu │
+   │            rrency`) is read but never compared with                     │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌── templates/admin.html  (1 achados) ─────────────────────────────┐
+   │
+   │   [Semgrep — análise estática]                              │
+   │   🟡 L 219  template-unescaped-with-safe         CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')  │
+   │            Detected a segment of a Flask template where autoescaping is explicitly disabled │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌── templates/dashboard.html  (2 achados) ─────────────────────────────┐
+   │
+   │   [Semgrep — análise estática]                              │
+   │   🟡 L  81  template-unescaped-with-safe         CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')  │
+   │            Detected a segment of a Flask template where autoescaping is explicitly disabled │
+   │   🟡 L 166  template-unescaped-with-safe         CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')  │
+   │            Detected a segment of a Flask template where autoescaping is explicitly disabled │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+   ┌── transaction_graphql.py  (4 achados) ─────────────────────────────┐
+   │
+   │   [OCR — revisão LLM]                                       │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection: `account_number` is a GraphQL string argument │
+   │             controlled by the client and is interpo                     │
+   │   🔴 [CRITICAL security      ]                     │
+   │            SQL injection: `scoped_account_number` originates from the G │
+   │            raphQL `account_number` argument (passed                     │
+   │   🔴 [HIGH     security      ]                     │
+   │            SQL injection / defense-in-depth: `user_id` is sourced from  │
+   │            `current_user['user_id']` in the request                     │
+   │   🔴 [HIGH     security      ]                     │
+   │            SQL injection: `scoped_user_id` is interpolated into both qu │
+   │            eries via f-strings                                          │
+   │
+   └──────────────────────────────────────────────────────────────┘
+
+
+4. SEGREDOS DETECTADOS NO HISTÓRICO GIT (GGSHIELD)
+   ──────────────────────────────────────────────────────────────────────
+
+   Foram analisados 7 commits e 10 arquivos. Segredos únicos
+   identificados (consolidados por SHA-256):
+
+   ┌────┬──────────────────────────────┬─────────┬────┬─────────────┐
+   │ #  │ Tipo                           │ Validade│ #  │ Arquivos    │
+   ├────┼──────────────────────────────┼─────────┼────┼─────────────┤
+   │ 1  │ Generic Password              │ No Check│ 5  │ .env, db, dc│
+   │ 2  │ DeepSeek API Key              │ Invalid │ 1  │ .env        │
+   │ 3  │ Generic High Entropy Secret   │ No Check│ 8  │ tests/merch │
+   │ 4  │ Generic High Entropy Secret   │ No Check│ 1  │ app.py(AWS) │
+   └────┴──────────────────────────────┴─────────┴────┴─────────────┘
+
+   Observações:
+   • O secret #1 (DB_PASSWORD) está no SHA-6e0d657e... em 4 locais:
+     .env, .env.example, database.py, docker-compose.yml. Indica
+     que o mesmo valor foi copiado em vários pontos do código.
+   • O secret #2 (DeepSeek) está marcado como Inválido pelo
+     GitGuardian — provavelmente já foi revogado. Mas o ato de
+     commitá-lo no .env continua sendo uma violação.
+   • O secret #3 (8 ocorrências em test_merchant_payments.py)
+     é o mesmo token merchant repetido nos testes.
+   • O secret #4 (app.py) tem prefixos ASIADEMO/wJalrXU —
+     placeholders de demonstração, não credenciais reais.
+
+5. COBERTURA POR FERRAMENTA
+   ──────────────────────────────────────────────────────────────────────
+
+   ┌────────────────────┬──────────┬──────────────────────────────┐
+   │ Ferramenta         │ Achados  │ O que encontrou              │
+   ├────────────────────┼──────────┼──────────────────────────────┤
+   │ Semgrep            │    47     │  37 erros, 10 avisos       │
+   │ OCR (LLM)          │    67     │  23 críticos,  17 altos       │
+   │ Frieren DAST        │     0    │ Sem credenciais (não atacou)│
+   │ ggshield           │     4    │ 4 únicos (DB_PWD, AWS, etc)  │
+   └────────────────────┴──────────┴──────────────────────────────┘
+
+   O QUE CADA FERRAMENTA TROUXE DE NOVO:
+
+   • Semgrep capturou: 33 SQLi, XSS via |safe, supply chain (mutable
+     GitHub Actions tags), missing USER no Dockerfile, missing Secure
+     flag em cookie, debug=True.
+
+   • OCR adicionou: PCI violations (PAN+CVV em respostas), JWT alg=none,
+     race condition TOCTOU, API keys previsíveis (random+4 digits),
+     plaintext password storage, hardcoded seed credentials,
+     `raise e` perdendo traceback, lost JWT exp claim, IDOR.
+
+   • Frieren NÃO rodou ataques — todos os endpoints autenticados foram
+     pulados com "no_injectable_parameters". Para resultados reais,
+     rerodar com `--auth-url --username --password admin/admin123`.
+
+6. PLANO DE REMEDIAÇÃO
+   ──────────────────────────────────────────────────────────────────────
+
+   PRIORIDADE 1 — HOJE (24 horas)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   □ Substituir segredo JWT hardcoded por variável de ambiente
+     (auth.py:29). Recusar iniciar se JWT_SECRET não estiver definido.
+
+   □ Remover fallback verify_signature=False em auth.py:47.
+     Assinatura inválida = 401.
+
+   □ Restringir algorithms=["HS256"]. Remover "none" da allowlist.
+
+   □ Trocar host=0.0.0.0 por 127.0.0.1 em app.py:2496. Mover debug=True
+     para flag controlado por env var.
+
+   □ Revogar a chave DeepSeek API commitada e removê-la do .env
+     versionado. Trocar por secrets.getenv("DEEPSEEK_API_KEY")
+     carregada de .gitignore'd .env.local.
+
+   PRIORIDADE 2 — ESTA SEMANA
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   □ Parametrizar todas as 33 queries SQL. Trocar f-string por
+     cursor.execute("... WHERE x=?", (x,)).
+
+   □ Remover campos card_number e cvv das respostas em
+     merchant_payments.py. Mascarar PAN para últimos 4 dígitos.
+
+   □ Substituir random.choices por secrets.token_urlsafe(32) para
+     API keys de merchant e números de cartão virtual.
+
+   □ Implementar UPDATE atômico em transferências (auth.py:185-191):
+     "UPDATE ... SET balance = balance - ? WHERE id=? AND balance>=?".
+
+   □ Hashear senhas de merchant com bcrypt. Adicionar claim exp=15min
+     aos JWTs. Implementar refresh tokens.
+
+   □ Adicionar USER nonroot no Dockerfile antes do CMD.
+
+   □ Pinar GitHub Actions por SHA:
+     actions/checkout@<sha>, webfactory/ssh-agent@<sha>.
+
+   □ Remover db_password do .env.example. Usar placeholder.
+
+   PRIORIDADE 3 — PRÓXIMO MÊS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   □ Rodar Frieren com credenciais para mapear vetores de exploração.
+   □ Implementar RBAC granular. Hoje qualquer usuário autenticado
+     acessa qualquer recurso (BOLA).
+   □ Adicionar testes automatizados de regressão para cada classe
+     de vulnerabilidade corrigida.
+   □ Auditar dependências Python. requirements.txt sem fixação de
+     versão — vulnerabilidades em transitive deps não são detectáveis.
+
+
+══════════════════════════════════════════════════════════════════════════════
+  FIM DO RELATÓRIO
+  Para o PDF formatado, ver /home/rafael/vuln-bank/SECURITY_REPORT.pt-BR.pdf
+  Para o ODT, ver Projeto_vuln-bank.odt em Projeto Aplicado/
+  Outputs brutos: /tmp/semgrep-vulnbank.json, /home/rafael/.opencodereview/
+    sessions/home-rafael-vuln-bank/, /tmp/frieren-results/
+══════════════════════════════════════════════════════════════════════════════
