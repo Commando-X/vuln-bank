@@ -28,21 +28,6 @@ class MerchantPaymentApiTests(unittest.TestCase):
         cls.merchant_module = importlib.import_module("merchant_payments")
         cls.client = cls.app_module.app.test_client()
 
-    @classmethod
-    def _install_fake_psycopg2(cls):
-        if "psycopg2" in sys.modules:
-            return
-
-        fake_psycopg2 = types.ModuleType("psycopg2")
-        fake_pool_module = types.ModuleType("psycopg2.pool")
-        fake_pool_module.PoolError = Exception
-        fake_pool_module.SimpleConnectionPool = object
-        fake_pool_module.ThreadedConnectionPool = object
-        fake_psycopg2.pool = fake_pool_module
-
-        sys.modules["psycopg2"] = fake_psycopg2
-        sys.modules["psycopg2.pool"] = fake_pool_module
-
     def setUp(self):
         self.store = FakeMerchantStore()
         self.execute_query_patch = patch.object(
