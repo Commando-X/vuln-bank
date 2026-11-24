@@ -3,10 +3,8 @@ query MyTransactionSummary($limit: Int!) {
     scope
     accountNumber
     totalTransactions
-    totalVolume
-    inflowTotal
+    totalVolum
     outflowTotal
-    netFlow
     largestTransaction
     byType {
       transactionType
