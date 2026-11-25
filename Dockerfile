@@ -1,7 +1,11 @@
 # Python 3.9 reached end of life and no longer receives security fixes.
 # 3.12 is the current stable release and is what the dependency set below
 # is pinned against.
-FROM python:3.12-slim
+#
+# The base image is pinned by digest as well as by tag. A floating tag can
+# be repointed upstream at any time, which would change what the build
+# actually contains (CWE-494).
+FROM python:3.12-slim@sha256:4a68d3169325c47e1bafbb86425220f03fbdff6f079a419e8d39407183288217
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -14,7 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn==21.2.0
+# The version comes from requirements.txt only. Pinning gunicorn here as well
+# allowed the two to drift apart, which would silently ship the vulnerable
+# release while the audit reported the fixed one.
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Create necessary directories
 RUN mkdir -p static/uploads templates

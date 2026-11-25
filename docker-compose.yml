@@ -37,7 +37,10 @@ services:
       - autoheal=true
 
   db:
-    image: postgres:13
+    # PostgreSQL 13 reached end of life on 13 November 2025 and no longer
+    # receives security patches. The image is pinned by digest as well as by
+    # version so the tag cannot be silently repointed (CWE-1104).
+    image: postgres:16.16@sha256:e8a7960781a4aeb21928aa4565124f0e469bd27e0bcc4321d8b9102145312f84
     restart: unless-stopped
     environment:
       - POSTGRES_DB=${DB_NAME:-vulnerable_bank}
@@ -60,7 +63,10 @@ services:
 
   # Restarts containers Docker marks `unhealthy`.
   autoheal:
-    image: willfarrell/autoheal:latest
+    # Pinned by digest: this container mounts the Docker socket, so a
+    # mutable tag here would be a root-equivalent supply-chain vector
+    # (CWE-494).
+    image: willfarrell/autoheal:1.2.0@sha256:6bf30d5dbaa9d62e2ac5cc0e6b2d4f19ace1d8260b2a8ed96a48ec61ed4104da
     restart: unless-stopped
     environment:
       # Only watch containers explicitly labelled `autoheal=true` (the web

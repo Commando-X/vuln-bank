@@ -3,6 +3,7 @@ from functools import wraps
 import hashlib
 import hmac
 import logging
+import secrets
 import random
 import string
 import time
@@ -32,16 +33,26 @@ def mask_card_number(card_number):
 
 
 def generate_merchant_api_key():
-    """Generate a predictable merchant API key"""
-    # Vulnerability: API keys are derived from a four-digit code.
-    four_digit_code = ''.join(random.choices(string.digits, k=4))
-    return f"vk_{hashlib.sha256(four_digit_code.encode()).hexdigest()}"
+    """
+    Generate a merchant API key.
+
+    The key is 256 bits of output from a cryptographically secure source.
+    The previous version derived it from a four-digit code, which left only
+    10,000 possible keys and made every merchant key enumerable
+    (CWE-330, CWE-321).
+    """
+    return f"vk_{secrets.token_hex(32)}"
 
 
 def generate_authorization_code():
-    """Generate a predictable payment authorization code"""
-    # Vulnerability: Authorization codes are timestamp-based and predictable
-    return f"AUTH{int(time.time())}{random.randint(100, 999)}"
+    """
+    Generate a payment authorization code.
+
+    The previous version combined a Unix timestamp with three random digits,
+    which is trivially guessable. This uses the secrets module so the code
+    cannot be predicted from the request time (CWE-330).
+    """
+    return f"AUTH{secrets.token_hex(8).upper()}"
 
 
 def generate_merchant_token(merchant):
@@ -131,9 +142,10 @@ def merchant_required(f):
             merchant['auth_method'] = auth_method
             return f(merchant, *args, **kwargs)
         except Exception as e:
+            logger.exception('Merchant API request failed')
             return jsonify({
                 'status': 'error',
-                'message': str(e)
+                'message': 'Request failed'
             }), 500
     return decorated
 
@@ -267,10 +279,15 @@ def init_merchant_payment_routes(app):
     def get_current_merchant(current_merchant):
         return jsonify({
             'status': 'success',
-            'merchant': current_merchant,
+            # The merchant record is rebuilt without the API key, which is a
+            # credential (CWE-200, CWE-532).
+            'merchant': {
+                k: v for k, v in current_merchant.items() if k != 'api_key'
+            },
             'debug_info': {
                 'auth_method': current_merchant.get('auth_method'),
-                'api_key': current_merchant.get('api_key'),
+                # The API key is a credential and is never echoed back
+                # (CWE-200, CWE-532).
                 'server_time': str(datetime.now())
             }
         })
@@ -325,7 +342,10 @@ def init_merchant_payment_routes(app):
                         'auth_method': current_merchant.get('auth_method'),
                         'merchant_id': current_merchant.get('id'),
                         'merchant_name': current_merchant.get('name'),
-                        'submitted_card_number': card_number
+                        # Masked: the submitted PAN must not be echoed back
+                        # even on a decline (PCI-DSS / CWE-359).
+                        'submitted_card_number': mask_card_number(card_number),
+                        'submitted_card_last4': str(card_number)[-4:]
                     }
                 }), 400
 
@@ -448,9 +468,10 @@ def init_merchant_payment_routes(app):
             })
 
         except Exception as e:
+            logger.exception('Merchant payment lookup failed')
             return jsonify({
                 'status': 'error',
-                'message': str(e),
+                'message': 'Request failed',
                 'debug_info': {
                     'auth_method': current_merchant.get('auth_method'),
                     'merchant_id': current_merchant.get('id'),
@@ -520,9 +541,10 @@ def init_merchant_payment_routes(app):
             })
 
         except Exception as e:
+            logger.exception('Merchant API request failed')
             return jsonify({
                 'status': 'error',
-                'message': str(e)
+                'message': 'Request failed'
             }), 500
 
     @app.route('/api/v1/payments', methods=['GET'])
@@ -575,9 +597,10 @@ def init_merchant_payment_routes(app):
             })
 
         except Exception as e:
+            logger.exception('Merchant API request failed')
             return jsonify({
                 'status': 'error',
-                'message': str(e)
+                'message': 'Request failed'
             }), 500
 
     @app.route('/api/v1/payments/merchant_id/<int:merchant_id>', methods=['GET'])
@@ -640,7 +663,8 @@ def init_merchant_payment_routes(app):
             })
 
         except Exception as e:
+            logger.exception('Merchant API request failed')
             return jsonify({
                 'status': 'error',
-                'message': str(e)
+                'message': 'Request failed'
             }), 500

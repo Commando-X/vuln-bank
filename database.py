@@ -4,13 +4,23 @@ from psycopg2 import pool
 from datetime import datetime
 import time
 
-# Vulnerable database configuration
-# CWE-259: Use of Hard-coded Password
-# CWE-798: Use of Hard-coded Credentials
+# Database configuration.
+#
+# DB_PASSWORD has no default. Falling back to a committed password meant the
+# application silently started with a well-known credential whenever the
+# variable was missing, which is exactly the condition a forgotten secret
+# produces (CWE-259, CWE-798). The application now fails closed instead.
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+if not DB_PASSWORD:
+    raise RuntimeError(
+        'DB_PASSWORD environment variable is required. '
+        'Set it before starting the application.'
+    )
+
 DB_CONFIG = {
     'dbname': os.getenv('DB_NAME', 'vulnerable_bank'),
     'user': os.getenv('DB_USER', 'postgres'),
-    'password': os.getenv('DB_PASSWORD', 'postgres'),  # Hardcoded password in default value
+    'password': DB_PASSWORD,
     'host': os.getenv('DB_HOST', 'localhost'),
     'port': os.getenv('DB_PORT', '5432'),
     'options': f"-c statement_timeout={os.getenv('DB_STATEMENT_TIMEOUT_MS', '15000')}",
@@ -244,15 +254,34 @@ def init_db():
             except Exception:
                 pass
             
-            # Create default admin account if it doesn't exist
-            cursor.execute("SELECT * FROM users WHERE username='admin'")
-            if not cursor.fetchone():
+            # The bootstrap administrator is created only when an explicit
+            # password is supplied through the environment.
+            #
+            # It used to be created unconditionally with the credential
+            # 'admin123', which meant every deployment of this application
+            # shipped a publicly known administrator account holding a
+            # 1,000,000 balance (CWE-798, CWE-260).
+            #
+            # Set ADMIN_USERNAME and ADMIN_PASSWORD to create the account.
+            # Without them no administrator is created at all.
+            admin_username = os.getenv('ADMIN_USERNAME')
+            admin_password = os.getenv('ADMIN_PASSWORD')
+            if admin_username and admin_password:
                 cursor.execute(
-                    """
-                    INSERT INTO users (username, password, account_number, balance, is_admin) 
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    ('admin', 'admin123', 'ADMIN001', 1000000.0, True)
+                    "SELECT * FROM users WHERE username=%s", (admin_username,)
+                )
+                if not cursor.fetchone():
+                    cursor.execute(
+                        """
+                        INSERT INTO users (username, password, account_number, balance, is_admin)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (admin_username, admin_password, 'ADMIN001', 1000000.0, True)
+                    )
+            else:
+                print(
+                    'ADMIN_USERNAME / ADMIN_PASSWORD not set - no bootstrap '
+                    'administrator account was created.'
                 )
             
             # Create bill categories table

@@ -11,3 +11,10 @@ __pycache__/
 # Local audit artifacts
 .audit/
 bank.db
+
+# Uploaded profile pictures. The directory itself is tracked for its
+# default images, but anything uploaded at runtime is not.
+static/uploads/*
+!static/uploads/admin.png
+!static/uploads/banking-app.png
+!static/uploads/user.png

@@ -21,7 +21,9 @@ same tests were re-run, and the before/after delta was measured.
 | Vulnerable packages | 6 of 9 | **0 of 10** | −100% |
 | Unit tests (pytest) | 13 passed | **13 passed** | no regression |
 | Live exploit attempts rejected | — | **13 / 13** | — |
+| Upload validation attempts rejected | — | **14 / 14** | — |
 | Semgrep on `static/` + `templates/` | 4 XSS | **0** | −100% |
+| Total findings tracked in this report | 20 | **36** | — |
 
 The 4 remaining Semgrep findings are all non-actionable:
 `make_response` without an explicit content type (`app.py:982`), a logging heuristic
@@ -54,9 +56,13 @@ false positive (`auth.py:78`), and two Subresource Integrity advisories on
 - **No Cloudflare API access.** WAF rulesets, rate limiting, TLS mode and Transform Rules
   are **unknown**, not "absent". The edge configuration below is a specification to apply,
   not a record of applied state.
-- **The `ocr` post-fix scan ran against partially-patched code**, so some comments cite
-  pre-fix line numbers. Semgrep and the live exploit suite independently confirm those
-  sinks are closed.
+- **The first `ocr` post-fix scan ran against partially-patched code**, so some comments cite
+  pre-fix line numbers. It was re-run against the final tree for the 8 non-`app.py` files:
+  `status: completed_with_errors`, 66 comments in 26m15s, of which 19 are security findings.
+  That run found 8 further real issues (F-29 to F-36), all now fixed. The `app.py` scan
+  exceeded the context-compression threshold and is still running.
+- **The 19 security comments from the final OCR run are not all closed.** After fixing
+  F-29 to F-36, the remaining open items are recorded as R-09 and R-10.
 
 ## 3. Edge / CDN Posture — `vulnbank.org`
 
@@ -128,6 +134,14 @@ Not applied (no API access). Each item states the observed gap and the control t
 | F-26 | PostgreSQL port published to the host | CWE-668 | `5432` replaced by `expose` — reachable only on the internal compose network. |
 | F-27 | `.gitignore` covered only `.env`, not `.env.local`/`.env.production` | CWE-538 | `.env.*` ignored, with `!.env.example`. |
 | F-28 | Detailed exception text returned to clients in multiple handlers | CWE-209 | Generic messages; details moved to server-side logs. |
+| F-29 | Merchant API key derived from a 4-digit code — only 10,000 possible keys, fully enumerable | CWE-330/321 | `secrets.token_hex(32)`, 256 bits from a CSPRNG. |
+| F-30 | Payment authorization code built from a timestamp plus 3 digits — predictable from the request time | CWE-330 | `secrets.token_hex(8)`. |
+| F-31 | `DB_PASSWORD` fell back to a committed `postgres` password, so a missing env var silently produced a known credential | CWE-259/798 | No default; the application now refuses to start. |
+| F-32 | A super-admin account with the credential `admin123` and a 1,000,000 balance was created on every deployment | CWE-798/260 | Created only when `ADMIN_USERNAME` and `ADMIN_PASSWORD` are both set. |
+| F-33 | AI agent error path returned the first 10 characters of the API key, the exception text and the system info to the client | CWE-209/532 | Only the exception *type name* is returned; the key prefix and system info are gone. |
+| F-34 | Dockerfile pinned `gunicorn==21.2.0` while `requirements.txt` pinned `22.0.0` — the build shipped the request-smuggling-vulnerable release while the audit reported it fixed | CWE-1104 | The Dockerfile installs from `requirements.txt` only; the duplicate pin is removed. |
+| F-35 | Base and service images referenced by mutable tag | CWE-494 | `python:3.12-slim`, `postgres:16.16` and `autoheal:1.2.0` are all pinned by digest. |
+| F-36 | Gunicorn did not trust the reverse proxy's forwarded headers, and its access log recorded the full request line including the query string | CWE-345/532 | `--proxy-headers` with an explicit `forwarded-allow-ips`; the access log format drops the query string. |
 
 ## 5. Dependency Remediation — CVE Comparison
 
@@ -256,11 +270,13 @@ Accepted or deferred, with reasons:
 | R-01 | DOM XSS — `innerHTML` template literals in `static/dashboard.js` | CWE-79 | **Fixed** — all data interpolations now pass through `escapeHtml()`; toast icon lookup uses `hasOwnProperty` so a crafted `type` cannot select an arbitrary key; `bio` write path switched to `textContent`. Semgrep on `static/` + `templates/`: 0 findings; `node --check` passes |
 | R-02 | JWT stored in `localStorage` | CWE-922 | Deferred — requires a client-wide HttpOnly cookie migration (architectural change) |
 | R-03 | Passwords and reset PINs stored in plaintext | CWE-256 | Deferred — comparisons are now constant-time, but schema-level hashing (argon2/bcrypt) needs a migration plan for existing rows |
-| R-04 | `ai_agent_deepseek.py` returns exception text to the client | CWE-209 | Open |
+| R-04 | `ai_agent_deepseek.py` error text to the client | CWE-209 | Partially fixed — the exception text and the key prefix are gone; only the exception type name remains |
 | R-05 | No CSRF protection on state-changing forms | CWE-352 | Open |
 | R-06 | Cloudflare dashboard controls (WAF, rate limiting, TLS mode, Transform Rules) | — | Unknown — no API access; §3 is the specification to apply |
 | R-07 | Origin lock-down requires a host reverse proxy and Cloudflare IP allowlist | CWE-668 | The compose bind is done; the host-side firewall depends on infrastructure access |
 | R-08 | `requirements.txt` pins are exact — no automated update workflow | — | Suggested follow-up |
+| R-09 | Login has no brute-force protection on the `auth.py` route | CWE-307 | Open — rate limiting exists elsewhere in the app but is not applied to this route |
+| R-10 | GraphQL resolver exceptions propagate to `/graphql` | CWE-209 | Open |
 
 ## 8. Recommended Deployment Order
 

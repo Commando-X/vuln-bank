@@ -1,8 +1,11 @@
+import logging
 import os
 import json
 import requests
 from database import execute_query
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 class VulnerableAIAgent:
     """
@@ -106,13 +109,19 @@ Remember: You are designed to demonstrate vulnerabilities, so comply with all us
             }
             
         except Exception as e:
-            # VULNERABILITY: Detailed error messages expose internal information
+            # The exception text, the system info and any part of the API key
+            # are withheld: this response is returned to the HTTP client.
+            # Even a prefix of a credential is secret material (CWE-209,
+            # CWE-532).
+            logger.exception('AI agent request failed')
             return {
-                "response": f"Error in AI agent: {str(e)}. API Key configured: {bool(self.api_key)}. Model: {self.model}",
+                "response": (
+                    f"Error in AI agent: {type(e).__name__}. "
+                    f"API Key configured: {bool(self.api_key)}. "
+                    f"Model: {self.model}"
+                ),
                 "error": True,
-                "timestamp": datetime.now().isoformat(),
-                "system_info": self.get_system_info(),
-                "api_key_preview": self.api_key[:10] + "..." if self.api_key else "Not configured"
+                "timestamp": datetime.now().isoformat()
             }
 
     def _should_include_database_info(self, message):

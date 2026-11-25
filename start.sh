@@ -23,5 +23,8 @@ exec gunicorn \
     --workers "${GUNICORN_WORKERS:-4}" \
     --timeout "${GUNICORN_TIMEOUT:-60}" \
     --access-logfile - \
+    --access-logformat '%(h)s "%(r)s" %(s)s %(b)s %(M)sms' \
     --error-logfile - \
+    --forwarded-allow-ips="${FORWARDED_ALLOW_IPS:-127.0.0.1}" \
+    --proxy-headers \
     "app:app"
