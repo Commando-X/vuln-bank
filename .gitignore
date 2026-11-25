@@ -18,3 +18,11 @@ static/uploads/*
 !static/uploads/admin.png
 !static/uploads/banking-app.png
 !static/uploads/user.png
+
+# LaTeX build artifacts. The .tex source and the built PDF are tracked.
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk

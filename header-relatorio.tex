@@ -1,0 +1,79 @@
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{eso-pic}
+\usepackage[absolute,overlay]{textpos}
+
+% UniSENAI brand colors (approximated from logo)
+\definecolor{unisenaiBlue}{RGB}{0,99,191}
+
+% Page geometry adjustments
+\usepackage[
+  top=3.2cm,
+  bottom=2.8cm,
+  left=2.2cm,
+  right=2.2cm,
+  headheight=0pt,
+  headsep=0pt
+]{geometry}
+
+% Header on every page: blue bar + logo + small wordmark
+\AddToShipoutPictureBG{%
+  \begin{tikzpicture}[remember picture, overlay]
+    % Top blue band
+    \fill[unisenaiBlue]
+      ([yshift=0cm]current page.north west)
+      rectangle
+      ([yshift=-1.6cm]current page.north east);
+    % Logo in the band (left side)
+    \node[anchor=north west, inner sep=0pt]
+      at ([xshift=1.8cm, yshift=-0.25cm]current page.north west)
+      {\includegraphics[height=1.1cm]{assets/unisenai-logo-white.png}};
+    % Right-side caption inside the band
+    \node[anchor=north east, inner sep=0pt, text=white,
+          font=\sffamily\small]
+      at ([xshift=-2.2cm, yshift=-0.55cm]current page.north east)
+      {\textbf{SENAI/SC} $\cdot$ Defesa Cibernética};
+    \node[anchor=north east, inner sep=0pt, text=white!85,
+          font=\sffamily\footnotesize]
+      at ([xshift=-2.2cm, yshift=-1.05cm]current page.north east)
+      {Auditoria de Segurança de Aplicações};
+  \end{tikzpicture}%
+}
+
+% Footer with page numbers
+\AddToShipoutPictureFG{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \node[anchor=south, font=\sffamily\footnotesize, color=gray]
+      at ([yshift=1cm]current page.south)
+      {vuln-bank $\cdot$ Relat\'orio de Auditoria de Seguran\c{c}a $\cdot$ \thepage};
+  \end{tikzpicture}%
+}
+
+% Headings: tighter, blue accent
+\usepackage{titlesec}
+\titleformat{\section}
+  {\sffamily\Large\bfseries\color{unisenaiBlue}}{\thesection}{0.6em}{}
+  [\vspace{-0.4em}\color{unisenaiBlue}\rule{\linewidth}{1pt}]
+\titleformat{\subsection}
+  {\sffamily\large\bfseries\color{unisenaiBlue!85!black}}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}
+  {\sffamily\normalsize\bfseries\color{unisenaiBlue!70!black}}{\thesubsubsection}{0.4em}{}
+
+% Body font
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\renewcommand{\familydefault}{\sfdefault}
+
+% Tables: light blue header, better spacing
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+
+% Code blocks (pandoc emits Verbatim)
+\let\oldShaded\Shaded
+\let\endoldShaded\endShaded
+\renewenvironment{Shaded}{\oldShaded\noindent}{\endoldShaded}
+
+% Adjust line spacing
+\linespread{1.15}
