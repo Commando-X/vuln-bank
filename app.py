@@ -967,34 +967,7 @@ def _pinned_fetch(image_url, parsed, addresses, timeout=10):
         pool.close()
 
 
-def _resolve_public_addresses(hostname, port):
-    """
-    Resolve the hostname and return the addresses that passed the
-    internal-address check.
 
-    Returns None when the name cannot be resolved or when ANY of its
-    addresses is internal, so a partially-internal DNS answer is rejected
-    outright rather than partially accepted.
-    """
-    try:
-        resolved = socket.getaddrinfo(
-            hostname, port, proto=socket.IPPROTO_TCP,
-        )
-    except socket.gaierror:
-        return None
-
-    addresses = []
-    for _family, _type, _proto, _canon, sockaddr in resolved:
-        ip = ipaddress.ip_address(sockaddr[0])
-        if (ip.is_private or ip.is_loopback or ip.is_link_local
-                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
-            return None
-        addresses.append(sockaddr[0])
-
-    return addresses or None
-
-
-# Upload profile picture by URL (Intentionally Vulnerable to SSRF)
 @app.route('/upload_profile_picture_url', methods=['POST'])
 @token_required
 def upload_profile_picture_url(current_user):
