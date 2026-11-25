@@ -261,13 +261,13 @@
     <span>VULNBANK &middot; SECURITY REMEDIATION</span>
     <span class="sha">before ec973f5</span>
     <span>&#8594;</span>
-    <span class="sha">after b2af587</span>
+    <span class="sha">after 15ed202</span>
   </div>
   <h1><span class="vul">Vulnerable</span> &nbsp;&#8594;&nbsp; <span class="fix">Remediated</span></h1>
   <p class="lede">
     Every code excerpt below is extracted from real git history &mdash;
     <strong>ec973f5</strong> before remediation against
-    <strong>b2af587</strong> after. Nothing on this page is
+    <strong>15ed202</strong> after. Nothing on this page is
     hand-written illustration. Findings were located by Semgrep SAST, an
     Alibaba OpenCodeReview source audit, a Cloudflare edge review and a
     pip-audit dependency scan, then fixed and re-verified against a live
@@ -581,7 +581,7 @@
     <span class="flabel">Severity</span>
     <button class="chip sev" data-sev="critical" style="--c:#e5484d">CRITICAL</button><button class="chip sev" data-sev="high" style="--c:#f76b15">HIGH</button><button class="chip sev" data-sev="medium" style="--c:#f5d90a">MEDIUM</button>
     <span class="flabel" style="margin-left:18px">Category</span>
-    <button class="chip" data-cat="SQL Injection">SQL Injection</button><button class="chip" data-cat="Authentication">Authentication</button><button class="chip" data-cat="Secrets">Secrets</button><button class="chip" data-cat="Mass Assignment">Mass Assignment</button><button class="chip" data-cat="IDOR">IDOR</button><button class="chip" data-cat="PCI-DSS">PCI-DSS</button><button class="chip" data-cat="SSRF">SSRF</button><button class="chip" data-cat="Debug Exposure">Debug Exposure</button><button class="chip" data-cat="Information Disclosure">Information Disclosure</button><button class="chip" data-cat="XSS">XSS</button><button class="chip" data-cat="Upload">Upload</button><button class="chip" data-cat="Edge / CDN">Edge / CDN</button><button class="chip" data-cat="Supply Chain">Supply Chain</button><button class="chip" data-cat="Transport">Transport</button><button class="chip" data-cat="CORS">CORS</button><button class="chip" data-cat="Container">Container</button><button class="chip" data-cat="Race Condition">Race Condition</button>
+    <button class="chip" data-cat="SQL Injection">SQL Injection</button><button class="chip" data-cat="Authentication">Authentication</button><button class="chip" data-cat="Secrets">Secrets</button><button class="chip" data-cat="Mass Assignment">Mass Assignment</button><button class="chip" data-cat="IDOR">IDOR</button><button class="chip" data-cat="PCI-DSS">PCI-DSS</button><button class="chip" data-cat="SSRF">SSRF</button><button class="chip" data-cat="Debug Exposure">Debug Exposure</button><button class="chip" data-cat="Information Disclosure">Information Disclosure</button><button class="chip" data-cat="XSS">XSS</button><button class="chip" data-cat="Upload">Upload</button><button class="chip" data-cat="Edge / CDN">Edge / CDN</button><button class="chip" data-cat="Supply Chain">Supply Chain</button><button class="chip" data-cat="Transport">Transport</button><button class="chip" data-cat="CORS">CORS</button><button class="chip" data-cat="Container">Container</button><button class="chip" data-cat="Race Condition">Race Condition</button><button class="chip" data-cat="Hardcoded Credentials">Hardcoded Credentials</button>
     <button class="chip" id="reset" style="margin-left:12px">reset</button>
   </div>
 
@@ -1003,9 +1003,8 @@ ALLOWED_CARD_<span class="k">UPDATE</span>_FIELDS = {
                     <span class="s">&#x27;card_limit&#x27;</span>: float(card[10])</code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">merchant_payments.py:20</span></div>
-        <pre class="code"><span class="ln">20
-21
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">merchant_payments.py:21</span></div>
+        <pre class="code"><span class="ln">21
 22
 23
 24
@@ -1021,7 +1020,8 @@ ALLOWED_CARD_<span class="k">UPDATE</span>_FIELDS = {
 34
 35
 36
-37</span><code>
+37
+38</span><code>
 logger = logging.getLogger(__name__)
 
 
@@ -1727,22 +1727,22 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \</code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">Dockerfile:27</span></div>
-        <pre class="code"><span class="ln">27
-28
-29
-30
-31
-32
-33
-34
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">Dockerfile:34</span></div>
+        <pre class="code"><span class="ln">34
 35
 36
 37
 38
 39
 40
-41</span><code>COPY . .
+41
+42
+43
+44
+45
+46
+47
+48</span><code>COPY . .
 
 <span class="c"># Run <span class="k">as </span>a non-root user (CWE-250).</span>
 RUN useradd --create-home --shell /usr/sbin/nolog<span class="k">in </span>--uid 10001 appuser \
@@ -1966,6 +1966,516 @@ __pycache__/</code></pre>
       </div>
     </div>
   </article>
+  <article class="finding" data-sev="critical" data-cat="Secrets" id="F-21">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#e5484d">CRITICAL</span>
+      <span class="f-id">F-21</span>
+      <h3 class="f-title">Merchant API key had only 10,000 possible values</h3>
+      <span class="f-cwe">CWE-330</span>
+      <span class="f-file">merchant_payments.py</span>
+    </header>
+    <p class="f-desc">The key was derived from a four-digit code with the non-cryptographic <code>random</code> module, so every merchant key in the system could be enumerated in minutes.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">merchant_payments.py:19</span></div>
+        <pre class="code"><span class="ln">19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30</span><code>
+<span class="k">def </span>generate_merchant_api_key():
+    <span class="s">"&quot;&quot;"</span><span class="s">"&quot;Generate a predictable merchant API key&quot;"</span><span class="s">"&quot;&quot;"</span>
+    <span class="c"># Vulnerability: API keys are derived <span class="k">from </span>a four-digit code.</span>
+    four_digit_code = <span class="s">&#x27;&#x27;</span>.join(random.choices(string.digits, k=4))
+    <span class="k">return </span>f<span class="s">"&quot;vk_{hashlib.sha256(four_digit_code.encode()).hexdigest()}&quot;"</span>
+
+
+<span class="k">def </span>generate_authorization_code():
+    <span class="s">"&quot;&quot;"</span><span class="s">"&quot;Generate a predictable payment authorization code&quot;"</span><span class="s">"&quot;&quot;"</span>
+    <span class="c"># Vulnerability: Authorization codes are timestamp-based and predictable</span>
+    <span class="k">return </span>f<span class="s">"&quot;AUTH{int(time.time())}{random.randint(100, 999)}&quot;"</span></code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">merchant_payments.py:44</span></div>
+        <pre class="code"><span class="ln">44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59</span><code>    <span class="s">"&quot;&quot;"</span>&quot;
+    Generate a merchant API key.
+
+    The key is 256 bits of output <span class="k">from </span>a cryptographically secure source.
+    The previous version derived it <span class="k">from </span>a four-digit code, which left only
+    10,000 possible keys and made every merchant key enumerable
+    (CWE-330, CWE-321).
+    <span class="s">"&quot;&quot;"</span>&quot;
+    <span class="k">return </span>f<span class="s">"&quot;vk_{secrets.token_hex(32)}&quot;"</span>
+
+
+<span class="k">def </span>generate_authorization_code():
+    <span class="s">"&quot;&quot;"</span>&quot;
+    Generate a payment authorization code.
+
+    The previous version combined a Unix timestamp <span class="k">with </span>three random digits,</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Secrets" id="F-22">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-22</span>
+      <h3 class="f-title">Payment authorization code was predictable</h3>
+      <span class="f-cwe">CWE-330</span>
+      <span class="f-file">merchant_payments.py</span>
+    </header>
+    <p class="f-desc">The code was a Unix timestamp plus three random digits, so it could be guessed from the moment the request was made.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">merchant_payments.py:26</span></div>
+        <pre class="code"><span class="ln">26
+27
+28
+29
+30
+31
+32
+33
+34</span><code>
+
+<span class="k">def </span>generate_authorization_code():
+    <span class="s">"&quot;&quot;"</span><span class="s">"&quot;Generate a predictable payment authorization code&quot;"</span><span class="s">"&quot;&quot;"</span>
+    <span class="c"># Vulnerability: Authorization codes are timestamp-based and predictable</span>
+    <span class="k">return </span>f<span class="s">"&quot;AUTH{int(time.time())}{random.randint(100, 999)}&quot;"</span>
+
+
+<span class="k">def </span>generate_merchant_token(merchant):</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">merchant_payments.py:55</span></div>
+        <pre class="code"><span class="ln">55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70</span><code><span class="k">def </span>generate_authorization_code():
+    <span class="s">"&quot;&quot;"</span>&quot;
+    Generate a payment authorization code.
+
+    The previous version combined a Unix timestamp <span class="k">with </span>three random digits,
+    which is trivially guessable. This uses the secrets module so the code
+    can<span class="k">not </span>be predicted <span class="k">from </span>the request time (CWE-330).
+    <span class="s">"&quot;&quot;"</span>&quot;
+    <span class="k">return </span>f<span class="s">"&quot;AUTH{secrets.token_hex(8).upper()}&quot;"</span>
+
+
+<span class="k">def </span>generate_merchant_token(merchant):
+    <span class="s">"&quot;&quot;"</span>&quot;
+    Generate a weak merchant JWT.
+    merchant tuple shape: id, name, email, api_key, is_active, created_at
+    <span class="s">"&quot;&quot;"</span>&quot;</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Secrets" id="F-23">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-23</span>
+      <h3 class="f-title">Database password fell back to a committed value</h3>
+      <span class="f-cwe">CWE-798</span>
+      <span class="f-file">database.py</span>
+    </header>
+    <p class="f-desc"><code>os.getenv(DB_PASSWORD, postgres)</code> meant that forgetting the environment variable silently started the application with a well-known credential - exactly the situation a forgotten secret creates.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">database.py:13</span></div>
+        <pre class="code"><span class="ln">13
+14
+15
+16
+17
+18
+19
+20</span><code><span class="c"># CWE-798: Use of Hard-coded Credentials</span>
+DB_C<span class="k">ON</span>FIG = {
+    <span class="s">&#x27;dbname&#x27;</span>: os.getenv(<span class="s">&#x27;DB_NAME&#x27;</span>, <span class="s">&#x27;vulnerable_bank&#x27;</span>),
+    <span class="s">&#x27;user&#x27;</span>: os.getenv(<span class="s">&#x27;DB_USER&#x27;</span>, <span class="s">&#x27;postgres&#x27;</span>),
+    <span class="s">&#x27;password&#x27;</span>: os.getenv(<span class="s">&#x27;DB_PASSW<span class="k">OR</span>D&#x27;</span>, <span class="s">&#x27;postgres&#x27;</span>),  <span class="c"># Hardcoded password <span class="k">in </span>default value</span>
+    <span class="s">&#x27;host&#x27;</span>: os.getenv(<span class="s">&#x27;DB_HOST&#x27;</span>, <span class="s">&#x27;localhost&#x27;</span>),
+    <span class="s">&#x27;port&#x27;</span>: os.getenv(<span class="s">&#x27;DB_P<span class="k">OR</span>T&#x27;</span>, <span class="s">&#x27;5432&#x27;</span>),
+    <span class="s">&#x27;options&#x27;</span>: f<span class="s">"&quot;-c statement_timeout={os.getenv(<span class="s">&#x27;DB_STATEMENT_TIMEOUT_MS&#x27;</span>, <span class="s">&#x27;15000&#x27;</span>)}&quot;"</span>,</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">database.py:13</span></div>
+        <pre class="code"><span class="ln">13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28</span><code><span class="c"># Database configuration.</span>
+<span class="c">#</span>
+<span class="c"># DB_PASSW<span class="k">OR</span>D h<span class="k">as </span>no default. Falling back to a committed password meant the</span>
+<span class="c"># application silently started <span class="k">with </span>a well-known credential whenever the</span>
+<span class="c"># variable w<span class="k">as </span>missing, which is exactly the condition a forgotten secret</span>
+<span class="c"># produces (CWE-259, CWE-798). The application now fails closed instead.</span>
+DB_PASSW<span class="k">OR</span>D = os.getenv(<span class="s">&#x27;DB_PASSW<span class="k">OR</span>D&#x27;</span>)
+<span class="k">if </span><span class="k">not </span>DB_PASSW<span class="k">OR</span>D:
+    raise RuntimeError(
+        <span class="s">&#x27;DB_PASSW<span class="k">OR</span>D environment variable is required. &#x27;</span>
+        <span class="s">&#x27;Set it before starting the application.&#x27;</span>
+    )
+
+DB_C<span class="k">ON</span>FIG = {
+    <span class="s">&#x27;dbname&#x27;</span>: os.getenv(<span class="s">&#x27;DB_NAME&#x27;</span>, <span class="s">&#x27;vulnerable_bank&#x27;</span>),
+    <span class="s">&#x27;user&#x27;</span>: os.getenv(<span class="s">&#x27;DB_USER&#x27;</span>, <span class="s">&#x27;postgres&#x27;</span>),</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Hardcoded Credentials" id="F-24">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-24</span>
+      <h3 class="f-title">Super-admin account created on every deployment</h3>
+      <span class="f-cwe">CWE-798</span>
+      <span class="f-file">database.py</span>
+    </header>
+    <p class="f-desc">A user named <code>admin</code> with the password <code>admin123</code> and a 1,000,000 balance was inserted automatically, so every install of this application shipped a publicly known administrator.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">database.py:255</span></div>
+        <pre class="code"><span class="ln">255
+256
+257
+258
+259
+260
+261
+262
+263
+264
+265
+266
+267
+268</span><code>            <span class="c"># Create default adm<span class="k">in </span>account <span class="k">if </span>it doesn&#x27;t exist</span>
+            cursor.execute(<span class="s">"&quot;<span class="k">SELECT</span> * <span class="k">FROM</span> users <span class="k">WHERE</span> username=<span class="s">&#x27;admin&#x27;</span>&quot;"</span>)
+            <span class="k">if </span><span class="k">not </span>cursor.fetchone():
+                cursor.execute(
+                    <span class="s">"&quot;&quot;"</span>&quot;
+                    <span class="k">INSERT</span> INTO users (username, password, account_number, balance, is_admin) 
+                    <span class="k">VALUES</span> (%s, %s, %s, %s, %s)
+                    <span class="s">"&quot;&quot;"</span>&quot;,
+                    (<span class="s">&#x27;admin&#x27;</span>, <span class="s">&#x27;admin123&#x27;</span>, <span class="s">&#x27;ADMIN001&#x27;</span>, 1000000.0, <span class="k">True</span>)
+                )
+            
+            <span class="c"># Create bill categories table</span>
+            cursor.execute(<span class="s">&#x27;&#x27;</span>&#x27;
+                CREATE TABLE IF <span class="k">NOT</span> EXISTS bill_categories (</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">database.py:267</span></div>
+        <pre class="code"><span class="ln">267
+268
+269
+270
+271
+272
+273
+274
+275
+276
+277
+278
+279
+280
+281
+282
+283
+284
+285
+286
+287
+288
+289
+290</span><code>            <span class="c">#</span>
+            <span class="c"># It used to be created unconditionally <span class="k">with </span>the credential</span>
+            <span class="c"># <span class="s">&#x27;admin123&#x27;</span>, which meant every deployment of this application</span>
+            <span class="c"># shipped a publicly known administrator account holding a</span>
+            <span class="c"># 1,000,000 balance (CWE-798, CWE-260).</span>
+            <span class="c">#</span>
+            <span class="c"># Set ADMIN_USERNAME and ADMIN_PASSW<span class="k">OR</span>D to create the account.</span>
+            <span class="c"># Without them no administrator is created at all.</span>
+            admin_username = os.getenv(<span class="s">&#x27;ADMIN_USERNAME&#x27;</span>)
+            admin_password = os.getenv(<span class="s">&#x27;ADMIN_PASSW<span class="k">OR</span>D&#x27;</span>)
+            <span class="k">if </span>admin_username and admin_password:
+                cursor.execute(
+                    <span class="s">"&quot;<span class="k">SELECT</span> * <span class="k">FROM</span> users <span class="k">WHERE</span> username=%s&quot;"</span>, (admin_username,)
+                )
+                <span class="k">if </span><span class="k">not </span>cursor.fetchone():
+                    cursor.execute(
+                        <span class="s">"&quot;&quot;"</span>&quot;
+                        <span class="k">INSERT</span> INTO users (username, password, account_number, balance, is_admin)
+                        <span class="k">VALUES</span> (%s, %s, %s, %s, %s)
+                        <span class="s">"&quot;&quot;"</span>&quot;,
+                        (admin_username, admin_password, <span class="s">&#x27;ADMIN001&#x27;</span>, 1000000.0, <span class="k">True</span>)
+                    )
+            <span class="k">else</span>:
+                print(</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Information Disclosure" id="F-25">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-25</span>
+      <h3 class="f-title">AI agent returned part of the API key to the caller</h3>
+      <span class="f-cwe">CWE-532</span>
+      <span class="f-file">ai_agent_deepseek.py</span>
+    </header>
+    <p class="f-desc">The error path sent the first ten characters of the provider key, the raw exception text and the internal system info back to the HTTP client. Even a prefix of a credential is secret material.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">ai_agent_deepseek.py:115</span></div>
+        <pre class="code"><span class="ln">115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126</span><code>            <span class="c"># VULNERABILITY: Detailed error messages expose internal information</span>
+            <span class="k">return </span>{
+                <span class="s">"&quot;response&quot;"</span>: f<span class="s">"&quot;Error <span class="k">in </span>AI agent: {str(e)}. API Key configured: {bool(self.api_key)}. Model: {self.model}&quot;"</span>,
+                <span class="s">"&quot;error&quot;"</span>: <span class="k">True</span>,
+                <span class="s">"&quot;timestamp&quot;"</span>: datetime.now().isoformat(),
+                <span class="s">"&quot;system_info&quot;"</span>: self.get_system_info(),
+                <span class="s">"&quot;api_key_preview&quot;"</span>: self.api_key[:10] + <span class="s">"&quot;...&quot;"</span> <span class="k">if </span>self.api_key <span class="k">else</span> <span class="s">"&quot;Not configured&quot;"</span>
+            }
+
+    <span class="k">def </span>_should_include_database_info(self, message):
+        <span class="s">"&quot;&quot;"</span>&quot;
+        VULNERABILITY: Weak detection allows bypass techniques</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">ai_agent_deepseek.py:116</span></div>
+        <pre class="code"><span class="ln">116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130</span><code>            <span class="c"># are withheld: this response is returned to the HTTP client.</span>
+            <span class="c"># Even a prefix of a credential is secret material (CWE-209,</span>
+            <span class="c"># CWE-532).</span>
+            logger.<span class="k">except</span>ion(<span class="s">&#x27;AI agent request failed&#x27;</span>)
+            <span class="k">return </span>{
+                <span class="s">"&quot;response&quot;"</span>: (
+                    f<span class="s">"&quot;Error <span class="k">in </span>AI agent: {type(e).__name__}. &quot;"</span>
+                    f<span class="s">"&quot;API Key configured: {bool(self.api_key)}. &quot;"</span>
+                    f<span class="s">"&quot;Model: {self.model}&quot;"</span>
+                ),
+                <span class="s">"&quot;error&quot;"</span>: <span class="k">True</span>,
+                <span class="s">"&quot;timestamp&quot;"</span>: datetime.now().isoformat()
+            }
+
+    <span class="k">def </span>_should_include_database_info(self, message):</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="critical" data-cat="Supply Chain" id="F-26">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#e5484d">CRITICAL</span>
+      <span class="f-id">F-26</span>
+      <h3 class="f-title">Dockerfile shipped a vulnerable gunicorn the audit had cleared</h3>
+      <span class="f-cwe">CWE-1104</span>
+      <span class="f-file">Dockerfile</span>
+    </header>
+    <p class="f-desc">The Dockerfile pinned <code>gunicorn==21.2.0</code> while <code>requirements.txt</code> pinned <code>22.0.0</code>. The build installed the older release, so the image carried the HTTP request smuggling advisories while the audit reported them as fixed.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">Dockerfile:13</span></div>
+        <pre class="code"><span class="ln">13
+14
+15
+16
+17
+18</span><code>W<span class="k">OR</span>KDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+<span class="c"># Create necessary directories</span></code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">Dockerfile:24</span></div>
+        <pre class="code"><span class="ln">24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34</span><code>W<span class="k">OR</span>KDIR /app
+
+COPY requirements.txt .
+<span class="c"># The version comes <span class="k">from </span>requirements.txt only. Pinning gunicorn here <span class="k">as </span>well</span>
+<span class="c"># allowed the two to drift apart, which would silently ship the vulnerable</span>
+<span class="c"># release while the audit reported the fixed one.</span>
+RUN pip install --no-cache-dir -r requirements.txt
+
+<span class="c"># Create necessary directories</span>
+RUN mkdir -p static/uploads templates
+</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Supply Chain" id="F-27">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-27</span>
+      <h3 class="f-title">Images referenced by mutable tag</h3>
+      <span class="f-cwe">CWE-494</span>
+      <span class="f-file">docker-compose.yml</span>
+    </header>
+    <p class="f-desc">A floating tag can be repointed upstream at any time, changing what the build actually contains. The autoheal container mounts the Docker socket, which makes that a root-equivalent supply-chain vector.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">docker-compose.yml:49</span></div>
+        <pre class="code"><span class="ln">49
+50
+51
+52
+53</span><code>  <span class="c"># Restarts containers Docker marks `unhealthy`.</span>
+  autoheal:
+    image: willfarrell/autoheal:latest
+    restart: unless-stopped
+    environment:</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">docker-compose.yml:69</span></div>
+        <pre class="code"><span class="ln">69
+70
+71
+72
+73
+74
+75
+76
+77</span><code>
+  <span class="c"># Restarts containers Docker marks `unhealthy`.</span>
+  autoheal:
+    <span class="c"># Pinned by digest: this container mounts the Docker socket, so a</span>
+    <span class="c"># mutable tag here would be a root-equivalent supply-cha<span class="k">in </span>vector</span>
+    <span class="c"># (CWE-494).</span>
+    image: willfarrell/autoheal:1.2.0@sha256:6bf30d5dbaa9d62e2ac5cc0e6b2d4f19ace1d8260b2a8ed96a48ec61ed4104da
+    restart: unless-stopped
+    environment:</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Transport" id="F-28">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-28</span>
+      <h3 class="f-title">Proxy headers untrusted and query string logged</h3>
+      <span class="f-cwe">CWE-345</span>
+      <span class="f-file">start.sh</span>
+    </header>
+    <p class="f-desc">Gunicorn did not trust the reverse proxy, and its default access log recorded the full request line - this application carries sensitive values in query parameters.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">start.sh:15</span></div>
+        <pre class="code"><span class="ln">15
+16
+17
+18
+19</span><code>done
+
+echo <span class="s">"&quot;Starting Flask dev server (debug mode)...&quot;"</span>
+exec python app.py
+</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">start.sh:29</span></div>
+        <pre class="code"><span class="ln">29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41</span><code><span class="c"># 127.0.0.1 and the reverse proxy can reach it. The two layers bind</span>
+<span class="c"># differently and only the host side should be restricted.</span>
+exec gunicorn \
+    --bind 0.0.0.0:5000 \
+    --workers <span class="s">"&quot;${GUNIC<span class="k">OR</span>N_W<span class="k">OR</span>KERS:-4}&quot;"</span> \
+    --timeout <span class="s">"&quot;${GUNIC<span class="k">OR</span>N_TIMEOUT:-60}&quot;"</span> \
+    --access-logfile - \
+    --access-logformat <span class="s">&#x27;%(h)s <span class="s">"&quot;%(r)s&quot;"</span> %(s)s %(b)s %(M)sms&#x27;</span> \
+    --error-logfile - \
+    --forwarded-allow-ips=<span class="s">"&quot;${F<span class="k">OR</span>WARDED_ALLOW_IPS:-127.0.0.1}&quot;"</span> \
+    --proxy-headers \
+    <span class="s">"&quot;app:app&quot;"</span>
+</code></pre>
+      </div>
+    </div>
+  </article>
 </section>
 
 <section>
@@ -2006,6 +2516,7 @@ __pycache__/</code></pre>
       <div class="vrow"><span class="k">CORS wildcard</span><span class="v">removed</span></div>
       <div class="vrow"><span class="k">Semgrep whole repo</span><span class="v">82 &rarr; 4</span></div>
       <div class="vrow"><span class="k">pip-audit</span><span class="v">37 &rarr; 0</span></div>
+      <div class="vrow"><span class="k">Docker build with pinned digests</span><span class="v">succeeds</span></div>
     </div>
   </div>
 </section>
@@ -2020,12 +2531,14 @@ __pycache__/</code></pre>
     <div class="rem-item"><div class="rid">R-05 &middot; CWE-352</div><h5>No CSRF protection</h5><p>State-changing forms still lack anti-CSRF tokens.</p></div>
     <div class="rem-item"><div class="rid">R-06 &middot; edge</div><h5>Cloudflare dashboard unknown</h5><p>No API access. WAF, rate limiting and TLS mode are unverified, not confirmed absent.</p></div>
     <div class="rem-item"><div class="rid">R-07 &middot; CWE-668</div><h5>Origin lock-down needs host access</h5><p>The compose bind is loopback-only; the firewall allowlist depends on infrastructure access.</p></div>
+    <div class="rem-item"><div class="rid">R-09 &middot; CWE-307</div><h5>No brute-force protection on login</h5><p>Rate limiting exists elsewhere in the app but is not applied to the auth.py login route.</p></div>
+    <div class="rem-item"><div class="rid">R-10 &middot; CWE-209</div><h5>GraphQL resolver exceptions propagate</h5><p>Database exceptions raised inside the resolvers reach the /graphql endpoint unhandled.</p></div>
   </div>
 </section>
 
 <footer>
   <span>VulnBank security remediation &middot; branch <code>security/remediation-2026-11</code></span>
-  <span>Generated from git <code>ec973f5</code> &rarr; <code>b2af587</code> &middot; full detail in <code>AUDIT_REPORT.md</code></span>
+  <span>Generated from git <code>ec973f5</code> &rarr; <code>15ed202</code> &middot; full detail in <code>AUDIT_REPORT.md</code></span>
 </footer>
 
 </div>
