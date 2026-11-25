@@ -261,13 +261,13 @@
     <span>VULNBANK &middot; SECURITY REMEDIATION</span>
     <span class="sha">before ec973f5</span>
     <span>&#8594;</span>
-    <span class="sha">after 15ed202</span>
+    <span class="sha">after 9a492af</span>
   </div>
   <h1><span class="vul">Vulnerable</span> &nbsp;&#8594;&nbsp; <span class="fix">Remediated</span></h1>
   <p class="lede">
     Every code excerpt below is extracted from real git history &mdash;
     <strong>ec973f5</strong> before remediation against
-    <strong>15ed202</strong> after. Nothing on this page is
+    <strong>9a492af</strong> after. Nothing on this page is
     hand-written illustration. Findings were located by Semgrep SAST, an
     Alibaba OpenCodeReview source audit, a Cloudflare edge review and a
     pip-audit dependency scan, then fixed and re-verified against a live
@@ -581,7 +581,7 @@
     <span class="flabel">Severity</span>
     <button class="chip sev" data-sev="critical" style="--c:#e5484d">CRITICAL</button><button class="chip sev" data-sev="high" style="--c:#f76b15">HIGH</button><button class="chip sev" data-sev="medium" style="--c:#f5d90a">MEDIUM</button>
     <span class="flabel" style="margin-left:18px">Category</span>
-    <button class="chip" data-cat="SQL Injection">SQL Injection</button><button class="chip" data-cat="Authentication">Authentication</button><button class="chip" data-cat="Secrets">Secrets</button><button class="chip" data-cat="Mass Assignment">Mass Assignment</button><button class="chip" data-cat="IDOR">IDOR</button><button class="chip" data-cat="PCI-DSS">PCI-DSS</button><button class="chip" data-cat="SSRF">SSRF</button><button class="chip" data-cat="Debug Exposure">Debug Exposure</button><button class="chip" data-cat="Information Disclosure">Information Disclosure</button><button class="chip" data-cat="XSS">XSS</button><button class="chip" data-cat="Upload">Upload</button><button class="chip" data-cat="Edge / CDN">Edge / CDN</button><button class="chip" data-cat="Supply Chain">Supply Chain</button><button class="chip" data-cat="Transport">Transport</button><button class="chip" data-cat="CORS">CORS</button><button class="chip" data-cat="Container">Container</button><button class="chip" data-cat="Race Condition">Race Condition</button><button class="chip" data-cat="Hardcoded Credentials">Hardcoded Credentials</button>
+    <button class="chip" data-cat="SQL Injection">SQL Injection</button><button class="chip" data-cat="Authentication">Authentication</button><button class="chip" data-cat="Secrets">Secrets</button><button class="chip" data-cat="Mass Assignment">Mass Assignment</button><button class="chip" data-cat="IDOR">IDOR</button><button class="chip" data-cat="PCI-DSS">PCI-DSS</button><button class="chip" data-cat="SSRF">SSRF</button><button class="chip" data-cat="Debug Exposure">Debug Exposure</button><button class="chip" data-cat="Information Disclosure">Information Disclosure</button><button class="chip" data-cat="XSS">XSS</button><button class="chip" data-cat="Upload">Upload</button><button class="chip" data-cat="Edge / CDN">Edge / CDN</button><button class="chip" data-cat="Supply Chain">Supply Chain</button><button class="chip" data-cat="Transport">Transport</button><button class="chip" data-cat="CORS">CORS</button><button class="chip" data-cat="Container">Container</button><button class="chip" data-cat="Race Condition">Race Condition</button><button class="chip" data-cat="Hardcoded Credentials">Hardcoded Credentials</button><button class="chip" data-cat="Rate Limiting">Rate Limiting</button>
     <button class="chip" id="reset" style="margin-left:12px">reset</button>
   </div>
 
@@ -779,10 +779,8 @@ app.secret_key = <span class="s">"&quot;secret123&quot;"</span>
 RATE_<span class="k">LIMIT</span>_WINDOW = 3 * 60 * 60  <span class="c"># 3 hours <span class="k">in </span>seconds</span></code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:114</span></div>
-        <pre class="code"><span class="ln">114
-115
-116
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:116</span></div>
+        <pre class="code"><span class="ln">116
 117
 118
 119
@@ -794,7 +792,9 @@ RATE_<span class="k">LIMIT</span>_WINDOW = 3 * 60 * 60  <span class="c"># 3 hour
 125
 126
 127
-128</span><code>init_merchant_payment_routes(app)
+128
+129
+130</span><code>init_merchant_payment_routes(app)
 
 <span class="c"># Hardcoded secret key (CWE-798)</span>
 app.secret_key = os.environ.get(<span class="s">&#x27;SECRET_KEY&#x27;</span>)
@@ -851,10 +851,8 @@ REGISTERABLE_FIELDS = (</code></pre>
                 <span class="k">VALUES</span> ({<span class="s">&#x27;, &#x27;</span>.join([<span class="s">&#x27;%s&#x27;</span>] * len(fields))})</code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:125</span></div>
-        <pre class="code"><span class="ln">125
-126
-127
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:127</span></div>
+        <pre class="code"><span class="ln">127
 128
 129
 130
@@ -865,7 +863,9 @@ REGISTERABLE_FIELDS = (</code></pre>
 135
 136
 137
-138</span><code><span class="c"># list is ignored, so a request body can<span class="k">not </span>inject a column such as</span>
+138
+139
+140</span><code><span class="c"># list is ignored, so a request body can<span class="k">not </span>inject a column such as</span>
 <span class="c"># is_admin, balance or reset_p<span class="k">in </span>(CWE-915, mass assignment).</span>
 REGISTERABLE_FIELDS = (
     <span class="s">&#x27;profile_picture&#x27;</span>,
@@ -1083,62 +1083,50 @@ logger = logging.getLogger(__name__)
         parsed = urlparse(image_url)</code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:910</span></div>
-        <pre class="code"><span class="ln">910
-911
-912
-913
-914
-915
-916
-917
-918
-919
-920
-921
-922
-923
-924
-925
-926
-927
-928
-929
-930
-931
-932
-933
-934
-935
-936
-937</span><code>            resolved = socket.getaddrinfo(
-                parsed.hostname, parsed.port or (443 <span class="k">if </span>parsed.scheme == <span class="s">&#x27;https&#x27;</span> <span class="k">else</span> 80),
-                proto=socket.IPPROTO_TCP,
-            )
-        <span class="k">except</span> socket.gaierror:
-            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url host could <span class="k">not </span>be resolved&#x27;</span>}), 400
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:940</span></div>
+        <pre class="code"><span class="ln">940
+941
+942
+943
+944
+945
+946
+947
+948
+949
+950
+951
+952
+953
+954
+955
+956
+957
+958
+959
+960
+961</span><code>    <span class="k">for </span>_family, _type, _proto, _canon, sockaddr <span class="k">in </span>resolved:
+        ip = ipaddress.ip_address(sockaddr[0])
+        <span class="k">if </span>(ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            <span class="k">return </span><span class="k">None</span>
+        addresses.append(sockaddr[0])
 
-        <span class="k">for </span>family, _type, _proto, _canon, sockaddr <span class="k">in </span>resolved:
-            ip = ipaddress.ip_address(sockaddr[0])
-            <span class="k">if </span>(ip.is_private or ip.is_loopback or ip.is_link_local
-                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
-                <span class="k">return </span>jsonify({
-                    <span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>,
-                    <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url must <span class="k">not </span>point to a private or internal address&#x27;</span>
-                }), 400
+    <span class="k">return </span>addresses or <span class="k">None</span>
 
-        resp = requests.get(
-            image_url,
-            timeout=10,
-            allow_redirects=<span class="k">False</span>,
-            verify=<span class="k">True</span>,
-            stream=<span class="k">True</span>,
-        )
-        <span class="k">if </span>resp.status_code &gt;= 400:
-            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: f<span class="s">&#x27;Failed to fetch URL: HTTP {resp.status_code}&#x27;</span>}), 400
 
-        content_type = resp.headers.get(<span class="s">&#x27;Content-Type&#x27;</span>, <span class="s">&#x27;&#x27;</span>)
-        <span class="k">if </span><span class="k">not </span>content_type.startswith(<span class="s">&#x27;image/&#x27;</span>):</code></pre>
+<span class="k">def </span>_pinned_fetch(image_url, parsed, addresses, timeout=10):
+    <span class="s">"&quot;&quot;"</span>&quot;
+    Fetch the URL over a connection that is pinned to a validated IP.
+
+    The pool is opened against the IP address, so the socket can<span class="k">not </span>end up
+    somewhere <span class="k">else</span>, while assert_hostname and server_hostname keep the TLS
+    certificate check and the SNI name bound to the original hostname.
+    <span class="s">"&quot;&quot;"</span>&quot;
+    path = parsed.path or <span class="s">&#x27;/&#x27;</span>
+    <span class="k">if </span>parsed.query:
+        path = f<span class="s">&#x27;{path}?{parsed.query}&#x27;</span>
+</code></pre>
       </div>
     </div>
   </article>
@@ -1167,19 +1155,19 @@ logger = logging.getLogger(__name__)
 </code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:2761</span></div>
-        <pre class="code"><span class="ln">2761
-2762
-2763
-2764
-2765
-2766
-2767
-2768
-2769
-2770
-2771
-2772</span><code><span class="k">if </span>__name__ == <span class="s">&#x27;__main__&#x27;</span>:
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:2861</span></div>
+        <pre class="code"><span class="ln">2861
+2862
+2863
+2864
+2865
+2866
+2867
+2868
+2869
+2870
+2871
+2872</span><code><span class="k">if </span>__name__ == <span class="s">&#x27;__main__&#x27;</span>:
     init_db()
     <span class="c"># The Werkzeug debugger is only started when explicitly requested and is</span>
     <span class="c"># never enabled by default. Running it on a public bind exposed an</span>
@@ -1239,31 +1227,31 @@ logger = logging.getLogger(__name__)
 @token_required</code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:591</span></div>
-        <pre class="code"><span class="ln">591
-592
-593
-594
-595
-596
-597
-598
-599
-600
-601
-602
-603
-604
-605
-606
-607
-608
-609
-610
-611
-612
-613
-614</span><code>            }), 500
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:628</span></div>
+        <pre class="code"><span class="ln">628
+629
+630
+631
+632
+633
+634
+635
+636
+637
+638
+639
+640
+641
+642
+643
+644
+645
+646
+647
+648
+649
+650
+651</span><code>            }), 500
 
     <span class="k">return </span>render_template(<span class="s">&#x27;login.html&#x27;</span>)
 
@@ -1421,29 +1409,29 @@ logger = logging.getLogger(__name__)
         execute_query(</code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:808</span></div>
-        <pre class="code"><span class="ln">808
-809
-810
-811
-812
-813
-814
-815
-816
-817
-818
-819
-820
-821
-822
-823
-824
-825
-826
-827
-828
-829</span><code>        <span class="c"># is validated before anything is written: the extension must be an</span>
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:845</span></div>
+        <pre class="code"><span class="ln">845
+846
+847
+848
+849
+850
+851
+852
+853
+854
+855
+856
+857
+858
+859
+860
+861
+862
+863
+864
+865
+866</span><code>        <span class="c"># is validated before anything is written: the extension must be an</span>
         <span class="c"># allowlisted image type and the content must carry a matching image</span>
         <span class="c"># signature (CWE-434).</span>
         header = file.read(16)
@@ -1603,23 +1591,23 @@ logger = logging.getLogger(__name__)
             </code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:560</span></div>
-        <pre class="code"><span class="ln">560
-561
-562
-563
-564
-565
-566
-567
-568
-569
-570
-571
-572
-573
-574
-575</span><code>                }))
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:597</span></div>
+        <pre class="code"><span class="ln">597
+598
+599
+600
+601
+602
+603
+604
+605
+606
+607
+608
+609
+610
+611
+612</span><code>                }))
                 <span class="c"># The session cookie is marked Secure, HttpOnly and SameSite so</span>
                 <span class="c"># it is <span class="k">not </span>sent over cleartext, is <span class="k">not </span>readable by scripts,</span>
                 <span class="c"># and is <span class="k">not </span>attached to cross-site requests (CWE-614).</span>
@@ -1659,10 +1647,8 @@ C<span class="k">OR</span>S(app)
 </code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:45</span></div>
-        <pre class="code"><span class="ln">45
-46
-47
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:47</span></div>
+        <pre class="code"><span class="ln">47
 48
 49
 50
@@ -1675,7 +1661,9 @@ C<span class="k">OR</span>S(app)
 57
 58
 59
-60</span><code><span class="c"># C<span class="k">OR</span>S is restricted to an explicit orig<span class="k">in </span>allowlist. C<span class="k">OR</span>S(app) <span class="k">with </span>no</span>
+60
+61
+62</span><code><span class="c"># C<span class="k">OR</span>S is restricted to an explicit orig<span class="k">in </span>allowlist. C<span class="k">OR</span>S(app) <span class="k">with </span>no</span>
 <span class="c"># arguments sends <span class="s">"&quot;Access-Control-Allow-Origin: *&quot;"</span> on every response,</span>
 <span class="c"># including authenticated ones, which lets any site read API responses</span>
 <span class="c"># (CWE-942).</span>
@@ -1859,33 +1847,33 @@ __pycache__/</code></pre>
             username = data.get(<span class="s">&#x27;username&#x27;</span>)</code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:700</span></div>
-        <pre class="code"><span class="ln">700
-701
-702
-703
-704
-705
-706
-707
-708
-709
-710
-711
-712
-713
-714
-715
-716
-717
-718
-719
-720
-721
-722
-723
-724
-725</span><code>        
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:737</span></div>
+        <pre class="code"><span class="ln">737
+738
+739
+740
+741
+742
+743
+744
+745
+746
+747
+748
+749
+750
+751
+752
+753
+754
+755
+756
+757
+758
+759
+760
+761
+762</span><code>        
         from_account = sender_data[0]
         balance = float(sender_data[1])
         
@@ -1943,26 +1931,26 @@ __pycache__/</code></pre>
 <span class="c"># Transfer endpoint</span></code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:581</span></div>
-        <pre class="code"><span class="ln">581
-582
-583
-584
-585
-586
-587
-588
-589
-590</span><code>            <span class="c"># The <span class="k">except</span>ion is logged server-side only. Returning str(e) to</span>
-            <span class="c"># the client leaked SQL fragments and schema details (CWE-209).</span>
-            logger.<span class="k">except</span>ion(<span class="s">&#x27;Log<span class="k">in </span>failed&#x27;</span>)
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:550</span></div>
+        <pre class="code"><span class="ln">550
+551
+552
+553
+554
+555
+556
+557
+558
+559</span><code>                
+        <span class="k">except</span> Exception <span class="k">as </span>e:
+            logger.<span class="k">except</span>ion(<span class="s">&#x27;Registration failed&#x27;</span>)
             <span class="k">return </span>jsonify({
                 <span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>,
-                <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;Log<span class="k">in </span>failed&#x27;</span>
+                <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;Registration failed&#x27;</span>,
+                <span class="s">&#x27;error&#x27;</span>: str(e)
             }), 500
-
-    <span class="k">return </span>render_template(<span class="s">&#x27;login.html&#x27;</span>)
-</code></pre>
+        
+    <span class="k">return </span>render_template(<span class="s">&#x27;register.html&#x27;</span>)</code></pre>
       </div>
     </div>
   </article>
@@ -2476,6 +2464,382 @@ exec gunicorn \
       </div>
     </div>
   </article>
+  <article class="finding" data-sev="high" data-cat="Rate Limiting" id="F-29">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-29</span>
+      <h3 class="f-title">Client could forge its own IP to bypass rate limits</h3>
+      <span class="f-cwe">CWE-348</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">The forwarded headers were read from any caller, so every request could arrive with a fresh <code>X-Forwarded-For</code> and therefore a fresh rate-limit bucket.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:105</span></div>
+        <pre class="code"><span class="ln">105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116</span><code>            del rate_limit_storage[key]
+
+<span class="k">def </span>get_client_ip():
+    <span class="s">"&quot;&quot;"</span><span class="s">"&quot;Get client IP address, considering proxy headers&quot;"</span><span class="s">"&quot;&quot;"</span>
+    <span class="k">if </span>request.headers.get(<span class="s">&#x27;X-Forwarded-For&#x27;</span>):
+        <span class="k">return </span>request.headers.get(<span class="s">&#x27;X-Forwarded-For&#x27;</span>).split(<span class="s">&#x27;,&#x27;</span>)[0].strip()
+    el<span class="k">if </span>request.headers.get(<span class="s">&#x27;X-Real-IP&#x27;</span>):
+        <span class="k">return </span>request.headers.get(<span class="s">&#x27;X-Real-IP&#x27;</span>)
+    <span class="k">else</span>:
+        <span class="k">return </span>request.remote_addr
+
+<span class="k">def </span>check_rate_limit(key, limit):</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:189</span></div>
+        <pre class="code"><span class="ln">189
+190
+191
+192
+193
+194
+195
+196
+197
+198
+199
+200
+201
+202
+203
+204
+205
+206
+207
+208
+209
+210</span><code>
+<span class="c"># Proxies whose forwarded headers are trusted. Anything <span class="k">not </span>listed here is</span>
+<span class="c"># ignored, so a caller can<span class="k">not </span>spoof its own address and get a fresh</span>
+<span class="c"># rate-limit bucket on every request (CWE-348, CWE-441).</span>
+TRUSTED_PROXY_IPS = {
+    ip.strip()
+    <span class="k">for </span>ip <span class="k">in </span>os.environ.get(<span class="s">&#x27;TRUSTED_PROXY_IPS&#x27;</span>, <span class="s">&#x27;127.0.0.1,::1&#x27;</span>).split(<span class="s">&#x27;,&#x27;</span>)
+    <span class="k">if </span>ip.strip()
+}
+
+
+<span class="k">def </span>get_client_ip():
+    <span class="s">"&quot;&quot;"</span>&quot;
+    Get the client IP address.
+
+    The forwarded headers are only honoured when the immediate peer is a
+    known proxy. Trusting them unconditionally <span class="k">let </span>any caller choose its
+    own rate-limit key.
+    <span class="s">"&quot;&quot;"</span>&quot;
+    peer = request.remote_addr or <span class="s">&#x27;&#x27;</span>
+
+    <span class="k">if </span>peer <span class="k">not </span><span class="k">in </span>TRUSTED_PROXY_IPS:</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Secrets" id="F-30">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-30</span>
+      <h3 class="f-title">Card numbers and CVVs came from a predictable generator</h3>
+      <span class="f-cwe">CWE-330</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">The Mersenne Twister state can be recovered from a few observed outputs, so an attacker who saw one card number could predict the CVVs issued after it.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:213</span></div>
+        <pre class="code"><span class="ln">213
+214
+215
+216
+217
+218
+219
+220
+221
+222
+223
+224</span><code>
+<span class="k">def </span>generate_card_number():
+    <span class="s">"&quot;&quot;"</span><span class="s">"&quot;Generate a 16-digit card number&quot;"</span><span class="s">"&quot;&quot;"</span>
+    <span class="c"># Vulnerability: Predictable card number generation</span>
+    <span class="k">return </span><span class="s">&#x27;&#x27;</span>.join(random.choices(string.digits, k=16))
+
+<span class="k">def </span>generate_cvv():
+    <span class="s">"&quot;&quot;"</span><span class="s">"&quot;Generate a 3-digit CVV&quot;"</span><span class="s">"&quot;&quot;"</span>
+    <span class="c"># Vulnerability: Predictable CVV generation</span>
+    <span class="k">return </span><span class="s">&#x27;&#x27;</span>.join(random.choices(string.digits, k=3))
+
+@app.route(<span class="s">&#x27;/healthz&#x27;</span>, methods=[<span class="s">&#x27;GET&#x27;</span>])</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:380</span></div>
+        <pre class="code"><span class="ln">380
+381
+382
+383
+384
+385
+386
+387
+388
+389
+390
+391
+392
+393
+394
+395
+396
+397</span><code>    <span class="s">"&quot;&quot;"</span>&quot;
+    Generate a 16-digit card number.
+
+    The secrets module is used instead of random: the Mersenne Twister
+    state can be recovered <span class="k">from </span>a few observed outputs, which would <span class="k">let </span>an
+    attacker who saw one card number predict the CVVs issued after it
+    (CWE-330).
+    <span class="s">"&quot;&quot;"</span>&quot;
+    <span class="k">return </span><span class="s">&#x27;&#x27;</span>.join(secrets.choice(string.digits) <span class="k">for </span>_ <span class="k">in </span>range(16))
+
+
+<span class="k">def </span>generate_cvv():
+    <span class="s">"&quot;&quot;"</span><span class="s">"&quot;Generate a 3-digit CVV <span class="k">from </span>a cryptographically secure source.&quot;"</span><span class="s">"&quot;&quot;"</span>
+    <span class="k">return </span><span class="s">&#x27;&#x27;</span>.join(secrets.choice(string.digits) <span class="k">for </span>_ <span class="k">in </span>range(3))
+
+@app.route(<span class="s">&#x27;/healthz&#x27;</span>, methods=[<span class="s">&#x27;GET&#x27;</span>])
+<span class="k">def </span>health_check():
+    db_healthy = check_database_connection()</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Information Disclosure" id="F-31">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-31</span>
+      <h3 class="f-title">Registration response leaked the password into a header</h3>
+      <span class="f-cwe">CWE-532</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">The raw request body was copied into the <code>X-Debug-Info</code> response header. Headers are recorded by the CDN and the proxy access logs, so the plaintext password was written to disk.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:368</span></div>
+        <pre class="code"><span class="ln">368
+369
+370
+371
+372
+373
+374
+375
+376
+377
+378
+379</span><code>                    <span class="s">&#x27;registration_time&#x27;</span>: str(datetime.now()),
+                    <span class="s">&#x27;server_info&#x27;</span>: request.headers.get(<span class="s">&#x27;User-Agent&#x27;</span>),
+                    <span class="s">&#x27;raw_data&#x27;</span>: user_data,  <span class="c"># Exposing raw input data</span>
+                    <span class="s">&#x27;fields_registered&#x27;</span>: fields  <span class="c"># Show what fields were registered</span>
+                }
+            }
+            
+            response = jsonify(sensitive_data)
+            response.headers[<span class="s">&#x27;X-Debug-Info&#x27;</span>] = str(sensitive_data[<span class="s">&#x27;debug_data&#x27;</span>])
+            response.headers[<span class="s">&#x27;X-User-Info&#x27;</span>] = f<span class="s">"&quot;id={user[0]};admin={user[4]};balance={user[3]}&quot;"</span>
+            
+            <span class="k">return </span>response</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:545</span></div>
+        <pre class="code"><span class="ln">545
+546
+547
+548
+549
+550
+551
+552
+553
+554</span><code>                }
+            }
+
+            response = jsonify(sensitive_data)
+            <span class="c"># No debug payload <span class="k">in </span>a response header. Headers are recorded by</span>
+            <span class="c"># intermediaries; only non-sensitive identifiers belong here.</span>
+            response.headers[<span class="s">&#x27;X-User-Info&#x27;</span>] = f<span class="s">"&quot;id={user[0]};admin={user[4]}&quot;"</span>
+            
+            <span class="k">return </span>response
+                </code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="critical" data-cat="SSRF" id="F-32">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#e5484d">CRITICAL</span>
+      <span class="f-id">F-32</span>
+      <h3 class="f-title">DNS rebinding could redirect the fetch to an internal host</h3>
+      <span class="f-cwe">CWE-367</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">The guard resolved the hostname to validate it, then let the HTTP client resolve it again to connect. An attacker-controlled DNS server could answer with a public address the first time and an internal address the second.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:707</span></div>
+        <pre class="code"><span class="ln">707
+708
+709
+710
+711
+712
+713
+714
+715
+716
+717
+718
+719
+720</span><code>        <span class="k">if </span><span class="k">not </span>image_url:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url is required&#x27;</span>}), 400
+
+        <span class="c"># Vulnerabilities:</span>
+        <span class="c"># - No URL scheme/host allowlist (SSRF)</span>
+        <span class="c"># - SSL verification disabled</span>
+        <span class="c"># - Follows redirects</span>
+        <span class="c"># - No content-type or size validation</span>
+        resp = requests.get(image_url, timeout=10, allow_redirects=<span class="k">True</span>, verify=<span class="k">False</span>)
+        <span class="k">if </span>resp.status_code &gt;= 400:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: f<span class="s">&#x27;Failed to fetch URL: HTTP {resp.status_code}&#x27;</span>}), 400
+
+        <span class="c"># Derive filename <span class="k">from </span>URL path (user-controlled)</span>
+        parsed = urlparse(image_url)</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:1008</span></div>
+        <pre class="code"><span class="ln">1008
+1009
+1010
+1011
+1012
+1013
+1014
+1015
+1016
+1017
+1018
+1019
+1020
+1021
+1022
+1023
+1024
+1025
+1026
+1027
+1028
+1029</span><code>
+        <span class="k">if </span><span class="k">not </span>parsed.hostname:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url h<span class="k">as </span>no host&#x27;</span>}), 400
+
+        port = parsed.port or (443 <span class="k">if </span>parsed.scheme == <span class="s">&#x27;https&#x27;</span> <span class="k">else</span> 80)
+
+        <span class="c"># Resolve once and validate. The connection is then pinned to the</span>
+        <span class="c"># validated address, so a DNS answer that changes between this check</span>
+        <span class="c"># and the connection can<span class="k">not </span>redirect the fetch to an internal host</span>
+        <span class="c"># (CWE-367, DNS rebinding).</span>
+        addresses = _resolve_public_addresses(parsed.hostname, port)
+        <span class="k">if </span>addresses is <span class="k">None</span>:
+            <span class="k">return </span>jsonify({
+                <span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>,
+                <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url must <span class="k">not </span>point to a private or internal address&#x27;</span>
+            }), 400
+
+        resp = _pinned_fetch(image_url, parsed, addresses, timeout=10)
+        <span class="k">if </span>resp.status &gt;= 400:
+            resp.release_conn()
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: f<span class="s">&#x27;Failed to fetch URL: HTTP {resp.status}&#x27;</span>}), 400
+</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Transport" id="F-33">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-33</span>
+      <h3 class="f-title">Remote image fetch allowed plain HTTP</h3>
+      <span class="f-cwe">CWE-319</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">A fetch over cleartext let an on-path attacker substitute the response for one of their own.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:707</span></div>
+        <pre class="code"><span class="ln">707
+708
+709
+710
+711
+712
+713
+714
+715
+716
+717
+718
+719
+720</span><code>        <span class="k">if </span><span class="k">not </span>image_url:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url is required&#x27;</span>}), 400
+
+        <span class="c"># Vulnerabilities:</span>
+        <span class="c"># - No URL scheme/host allowlist (SSRF)</span>
+        <span class="c"># - SSL verification disabled</span>
+        <span class="c"># - Follows redirects</span>
+        <span class="c"># - No content-type or size validation</span>
+        resp = requests.get(image_url, timeout=10, allow_redirects=<span class="k">True</span>, verify=<span class="k">False</span>)
+        <span class="k">if </span>resp.status_code &gt;= 400:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: f<span class="s">&#x27;Failed to fetch URL: HTTP {resp.status_code}&#x27;</span>}), 400
+
+        <span class="c"># Derive filename <span class="k">from </span>URL path (user-controlled)</span>
+        parsed = urlparse(image_url)</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:993</span></div>
+        <pre class="code"><span class="ln">993
+994
+995
+996
+997
+998
+999
+1000
+1001
+1002
+1003
+1004</span><code>        parsed = urlparse(image_url)
+
+        <span class="c"># HTTPS only. Fetching over pla<span class="k">in </span>HTTP would <span class="k">let </span>an on-path attacker</span>
+        <span class="c"># substitute the response (CWE-319).</span>
+        <span class="k">if </span>parsed.scheme != <span class="s">&#x27;https&#x27;</span>:
+            <span class="k">return </span>jsonify({
+                <span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>,
+                <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url must use the https scheme&#x27;</span>
+            }), 400
+
+        <span class="k">if </span><span class="k">not </span>parsed.hostname:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url h<span class="k">as </span>no host&#x27;</span>}), 400</code></pre>
+      </div>
+    </div>
+  </article>
 </section>
 
 <section>
@@ -2517,6 +2881,8 @@ exec gunicorn \
       <div class="vrow"><span class="k">Semgrep whole repo</span><span class="v">82 &rarr; 4</span></div>
       <div class="vrow"><span class="k">pip-audit</span><span class="v">37 &rarr; 0</span></div>
       <div class="vrow"><span class="k">Docker build with pinned digests</span><span class="v">succeeds</span></div>
+      <div class="vrow"><span class="k">SSRF checks</span><span class="v">8 / 8 rejected</span></div>
+      <div class="vrow"><span class="k">DNS rebinding test</span><span class="v">1 resolution, internal never reached</span></div>
     </div>
   </div>
 </section>
@@ -2533,12 +2899,13 @@ exec gunicorn \
     <div class="rem-item"><div class="rid">R-07 &middot; CWE-668</div><h5>Origin lock-down needs host access</h5><p>The compose bind is loopback-only; the firewall allowlist depends on infrastructure access.</p></div>
     <div class="rem-item"><div class="rid">R-09 &middot; CWE-307</div><h5>No brute-force protection on login</h5><p>Rate limiting exists elsewhere in the app but is not applied to the auth.py login route.</p></div>
     <div class="rem-item"><div class="rid">R-10 &middot; CWE-209</div><h5>GraphQL resolver exceptions propagate</h5><p>Database exceptions raised inside the resolvers reach the /graphql endpoint unhandled.</p></div>
+    <div class="rem-item"><div class="rid">R-11 &middot; CWE-400</div><h5>Rate-limit counters are per-process</h5><p>They live in a process-local dict, so under gunicorn's 4 workers the effective limit is four times the configured value. Fixing this needs a shared store.</p></div>
   </div>
 </section>
 
 <footer>
   <span>VulnBank security remediation &middot; branch <code>security/remediation-2026-11</code></span>
-  <span>Generated from git <code>ec973f5</code> &rarr; <code>15ed202</code> &middot; full detail in <code>AUDIT_REPORT.md</code></span>
+  <span>Generated from git <code>ec973f5</code> &rarr; <code>9a492af</code> &middot; full detail in <code>AUDIT_REPORT.md</code></span>
 </footer>
 
 </div>
