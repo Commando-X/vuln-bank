@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VulnBank &mdash; Security Remediation: Before vs After</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --bg-2: #11151d;
+    --panel: #151a24;
+    --panel-2: #1b2130;
+    --line: #232b3a;
+    --line-2: #2e3849;
+    --ink: #e6edf6;
+    --ink-2: #9aa7bb;
+    --ink-3: #6b7789;
+    --before: #e5484d;
+    --after: #30a46c;
+    --accent: #6ea8fe;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* The page must never scroll sideways: max-width is a cap, not a floor,
+     so the width is also constrained by the viewport. */
+  .wrap { width: 100%; max-width: 1500px; margin: 0 auto; padding: 0 28px 100px; }
+  * { min-width: 0; }
+
+  /* ---------- masthead ---------- */
+  header.masthead {
+    border-bottom: 1px solid var(--line);
+    padding: 56px 0 40px; margin-bottom: 44px;
+    background:
+      radial-gradient(900px 320px at 12% -10%, rgba(229,72,77,.10), transparent 60%),
+      radial-gradient(900px 320px at 88% -10%, rgba(48,164,108,.10), transparent 60%);
+  }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 18px;
+    display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  }
+  .eyebrow .sha { color: var(--accent); }
+  h1 {
+    font-size: clamp(30px, 4.4vw, 52px); line-height: 1.08; margin: 0 0 18px;
+    font-weight: 700; letter-spacing: -.022em; max-width: 22ch;
+  }
+  h1 .vul { color: var(--before); }
+  h1 .fix { color: var(--after); }
+  .lede {
+    font-size: 16px; color: var(--ink-2); max-width: 76ch; margin: 0 0 30px;
+  }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- section ---------- */
+  section { margin: 0 0 64px; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+  .sec-num {
+    font-family: var(--mono); font-size: 11px; color: var(--bg);
+    background: var(--ink); padding: 3px 9px; border-radius: 3px; font-weight: 700;
+  }
+  h2 { font-size: 25px; margin: 0; letter-spacing: -.015em; font-weight: 650; }
+  .sec-sub { color: var(--ink-2); font-size: 14px; margin: 0 0 26px; max-width: 88ch; }
+
+  /* ---------- metric grid ---------- */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+  .metric {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 20px 20px 16px;
+  }
+  .metric-label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 16px;
+  }
+  .metric-figures { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .fig { display: flex; flex-direction: column; }
+  .fig-num { font-size: 38px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .fig.before .fig-num { color: var(--before); }
+  .fig.after .fig-num { color: var(--after); }
+  .fig-tag {
+    font-family: var(--mono); font-size: 9px; letter-spacing: .16em;
+    color: var(--ink-3); margin-top: 5px;
+  }
+  .fig-arrow { color: var(--ink-3); font-size: 22px; }
+  .metric-bar { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .bar-row { display: grid; grid-template-columns: 48px 1fr 34px; align-items: center; gap: 9px; }
+  .bar-key { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+  .bar-track { height: 5px; background: var(--bg-2); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .b-before { background: var(--before); }
+  .b-after { background: var(--after); }
+  .bar-val { font-family: var(--mono); font-size: 11px; color: var(--ink-2); text-align: right; }
+  .metric-foot { display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--ink-3); }
+  .delta { font-family: var(--mono); font-weight: 700; }
+  .delta.good { color: var(--after); }
+  .delta.zero { color: var(--after); }
+  .pct { font-family: var(--mono); color: var(--ink-2); }
+  .note { margin-left: auto; font-style: italic; }
+
+  /* ---------- filters ---------- */
+  .filters {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    padding: 14px 0 22px; border-bottom: 1px solid var(--line); margin-bottom: 26px;
+  }
+  .filters .flabel {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+    color: var(--ink-3); text-transform: uppercase; margin-right: 6px;
+  }
+  .chip {
+    background: var(--panel); border: 1px solid var(--line-2); color: var(--ink-2);
+    padding: 5px 12px; border-radius: 999px; cursor: pointer;
+    font-family: var(--sans); font-size: 12px; transition: all .14s ease;
+  }
+  .chip:hover { border-color: var(--ink-3); color: var(--ink); }
+  .chip.active { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 600; }
+  .chip.sev.active { background: var(--c); border-color: var(--c); color: #fff; }
+  .chip .cnt { font-family: var(--mono); opacity: .55; margin-left: 5px; font-size: 10px; }
+
+  /* ---------- finding ---------- */
+  .finding {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; margin-bottom: 20px; overflow: hidden;
+  }
+  .finding[hidden] { display: none; }
+  .f-head {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 16px 20px 14px; border-bottom: 1px solid var(--line);
+    background: var(--panel-2);
+  }
+  .sev-chip {
+    font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: .1em;
+    background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--c);
+    border: 1px solid color-mix(in srgb, var(--c) 42%, transparent);
+    padding: 3px 8px; border-radius: 4px;
+  }
+  .f-id { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .f-title { font-size: 16.5px; margin: 0; font-weight: 620; letter-spacing: -.01em; flex: 1; min-width: 260px; }
+  .f-cwe {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-2);
+    border: 1px solid var(--line-2); padding: 2px 7px; border-radius: 4px;
+  }
+  .f-file { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .f-desc { margin: 16px 20px; color: var(--ink-2); font-size: 14px; max-width: 100ch; }
+  .f-desc code, .finding code {
+    font-family: var(--mono); font-size: .88em; background: var(--bg-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; color: var(--ink);
+  }
+
+  /* ---------- diff ---------- */
+  .diff { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); }
+  .diff-col { background: var(--bg-2); min-width: 0; }
+  .diff-label {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+    padding: 9px 14px; color: var(--ink-2); border-bottom: 1px solid var(--line);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.before { background: var(--before); }
+  .dot.after { background: var(--after); }
+  .loc { margin-left: auto; color: var(--ink-3); letter-spacing: 0; }
+  pre.code {
+    margin: 0; padding: 12px 0; overflow-x: auto; font-family: var(--mono);
+    font-size: 11.5px; line-height: 1.65; tab-size: 4;
+  }
+  pre.code .ln {
+    display: inline-block; width: 44px; padding-right: 14px; text-align: right;
+    color: #3d4759; user-select: none; float: left;
+  }
+  pre.code code { display: block; background: none; border: none; padding: 0; white-space: pre; }
+  .diff-col { overflow: hidden; }
+  .vrow .k, .vrow .v { overflow-wrap: anywhere; }
+  pre.code .s { color: #a5d6a7; }
+  pre.code .k { color: #c792ea; }
+  pre.code .c { color: #5c6773; font-style: italic; }
+
+  /* ---------- tables ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    text-align: left; font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-3); font-weight: 500;
+    padding: 10px 14px; border-bottom: 1px solid var(--line-2);
+  }
+  tbody td { padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  .dep-name, .rule-name { font-family: var(--mono); font-size: 12.5px; }
+  .dep-v { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+  .dep-new { color: var(--after); }
+  .dep-arrow { color: var(--ink-3); }
+  .cve {
+    display: inline-block; font-family: var(--mono); font-size: 10px;
+    background: color-mix(in srgb, var(--before) 14%, transparent);
+    color: #ff9ea0; border: 1px solid color-mix(in srgb, var(--before) 34%, transparent);
+    padding: 1px 6px; border-radius: 3px; margin: 1px 3px 1px 0;
+  }
+  .cve.none { background: none; color: var(--ink-3); border-color: var(--line-2); }
+  .rule-b, .rule-a { font-family: var(--mono); font-size: 12px; text-align: center; width: 60px; }
+  .rule-b { color: var(--before); }
+  .rule-a { color: var(--after); }
+  .rule-bar { width: 200px; }
+  .rb { height: 4px; background: var(--bg-2); border-radius: 2px; overflow: hidden; margin: 2px 0; }
+  .rb-b { background: var(--before); height: 100%; }
+  .rb-a { background: var(--after); height: 100%; }
+  .rule-state { font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; }
+  .rule-state { color: var(--after); }
+  tr:not(.cleared) .rule-state { color: var(--ink-3); }
+
+  /* ---------- verification ---------- */
+  .vgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .vcard { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+  .vcard h4 { margin: 0 0 14px; font-size: 14px; font-weight: 620; display: flex; align-items: center; gap: 9px; }
+  .vcard .tick {
+    width: 18px; height: 18px; border-radius: 50%; background: color-mix(in srgb, var(--after) 20%, transparent);
+    color: var(--after); font-size: 11px; display: grid; place-items: center; font-weight: 700;
+  }
+  .vrow {
+    display: flex; justify-content: space-between; gap: 12px; padding: 6px 0;
+    border-bottom: 1px dashed var(--line); font-size: 13px;
+  }
+  .vrow:last-child { border-bottom: none; }
+  .vrow .k { color: var(--ink-2); }
+  .vrow .v { font-family: var(--mono); font-size: 12px; color: var(--after); }
+
+  /* ---------- remaining ---------- */
+  .rem { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+  .rem-item {
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--ink-3);
+    border-radius: 8px; padding: 15px 17px;
+  }
+  .rem-item .rid { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .rem-item h5 { margin: 5px 0 7px; font-size: 14px; font-weight: 600; }
+  .rem-item p { margin: 0; color: var(--ink-2); font-size: 13px; }
+
+  footer {
+    border-top: 1px solid var(--line); padding: 28px 0 0; color: var(--ink-3);
+    font-size: 12.5px; display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+  }
+  footer code { font-family: var(--mono); color: var(--ink-2); }
+
+  @media (max-width: 1000px) {
+    .diff { grid-template-columns: 1fr; }
+    .rule-bar { width: 110px; }
+  }
+  @media print {
+    body { background: #fff; color: #111; }
+    .finding, .metric, .vcard { break-inside: avoid; border-color: #ccc; }
+    .filters { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <div class="eyebrow">
+    <span>VULNBANK &middot; SECURITY REMEDIATION</span>
+    <span class="sha">before ec973f5</span>
+    <span>&#8594;</span>
+    <span class="sha">after b2af587</span>
+  </div>
+  <h1><span class="vul">Vulnerable</span> &nbsp;&#8594;&nbsp; <span class="fix">Remediated</span></h1>
+  <p class="lede">
+    Every code excerpt below is extracted from real git history &mdash;
+    <strong>ec973f5</strong> before remediation against
+    <strong>b2af587</strong> after. Nothing on this page is
+    hand-written illustration. Findings were located by Semgrep SAST, an
+    Alibaba OpenCodeReview source audit, a Cloudflare edge review and a
+    pip-audit dependency scan, then fixed and re-verified against a live
+    instance with a real PostgreSQL database.
+  </p>
+</header>
+
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>Impact at a glance</h2></div>
+  <p class="sec-sub">Four headline measures, each re-measured with the identical tool and configuration after the fixes landed.</p>
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Semgrep findings</div>
+      <div class="metric-figures">
+        <div class="fig before"><span class="fig-num">82</span><span class="fig-tag">BEFORE</span></div>
+        <div class="fig-arrow">&#8594;</div>
+        <div class="fig after"><span class="fig-num">4</span><span class="fig-tag">AFTER</span></div>
+      </div>
+      <div class="metric-bar">
+        <div class="bar-row"><span class="bar-key">before</span>
+          <div class="bar-track"><div class="bar-fill b-before" style="width:100%"></div></div>
+          <span class="bar-val">82</span></div>
+        <div class="bar-row"><span class="bar-key">after</span>
+          <div class="bar-track"><div class="bar-fill b-after" style="width:5%"></div></div>
+          <span class="bar-val">4</span></div>
+      </div>
+      <div class="metric-foot"><span class="delta good">-78</span>
+        <span class="pct">95%</span> <span class="note">16 rule classes cleared</span></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">SQL injection</div>
+      <div class="metric-figures">
+        <div class="fig before"><span class="fig-num">66</span><span class="fig-tag">BEFORE</span></div>
+        <div class="fig-arrow">&#8594;</div>
+        <div class="fig after"><span class="fig-num">0</span><span class="fig-tag">AFTER</span></div>
+      </div>
+      <div class="metric-bar">
+        <div class="bar-row"><span class="bar-key">before</span>
+          <div class="bar-track"><div class="bar-fill b-before" style="width:100%"></div></div>
+          <span class="bar-val">66</span></div>
+        <div class="bar-row"><span class="bar-key">after</span>
+          <div class="bar-track"><div class="bar-fill b-after" style="width:2%"></div></div>
+          <span class="bar-val">0</span></div>
+      </div>
+      <div class="metric-foot"><span class="delta zero">-66</span>
+        <span class="pct">100%</span> <span class="note">35 sinks parameterised</span></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Dependency CVEs</div>
+      <div class="metric-figures">
+        <div class="fig before"><span class="fig-num">37</span><span class="fig-tag">BEFORE</span></div>
+        <div class="fig-arrow">&#8594;</div>
+        <div class="fig after"><span class="fig-num">0</span><span class="fig-tag">AFTER</span></div>
+      </div>
+      <div class="metric-bar">
+        <div class="bar-row"><span class="bar-key">before</span>
+          <div class="bar-track"><div class="bar-fill b-before" style="width:100%"></div></div>
+          <span class="bar-val">37</span></div>
+        <div class="bar-row"><span class="bar-key">after</span>
+          <div class="bar-track"><div class="bar-fill b-after" style="width:2%"></div></div>
+          <span class="bar-val">0</span></div>
+      </div>
+      <div class="metric-foot"><span class="delta zero">-37</span>
+        <span class="pct">100%</span> <span class="note">6 packages upgraded</span></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">ERROR severity</div>
+      <div class="metric-figures">
+        <div class="fig before"><span class="fig-num">63</span><span class="fig-tag">BEFORE</span></div>
+        <div class="fig-arrow">&#8594;</div>
+        <div class="fig after"><span class="fig-num">0</span><span class="fig-tag">AFTER</span></div>
+      </div>
+      <div class="metric-bar">
+        <div class="bar-row"><span class="bar-key">before</span>
+          <div class="bar-track"><div class="bar-fill b-before" style="width:100%"></div></div>
+          <span class="bar-val">63</span></div>
+        <div class="bar-row"><span class="bar-key">after</span>
+          <div class="bar-track"><div class="bar-fill b-after" style="width:2%"></div></div>
+          <span class="bar-val">0</span></div>
+      </div>
+      <div class="metric-foot"><span class="delta zero">-63</span>
+        <span class="pct">100%</span> <span class="note">no ERROR-severity rule left</span></div>
+    </div></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>Rule-level clearance</h2></div>
+  <p class="sec-sub">Semgrep findings broken down by rule. Sixteen rule classes were fully cleared; the four that remain are non-actionable (two Subresource Integrity advisories on a generated report artifact, one <code>make_response</code> content-type note, one logging heuristic false positive).</p>
+  <div style="border:1px solid var(--line);border-radius:10px;overflow:hidden">
+  <table>
+    <thead><tr><th>Rule</th><th style="text-align:center">Before</th><th style="width:210px">Density</th><th style="text-align:center">After</th><th>State</th></tr></thead>
+    <tbody>
+    <tr>
+      <td class="rule-name">avoid_app_run_with_bad_host</td>
+      <td class="rule-b">1</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">debug-enabled</td>
+      <td class="rule-b">1</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">disabled-cert-validation</td>
+      <td class="rule-b">1</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">formatted-sql-query</td>
+      <td class="rule-b">6</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">github-actions-mutable-action-tag</td>
+      <td class="rule-b">3</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">jwt-python-hardcoded-secret</td>
+      <td class="rule-b">1</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">make-response-with-unknown-content</td>
+      <td class="rule-b">1</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:100%"></div></div></td>
+      <td class="rule-a">1</td>
+      <td class="rule-state">remaining</td>
+    </tr>
+    <tr>
+      <td class="rule-name">missing-integrity</td>
+      <td class="rule-b">2</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:100%"></div></div></td>
+      <td class="rule-a">2</td>
+      <td class="rule-state">remaining</td>
+    </tr>
+    <tr>
+      <td class="rule-name">missing-user</td>
+      <td class="rule-b">1</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">python-logger-credential-disclosure</td>
+      <td class="rule-b">0</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:0%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:100%"></div></div></td>
+      <td class="rule-a">1</td>
+      <td class="rule-state">remaining</td>
+    </tr>
+    <tr>
+      <td class="rule-name">secure-set-cookie</td>
+      <td class="rule-b">1</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">sql-injection-db-cursor-execute</td>
+      <td class="rule-b">1</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">sqlalchemy-execute-raw-query</td>
+      <td class="rule-b">6</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">tainted-sql-string</td>
+      <td class="rule-b">53</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">template-unescaped-with-safe</td>
+      <td class="rule-b">3</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr>
+    <tr>
+      <td class="rule-name">unverified-jwt-decode</td>
+      <td class="rule-b">1</td>
+      <td class="rule-bar"><div class="rb"><div class="rb-b" style="width:100%"></div></div>
+        <div class="rb"><div class="rb-a" style="width:0%"></div></div></td>
+      <td class="rule-a">0</td>
+      <td class="rule-state">cleared</td>
+    </tr></tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>Dependency vulnerabilities</h2></div>
+  <p class="sec-sub">All 37 advisories across 6 packages are cleared. Two packages were newly pinned rather than upgraded: <code>gunicorn</code> replaces the Flask development server, and <code>psycopg2-binary</code> was already current. The base image moved from end-of-life Python 3.9 to 3.12, which is what unblocked the last two advisories.</p>
+  <div style="border:1px solid var(--line);border-radius:10px;overflow:hidden">
+  <table>
+    <thead><tr><th>Package</th><th>Before</th><th></th><th>After</th><th>Advisories cleared</th></tr></thead>
+    <tbody>
+    <tr class="dep fixed">
+      <td class="dep-name">flask</td>
+      <td class="dep-v">2.0.1</td>
+      <td class="dep-arrow">&#8594;</td>
+      <td class="dep-v dep-new">3.1.3</td>
+      <td class="dep-cves"><span class="cve">PYSEC-2023-62</span><span class="cve">PYSEC-2026-2151</span></td>
+    </tr>
+    <tr class="dep fixed">
+      <td class="dep-name">flask-cors</td>
+      <td class="dep-v">4.0.0</td>
+      <td class="dep-arrow">&#8594;</td>
+      <td class="dep-v dep-new">6.0.5</td>
+      <td class="dep-cves"><span class="cve">PYSEC-2024-271</span><span class="cve">PYSEC-2024-71</span><span class="cve">PYSEC-2026-1383</span><span class="cve">PYSEC-2026-1384</span><span class="cve">PYSEC-2026-1385</span></td>
+    </tr>
+    <tr class="dep clean">
+      <td class="dep-name">flask-swagger-ui</td>
+      <td class="dep-v">4.11.1</td>
+      <td class="dep-arrow">&#8594;</td>
+      <td class="dep-v dep-new">5.36.0</td>
+      <td class="dep-cves"><span class="cve none">none</span></td>
+    </tr>
+    <tr class="dep clean">
+      <td class="dep-name">graphene</td>
+      <td class="dep-v">3.3</td>
+      <td class="dep-arrow">&#8594;</td>
+      <td class="dep-v dep-new">3.4.3</td>
+      <td class="dep-cves"><span class="cve none">none</span></td>
+    </tr>
+    <tr class="dep clean">
+      <td class="dep-name">gunicorn</td>
+      <td class="dep-v">-</td>
+      <td class="dep-arrow">&#8594;</td>
+      <td class="dep-v dep-new">22.0.0</td>
+      <td class="dep-cves"><span class="cve none">none</span></td>
+    </tr>
+    <tr class="dep clean">
+      <td class="dep-name">psycopg2-binary</td>
+      <td class="dep-v">2.9.9</td>
+      <td class="dep-arrow">&#8594;</td>
+      <td class="dep-v dep-new">2.9.12</td>
+      <td class="dep-cves"><span class="cve none">none</span></td>
+    </tr>
+    <tr class="dep fixed">
+      <td class="dep-name">pyjwt</td>
+      <td class="dep-v">2.4.0</td>
+      <td class="dep-arrow">&#8594;</td>
+      <td class="dep-v dep-new">2.15.1</td>
+      <td class="dep-cves"><span class="cve">GHSA-pxh4-856f-4h89</span><span class="cve">PYSEC-2025-183</span><span class="cve">PYSEC-2026-120</span><span class="cve">PYSEC-2026-175</span><span class="cve">PYSEC-2026-177</span><span class="cve">PYSEC-2026-179</span><span class="cve">PYSEC-2026-4140</span><span class="cve">PYSEC-2026-4141</span><span class="cve">PYSEC-2026-4144</span><span class="cve">PYSEC-2026-4145</span><span class="cve">PYSEC-2026-4147</span><span class="cve">PYSEC-2026-4148</span><span class="cve">PYSEC-2026-4149</span><span class="cve">PYSEC-2026-4183</span></td>
+    </tr>
+    <tr class="dep fixed">
+      <td class="dep-name">python-dotenv</td>
+      <td class="dep-v">1.0.0</td>
+      <td class="dep-arrow">&#8594;</td>
+      <td class="dep-v dep-new">1.2.4</td>
+      <td class="dep-cves"><span class="cve">PYSEC-2026-2270</span></td>
+    </tr>
+    <tr class="dep fixed">
+      <td class="dep-name">requests</td>
+      <td class="dep-v">2.31.0</td>
+      <td class="dep-arrow">&#8594;</td>
+      <td class="dep-v dep-new">2.34.2</td>
+      <td class="dep-cves"><span class="cve">PYSEC-2026-1872</span><span class="cve">PYSEC-2026-1873</span><span class="cve">PYSEC-2026-2275</span></td>
+    </tr>
+    <tr class="dep fixed">
+      <td class="dep-name">werkzeug</td>
+      <td class="dep-v">2.0.1</td>
+      <td class="dep-arrow">&#8594;</td>
+      <td class="dep-v dep-new">3.1.9</td>
+      <td class="dep-cves"><span class="cve">PYSEC-2022-203</span><span class="cve">PYSEC-2023-221</span><span class="cve">PYSEC-2023-57</span><span class="cve">PYSEC-2023-58</span><span class="cve">PYSEC-2026-1860</span><span class="cve">PYSEC-2026-2043</span><span class="cve">PYSEC-2026-2044</span><span class="cve">PYSEC-2026-2045</span><span class="cve">PYSEC-2026-2046</span><span class="cve">PYSEC-2026-2320</span><span class="cve">PYSEC-2026-3417</span><span class="cve">PYSEC-2026-4312</span></td>
+    </tr></tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>Finding by finding</h2></div>
+  <p class="sec-sub">Each card shows the vulnerable code and its replacement, side by side, with the line numbers in the corresponding commit.</p>
+
+  <div class="filters">
+    <span class="flabel">Severity</span>
+    <button class="chip sev" data-sev="critical" style="--c:#e5484d">CRITICAL</button><button class="chip sev" data-sev="high" style="--c:#f76b15">HIGH</button><button class="chip sev" data-sev="medium" style="--c:#f5d90a">MEDIUM</button>
+    <span class="flabel" style="margin-left:18px">Category</span>
+    <button class="chip" data-cat="SQL Injection">SQL Injection</button><button class="chip" data-cat="Authentication">Authentication</button><button class="chip" data-cat="Secrets">Secrets</button><button class="chip" data-cat="Mass Assignment">Mass Assignment</button><button class="chip" data-cat="IDOR">IDOR</button><button class="chip" data-cat="PCI-DSS">PCI-DSS</button><button class="chip" data-cat="SSRF">SSRF</button><button class="chip" data-cat="Debug Exposure">Debug Exposure</button><button class="chip" data-cat="Information Disclosure">Information Disclosure</button><button class="chip" data-cat="XSS">XSS</button><button class="chip" data-cat="Upload">Upload</button><button class="chip" data-cat="Edge / CDN">Edge / CDN</button><button class="chip" data-cat="Supply Chain">Supply Chain</button><button class="chip" data-cat="Transport">Transport</button><button class="chip" data-cat="CORS">CORS</button><button class="chip" data-cat="Container">Container</button><button class="chip" data-cat="Race Condition">Race Condition</button>
+    <button class="chip" id="reset" style="margin-left:12px">reset</button>
+  </div>
+
+  
+  <article class="finding" data-sev="critical" data-cat="SQL Injection" id="F-01">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#e5484d">CRITICAL</span>
+      <span class="f-id">F-01</span>
+      <h3 class="f-title">SQL injection across 35 sinks</h3>
+      <span class="f-cwe">CWE-89</span>
+      <span class="f-file">auth.py</span>
+    </header>
+    <p class="f-desc">User input was concatenated straight into SQL strings. A payload such as <code>&#x27; OR &#x27;1&#x27;=&#x27;1&#x27; --</code> was parsed as SQL, not as a string.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">auth.py:120</span></div>
+        <pre class="code"><span class="ln">120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133</span><code>            
+        <span class="c"># Vulnerability: SQL Injection still possible here</span>
+        conn = sqlite3.connect(<span class="s">&#x27;bank.db&#x27;</span>)
+        c = conn.cursor()
+        query = f<span class="s">"&quot;<span class="k">SELECT</span> * <span class="k">FROM</span> users <span class="k">WHERE</span> username=<span class="s">&#x27;{auth.get(&#x27;</span>username<span class="s">&#x27;)}&#x27;</span> <span class="k">AND</span> password=<span class="s">&#x27;{auth.get(&#x27;</span>password<span class="s">&#x27;)}&#x27;</span>&quot;"</span>
+        c.execute(query)
+        user = c.fetchone()
+        conn.close()
+        
+        <span class="k">if </span><span class="k">not </span>user:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;error&#x27;</span>: <span class="s">&#x27;Invalid credentials&#x27;</span>}), 401
+
+        <span class="k">if </span>len(user) &gt; 9 and user[9]:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;error&#x27;</span>: suspension_message}), 403</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">auth.py:127</span></div>
+        <pre class="code"><span class="ln">127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146</span><code>        <span class="c"># Parameterized query: user input is bound, never interpolated (CWE-89).</span>
+        conn = sqlite3.connect(<span class="s">&#x27;bank.db&#x27;</span>)
+        <span class="k">try:</span>
+            c = conn.cursor()
+            c.execute(
+                <span class="s">"&quot;<span class="k">SELECT</span> id, username, password, account_number, is_admin, is_suspended &quot;"</span>
+                <span class="s">"&quot;<span class="k">FROM</span> users <span class="k">WHERE</span> username = ?&quot;"</span>,
+                (auth.get(<span class="s">&#x27;username&#x27;</span>),)
+            )
+            user = c.fetchone()
+        finally:
+            conn.close()
+
+        <span class="k">if </span><span class="k">not </span>user:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;error&#x27;</span>: <span class="s">&#x27;Invalid credentials&#x27;</span>}), 401
+
+        <span class="c"># Passwords are stored <span class="k">in </span>plaintext <span class="k">in </span>this schema; compare them in</span>
+        <span class="c"># constant time so the comparison does <span class="k">not </span>leak length or prefix</span>
+        <span class="c"># information through timing (CWE-256).</span>
+        <span class="k">if </span><span class="k">not </span>hmac.compare_digest(str(user[2]), str(auth.get(<span class="s">&#x27;password&#x27;</span>))):</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="critical" data-cat="Authentication" id="F-02">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#e5484d">CRITICAL</span>
+      <span class="f-id">F-02</span>
+      <h3 class="f-title">JWT authentication bypass</h3>
+      <span class="f-cwe">CWE-347</span>
+      <span class="f-file">auth.py</span>
+    </header>
+    <p class="f-desc">The verifier retried a failed signature check with <code>verify_signature=False</code> and allowed the <code>none</code> algorithm, so an attacker could forge any token - including an admin one.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">auth.py:47</span></div>
+        <pre class="code"><span class="ln">47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64</span><code>    <span class="k">try:</span>
+        <span class="c"># Vulnerability: Accepts any algorithm, including <span class="s">&#x27;none&#x27;</span></span>
+        payload = jwt.decode(token, JWT_SECRET, algorithms=ALG<span class="k">OR</span>ITHMS)
+        <span class="k">return </span>payload
+    <span class="k">except</span> jwt.<span class="k">except</span>ions.InvalidSignatureError:
+        <span class="c"># Vulnerability: Still accepts tokens <span class="k">in </span>some error cases</span>
+        <span class="k">try:</span>
+            <span class="c"># Second try without verification</span>
+            payload = jwt.decode(token, options={<span class="s">&#x27;verify_signature&#x27;</span>: <span class="k">False</span>})
+            <span class="k">return </span>payload
+        <span class="k">except</span>:
+            <span class="k">return </span><span class="k">None</span>
+    <span class="k">except</span> Exception <span class="k">as </span>e:
+        <span class="c"># Vulnerability: Detailed error exposure <span class="k">in </span>logs</span>
+        print(f<span class="s">"&quot;Token verification error: {str(e)}&quot;"</span>)
+        <span class="k">return </span><span class="k">None</span>
+
+</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">auth.py:15</span></div>
+        <pre class="code"><span class="ln">15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30</span><code><span class="c"># JWT signing key. Loaded <span class="k">from </span>the environment so it is never committed.</span>
+<span class="c"># In production a missing key must fail closed, <span class="k">not </span>fall back to a default.</span>
+_jwt_secret = os.environ.get(<span class="s">&#x27;JWT_SECRET&#x27;</span>)
+<span class="k">if </span><span class="k">not </span>_jwt_secret:
+    raise RuntimeError(
+        <span class="s">&#x27;JWT_SECRET environment variable is required. Generate one with: &#x27;</span>
+        <span class="s">"&quot;python -c \&quot;"</span><span class="k">import </span>secrets; print(secrets.token_urlsafe(48))\<span class="s">"&quot;&quot;"</span>
+    )
+<span class="k">if </span>len(_jwt_secret) &lt; 32:
+    raise RuntimeError(<span class="s">&#x27;JWT_SECRET must be at least 32 characters long.&#x27;</span>)
+
+<span class="c"># Narrowed to str <span class="k">for </span>static analysis after the fail-closed checks above.</span>
+JWT_SECRET: str = _jwt_secret
+
+<span class="c"># Only the algorithm actually used <span class="k">for </span>signing is accepted <span class="k">for </span>verification.</span>
+<span class="c"># Accepting <span class="s">&#x27;none&#x27;</span> enables algorithm-confusion attacks (CWE-347).</span></code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="critical" data-cat="Secrets" id="F-03">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#e5484d">CRITICAL</span>
+      <span class="f-id">F-03</span>
+      <h3 class="f-title">Hardcoded signing key</h3>
+      <span class="f-cwe">CWE-798</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">The Flask session key was a literal string committed to the repository, therefore public to anyone who can read it.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:57</span></div>
+        <pre class="code"><span class="ln">57
+58
+59
+60
+61
+62</span><code>
+<span class="c"># Hardcoded secret key (CWE-798)</span>
+app.secret_key = <span class="s">"&quot;secret123&quot;"</span>
+
+<span class="c"># Rate limiting configuration</span>
+RATE_<span class="k">LIMIT</span>_WINDOW = 3 * 60 * 60  <span class="c"># 3 hours <span class="k">in </span>seconds</span></code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:114</span></div>
+        <pre class="code"><span class="ln">114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128</span><code>init_merchant_payment_routes(app)
+
+<span class="c"># Hardcoded secret key (CWE-798)</span>
+app.secret_key = os.environ.get(<span class="s">&#x27;SECRET_KEY&#x27;</span>)
+<span class="k">if </span><span class="k">not </span>app.secret_key or len(app.secret_key) &lt; 32:
+    raise RuntimeError(
+        <span class="s">&#x27;SECRET_KEY environment variable is required and must be at least 32 &#x27;</span>
+        <span class="s">&#x27;characters long. Generate one with: &#x27;</span>
+        <span class="s">"&quot;python -c \&quot;"</span><span class="k">import </span>secrets; print(secrets.token_urlsafe(48))\<span class="s">"&quot;&quot;"</span>
+    )
+
+<span class="c"># Columns a self-registering client is allowed to write. Anything outside this</span>
+<span class="c"># list is ignored, so a request body can<span class="k">not </span>inject a column such as</span>
+<span class="c"># is_admin, balance or reset_p<span class="k">in </span>(CWE-915, mass assignment).</span>
+REGISTERABLE_FIELDS = (</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="critical" data-cat="Mass Assignment" id="F-04">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#e5484d">CRITICAL</span>
+      <span class="f-id">F-04</span>
+      <h3 class="f-title">Client could grant themselves admin</h3>
+      <span class="f-cwe">CWE-915</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">Every extra key in the registration body became a column. A client could POST <code>{&quot;is_admin&quot;: true}</code> and be written straight into the users table as an administrator.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:331</span></div>
+        <pre class="code"><span class="ln">331
+332
+333
+334
+335
+336
+337
+338
+339
+340
+341
+342
+343</span><code>            fields = [<span class="s">&#x27;username&#x27;</span>, <span class="s">&#x27;password&#x27;</span>, <span class="s">&#x27;account_number&#x27;</span>]
+            values = [user_data.get(<span class="s">&#x27;username&#x27;</span>), user_data.get(<span class="s">&#x27;password&#x27;</span>), account_number]
+            
+            <span class="c"># Include any additional parameters <span class="k">from </span>user input</span>
+            <span class="k">for </span>key, value <span class="k">in </span>user_data.items():
+                <span class="k">if </span>key <span class="k">not </span><span class="k">in </span>[<span class="s">&#x27;username&#x27;</span>, <span class="s">&#x27;password&#x27;</span>]:
+                    fields.append(key)
+                    values.append(value)
+            
+            <span class="c"># Build the SQL query dynamically</span>
+            query = f<span class="s">"&quot;&quot;"</span>&quot;
+                <span class="k">INSERT</span> INTO users ({<span class="s">&#x27;, &#x27;</span>.join(fields)})
+                <span class="k">VALUES</span> ({<span class="s">&#x27;, &#x27;</span>.join([<span class="s">&#x27;%s&#x27;</span>] * len(fields))})</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:125</span></div>
+        <pre class="code"><span class="ln">125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138</span><code><span class="c"># list is ignored, so a request body can<span class="k">not </span>inject a column such as</span>
+<span class="c"># is_admin, balance or reset_p<span class="k">in </span>(CWE-915, mass assignment).</span>
+REGISTERABLE_FIELDS = (
+    <span class="s">&#x27;profile_picture&#x27;</span>,
+    <span class="s">&#x27;bio&#x27;</span>,
+)
+
+<span class="c"># Columns a client may update on a virtual card. The column names are taken</span>
+<span class="c"># <span class="k">from </span>this allowlist, never <span class="k">from </span>raw request keys (CWE-89 / CWE-915).</span>
+ALLOWED_CARD_<span class="k">UPDATE</span>_FIELDS = {
+    <span class="s">&#x27;card_limit&#x27;</span>: <span class="s">&#x27;card_limit = %s&#x27;</span>,
+    <span class="s">&#x27;is_frozen&#x27;</span>: <span class="s">&#x27;is_frozen = %s&#x27;</span>,
+    <span class="s">&#x27;is_active&#x27;</span>: <span class="s">&#x27;is_active = %s&#x27;</span>,
+    <span class="s">&#x27;card_type&#x27;</span>: <span class="s">&#x27;card_type = %s&#x27;</span>,</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="critical" data-cat="IDOR" id="F-05">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#e5484d">CRITICAL</span>
+      <span class="f-id">F-05</span>
+      <h3 class="f-title">Any account balance could be read</h3>
+      <span class="f-cwe">CWE-639</span>
+      <span class="f-file">auth.py</span>
+    </header>
+    <p class="f-desc">The balance endpoint accepted an arbitrary <code>account_number</code> from the query string and never checked that it belonged to the caller.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">auth.py:139</span></div>
+        <pre class="code"><span class="ln">139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152</span><code>            <span class="s">&#x27;user_id&#x27;</span>: user[0],
+            <span class="s">&#x27;username&#x27;</span>: user[1],
+            <span class="s">&#x27;account_number&#x27;</span>: user[3],
+            <span class="s">&#x27;is_admin&#x27;</span>: user[5],
+            <span class="s">&#x27;debug_info&#x27;</span>: {
+                <span class="s">&#x27;login_time&#x27;</span>: str(datetime.datetime.now()),
+                <span class="s">&#x27;ip_address&#x27;</span>: request.remote_addr,
+                <span class="s">&#x27;user_agent&#x27;</span>: request.headers.get(<span class="s">&#x27;User-Agent&#x27;</span>)
+            }
+        })
+
+    @app.route(<span class="s">&#x27;/api/check_balance&#x27;</span>, methods=[<span class="s">&#x27;GET&#x27;</span>])
+    @token_required
+    <span class="k">def </span>api_check_balance(current_user):</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">auth.py:126</span></div>
+        <pre class="code"><span class="ln">126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141</span><code>            c = conn.cursor()
+            c.execute(
+                <span class="s">"&quot;<span class="k">SELECT</span> id, username, password, account_number, is_admin, is_suspended &quot;"</span>
+                <span class="s">"&quot;<span class="k">FROM</span> users <span class="k">WHERE</span> username = ?&quot;"</span>,
+                (auth.get(<span class="s">&#x27;username&#x27;</span>),)
+            )
+            user = c.fetchone()
+        finally:
+            conn.close()
+
+        <span class="k">if </span><span class="k">not </span>user:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;error&#x27;</span>: <span class="s">&#x27;Invalid credentials&#x27;</span>}), 401
+
+        <span class="c"># Passwords are stored <span class="k">in </span>plaintext <span class="k">in </span>this schema; compare them in</span>
+        <span class="c"># constant time so the comparison does <span class="k">not </span>leak length or prefix</span>
+        <span class="c"># information through timing (CWE-256).</span></code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="critical" data-cat="PCI-DSS" id="F-06">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#e5484d">CRITICAL</span>
+      <span class="f-id">F-06</span>
+      <h3 class="f-title">Full card number and CVV returned to the client</h3>
+      <span class="f-cwe">CWE-359</span>
+      <span class="f-file">merchant_payments.py</span>
+    </header>
+    <p class="f-desc">The charge response and the payment listings returned the customer complete PAN and CVV, which PCI-DSS forbids.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">merchant_payments.py:404</span></div>
+        <pre class="code"><span class="ln">404
+405
+406
+407
+408
+409
+410
+411
+412
+413
+414
+415
+416
+417
+418
+419</span><code>                    <span class="s">&#x27;created_at&#x27;</span>: str(datetime.now())
+                },
+                <span class="s">&#x27;card_details&#x27;</span>: {
+                    <span class="s">&#x27;card_id&#x27;</span>: card_id,
+                    <span class="s">&#x27;user_id&#x27;</span>: card[1],
+                    <span class="s">&#x27;account_number&#x27;</span>: card[11],
+                    <span class="s">&#x27;username&#x27;</span>: card[12],
+                    <span class="s">&#x27;card_number&#x27;</span>: card[2],
+                    <span class="s">&#x27;cvv&#x27;</span>: stored_cvv,
+                    <span class="s">&#x27;expiry_date&#x27;</span>: stored_expiry,
+                    <span class="s">&#x27;card_currency&#x27;</span>: card_currency,
+                    <span class="s">&#x27;requested_currency&#x27;</span>: currency,
+                    <span class="s">&#x27;balance_before&#x27;</span>: card_balance,
+                    <span class="s">&#x27;balance_after&#x27;</span>: card_balance - amount,
+                    <span class="s">&#x27;card_type&#x27;</span>: card[9],
+                    <span class="s">&#x27;card_limit&#x27;</span>: float(card[10])</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">merchant_payments.py:20</span></div>
+        <pre class="code"><span class="ln">20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37</span><code>
+logger = logging.getLogger(__name__)
+
+
+<span class="k">def </span>mask_card_number(card_number):
+    <span class="s">"&quot;&quot;"</span>&quot;
+    Mask a card number, keeping only the last four digits.
+
+    Full PAN and CVV must never leave the server (PCI-DSS 3.4 / CWE-359).
+    <span class="s">"&quot;&quot;"</span>&quot;
+    <span class="k">if </span><span class="k">not </span>card_number:
+        <span class="k">return </span><span class="k">None</span>
+    card_number = str(card_number)
+    <span class="k">if </span>len(card_number) &lt;= 4:
+        <span class="k">return </span><span class="s">&#x27;*&#x27;</span> * len(card_number)
+    <span class="k">return </span><span class="s">&#x27;*&#x27;</span> * (len(card_number) - 4) + card_number[-4:]
+
+</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="critical" data-cat="SSRF" id="F-07">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#e5484d">CRITICAL</span>
+      <span class="f-id">F-07</span>
+      <h3 class="f-title">Server-side request forgery via profile picture URL</h3>
+      <span class="f-cwe">CWE-918</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">The fetch accepted any URL, followed redirects and disabled TLS verification, so the server could be made to reach internal services such as the metadata endpoint.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:707</span></div>
+        <pre class="code"><span class="ln">707
+708
+709
+710
+711
+712
+713
+714
+715
+716
+717
+718
+719
+720</span><code>        <span class="k">if </span><span class="k">not </span>image_url:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url is required&#x27;</span>}), 400
+
+        <span class="c"># Vulnerabilities:</span>
+        <span class="c"># - No URL scheme/host allowlist (SSRF)</span>
+        <span class="c"># - SSL verification disabled</span>
+        <span class="c"># - Follows redirects</span>
+        <span class="c"># - No content-type or size validation</span>
+        resp = requests.get(image_url, timeout=10, allow_redirects=<span class="k">True</span>, verify=<span class="k">False</span>)
+        <span class="k">if </span>resp.status_code &gt;= 400:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: f<span class="s">&#x27;Failed to fetch URL: HTTP {resp.status_code}&#x27;</span>}), 400
+
+        <span class="c"># Derive filename <span class="k">from </span>URL path (user-controlled)</span>
+        parsed = urlparse(image_url)</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:910</span></div>
+        <pre class="code"><span class="ln">910
+911
+912
+913
+914
+915
+916
+917
+918
+919
+920
+921
+922
+923
+924
+925
+926
+927
+928
+929
+930
+931
+932
+933
+934
+935
+936
+937</span><code>            resolved = socket.getaddrinfo(
+                parsed.hostname, parsed.port or (443 <span class="k">if </span>parsed.scheme == <span class="s">&#x27;https&#x27;</span> <span class="k">else</span> 80),
+                proto=socket.IPPROTO_TCP,
+            )
+        <span class="k">except</span> socket.gaierror:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url host could <span class="k">not </span>be resolved&#x27;</span>}), 400
+
+        <span class="k">for </span>family, _type, _proto, _canon, sockaddr <span class="k">in </span>resolved:
+            ip = ipaddress.ip_address(sockaddr[0])
+            <span class="k">if </span>(ip.is_private or ip.is_loopback or ip.is_link_local
+                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+                <span class="k">return </span>jsonify({
+                    <span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>,
+                    <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url must <span class="k">not </span>point to a private or internal address&#x27;</span>
+                }), 400
+
+        resp = requests.get(
+            image_url,
+            timeout=10,
+            allow_redirects=<span class="k">False</span>,
+            verify=<span class="k">True</span>,
+            stream=<span class="k">True</span>,
+        )
+        <span class="k">if </span>resp.status_code &gt;= 400:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: f<span class="s">&#x27;Failed to fetch URL: HTTP {resp.status_code}&#x27;</span>}), 400
+
+        content_type = resp.headers.get(<span class="s">&#x27;Content-Type&#x27;</span>, <span class="s">&#x27;&#x27;</span>)
+        <span class="k">if </span><span class="k">not </span>content_type.startswith(<span class="s">&#x27;image/&#x27;</span>):</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Debug Exposure" id="F-08">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-08</span>
+      <h3 class="f-title">Flask debugger on a public bind</h3>
+      <span class="f-cwe">CWE-489</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc"><code>app.run(debug=True)</code> on <code>0.0.0.0</code> exposed the interactive Werkzeug console - a remote code execution surface behind a PIN.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:2496</span></div>
+        <pre class="code"><span class="ln">2496
+2497
+2498
+2499
+2500
+2501</span><code>
+<span class="k">if </span>__name__ == <span class="s">&#x27;__main__&#x27;</span>:
+    init_db()
+    <span class="c"># Vulnerability: Debug mode enabled <span class="k">in </span>production</span>
+    app.run(host=<span class="s">&#x27;0.0.0.0&#x27;</span>, port=5000, debug=<span class="k">True</span>)
+</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:2761</span></div>
+        <pre class="code"><span class="ln">2761
+2762
+2763
+2764
+2765
+2766
+2767
+2768
+2769
+2770
+2771
+2772</span><code><span class="k">if </span>__name__ == <span class="s">&#x27;__main__&#x27;</span>:
+    init_db()
+    <span class="c"># The Werkzeug debugger is only started when explicitly requested and is</span>
+    <span class="c"># never enabled by default. Running it on a public bind exposed an</span>
+    <span class="c"># interactive console <span class="k">with </span>a PIN (CWE-489).</span>
+    <span class="c">#</span>
+    <span class="c"># In production the app is served by gunicorn (see start.sh), so this</span>
+    <span class="c"># block is only <span class="k">for </span>local development.</span>
+    debug = os.environ.get(<span class="s">&#x27;FLASK_DEBUG&#x27;</span>, <span class="s">&#x27;false&#x27;</span>).lower() <span class="k">in </span>(<span class="s">&#x27;1&#x27;</span>, <span class="s">&#x27;true&#x27;</span>, <span class="s">&#x27;yes&#x27;</span>)
+    host = os.environ.get(<span class="s">&#x27;FLASK_HOST&#x27;</span>, <span class="s">&#x27;127.0.0.1&#x27;</span>)
+    app.run(host=host, port=int(os.environ.get(<span class="s">&#x27;FLASK_P<span class="k">OR</span>T&#x27;</span>, <span class="s">&#x27;5000&#x27;</span>)), debug=debug)
+</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Information Disclosure" id="F-09">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-09</span>
+      <h3 class="f-title">Debug endpoint dumped every password</h3>
+      <span class="f-cwe">CWE-200</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc"><code>/debug/users</code> was unauthenticated and returned the plaintext password of every account in the database.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:454</span></div>
+        <pre class="code"><span class="ln">454
+455
+456
+457
+458
+459
+460
+461
+462
+463
+464
+465
+466
+467
+468
+469</span><code>
+@app.route(<span class="s">&#x27;/debug/users&#x27;</span>)
+<span class="k">def </span>debug_users():
+    users = execute_query(<span class="s">"&quot;<span class="k">SELECT</span> id, username, password, account_number, is_adm<span class="k">in </span><span class="k">FROM</span> users&quot;"</span>)
+    <span class="k">return </span>jsonify({<span class="s">&#x27;users&#x27;</span>: [
+        {
+            <span class="s">&#x27;id&#x27;</span>: u[0],
+            <span class="s">&#x27;username&#x27;</span>: u[1],
+            <span class="s">&#x27;password&#x27;</span>: u[2],
+            <span class="s">&#x27;account_number&#x27;</span>: u[3],
+            <span class="s">&#x27;is_admin&#x27;</span>: u[4]
+        } <span class="k">for </span>u <span class="k">in </span>users
+    ]})
+
+@app.route(<span class="s">&#x27;/dashboard&#x27;</span>)
+@token_required</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:591</span></div>
+        <pre class="code"><span class="ln">591
+592
+593
+594
+595
+596
+597
+598
+599
+600
+601
+602
+603
+604
+605
+606
+607
+608
+609
+610
+611
+612
+613
+614</span><code>            }), 500
+
+    <span class="k">return </span>render_template(<span class="s">&#x27;login.html&#x27;</span>)
+
+@app.route(<span class="s">&#x27;/debug/users&#x27;</span>)
+@token_required
+<span class="k">def </span>debug_users(current_user):
+    <span class="c"># This endpoint returned every user&#x27;s plaintext password to any caller.</span>
+    <span class="c"># It now requires an adm<span class="k">in </span>token and never returns password material</span>
+    <span class="c"># (CWE-200 / CWE-256).</span>
+    <span class="k">if </span><span class="k">not </span>current_user.get(<span class="s">&#x27;is_admin&#x27;</span>):
+        <span class="k">return </span>jsonify({<span class="s">&#x27;error&#x27;</span>: <span class="s">&#x27;Forbidden&#x27;</span>}), 403
+
+    users = execute_query(
+        <span class="s">"&quot;<span class="k">SELECT</span> id, username, account_number, is_adm<span class="k">in </span><span class="k">FROM</span> users &quot;"</span>
+        <span class="s">"&quot;<span class="k">OR</span>DER BY id&quot;"</span>
+    )
+    <span class="k">return </span>jsonify({<span class="s">&#x27;users&#x27;</span>: [
+        {
+            <span class="s">&#x27;id&#x27;</span>: u[0],
+            <span class="s">&#x27;username&#x27;</span>: u[1],
+            <span class="s">&#x27;account_number&#x27;</span>: u[2],
+            <span class="s">&#x27;is_admin&#x27;</span>: u[3]
+        } <span class="k">for </span>u <span class="k">in </span>users</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="XSS" id="F-10">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-10</span>
+      <h3 class="f-title">Stored XSS through the user bio</h3>
+      <span class="f-cwe">CWE-79</span>
+      <span class="f-file">templates/dashboard.html</span>
+    </header>
+    <p class="f-desc">The bio was rendered with Jinja <code>|safe</code> filter, which disables autoescaping and hands the value to the browser as markup.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">templates/dashboard.html:163</span></div>
+        <pre class="code"><span class="ln">163
+164
+165
+166
+167</span><code>            &lt;div style=<span class="s">"&quot;margin-top:2rem;padding-top:2rem;border-top:1px solid var(--border);&quot;"</span>&gt;
+                &lt;h3 style=<span class="s">"&quot;font-size:1.125rem;font-weight:600;margin-bottom:1rem;&quot;"</span>&gt;Your Bio&lt;/h3&gt;
+                {% <span class="k">if </span>user_bio %}
+                &lt;div style=<span class="s">"&quot;background:var(--surface-1);padding:1rem;border-radius:var(--r-sm);margin-bottom:1rem;&quot;"</span>&gt;
+                    &lt;div style=<span class="s">"&quot;font-size:0.875rem;color:var(--text-3);margin-bottom:0.5rem;&quot;"</span>&gt;Current bio:&lt;/div&gt;</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">templates/dashboard.html:163</span></div>
+        <pre class="code"><span class="ln">163
+164
+165
+166
+167</span><code>            &lt;div style=<span class="s">"&quot;margin-top:2rem;padding-top:2rem;border-top:1px solid var(--border);&quot;"</span>&gt;
+                &lt;h3 style=<span class="s">"&quot;font-size:1.125rem;font-weight:600;margin-bottom:1rem;&quot;"</span>&gt;Your Bio&lt;/h3&gt;
+                {% <span class="k">if </span>user_bio %}
+                &lt;div style=<span class="s">"&quot;background:var(--surface-1);padding:1rem;border-radius:var(--r-sm);margin-bottom:1rem;&quot;"</span>&gt;
+                    &lt;div style=<span class="s">"&quot;font-size:0.875rem;color:var(--text-3);margin-bottom:0.5rem;&quot;"</span>&gt;Current bio:&lt;/div&gt;</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="XSS" id="F-11">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-11</span>
+      <h3 class="f-title">DOM XSS through innerHTML interpolation</h3>
+      <span class="f-cwe">CWE-79</span>
+      <span class="f-file">static/dashboard.js</span>
+    </header>
+    <p class="f-desc">Server data was interpolated into <code>innerHTML</code>, so a stored payload executed as script in every viewer browser.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">static/dashboard.js:370</span></div>
+        <pre class="code"><span class="ln">370
+371
+372
+373
+374
+375
+376
+377</span><code>        <span class="k">if </span>(data.status === <span class="s">&#x27;success&#x27;</span>) {
+            // Update the bio display immediately <span class="k">with </span>user input (XSS vulnerability)
+            <span class="k">const </span>bioDisplay = document.getElementById(<span class="s">&#x27;user-bio-display&#x27;</span>);
+            <span class="k">if </span>(bioDisplay) {
+                bioDisplay.innerHTML = bio; // Direct innerHTML assignment - XSS!
+            }
+
+            document.getElementById(<span class="s">&#x27;bio-message&#x27;</span>).innerText = <span class="s">&#x27;Bio updated successfully!&#x27;</span>;</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">static/dashboard.js:382</span></div>
+        <pre class="code"><span class="ln">382
+383
+384
+385
+386
+387
+388
+389</span><code>            // textContent is used instead of innerHTML so the bio is rendered
+            // <span class="k">as </span>text and never parsed <span class="k">as </span>markup (CWE-79).
+            <span class="k">const </span>bioDisplay = document.getElementById(<span class="s">&#x27;user-bio-display&#x27;</span>);
+            <span class="k">if </span>(bioDisplay) {
+                bioDisplay.textContent = bio;
+            }
+
+            document.getElementById(<span class="s">&#x27;bio-message&#x27;</span>).innerText = <span class="s">&#x27;Bio updated successfully!&#x27;</span>;</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Upload" id="F-12">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-12</span>
+      <h3 class="f-title">Unrestricted file upload</h3>
+      <span class="f-cwe">CWE-434</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">The uploads directory is served as static content, so an accepted <code>.html</code> or <code>.svg</code> file becomes stored script on the application own origin.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:659</span></div>
+        <pre class="code"><span class="ln">659
+660
+661
+662
+663
+664
+665
+666
+667
+668
+669
+670
+671
+672
+673
+674
+675</span><code>    <span class="k">try:</span>
+        <span class="c"># Vulnerability: No file type validation</span>
+        <span class="c"># Vulnerability: Using user-controlled filename</span>
+        <span class="c"># Vulnerability: No file size check</span>
+        <span class="c"># Vulnerability: No content-type validation</span>
+        filename = secure_filename(file.filename)
+        
+        <span class="c"># Add random prefix to prevent filename collisions</span>
+        filename = f<span class="s">"&quot;{random.randint(1, 1000000)}_{filename}&quot;"</span>
+        
+        <span class="c"># Vulnerability: Path traversal possible <span class="k">if </span>filename contains ../</span>
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        
+        file.save(file_path)
+        
+        <span class="c"># Update database <span class="k">with </span>just the filename</span>
+        execute_query(</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:808</span></div>
+        <pre class="code"><span class="ln">808
+809
+810
+811
+812
+813
+814
+815
+816
+817
+818
+819
+820
+821
+822
+823
+824
+825
+826
+827
+828
+829</span><code>        <span class="c"># is validated before anything is written: the extension must be an</span>
+        <span class="c"># allowlisted image type and the content must carry a matching image</span>
+        <span class="c"># signature (CWE-434).</span>
+        header = file.read(16)
+        file.seek(0)
+
+        extension = _validate_image_upload(file.filename, header)
+        <span class="k">if </span>extension is <span class="k">None</span>:
+            <span class="k">return </span>jsonify({
+                <span class="s">&#x27;error&#x27;</span>: <span class="s">&#x27;Only JPG, PNG, GIF, WebP or BMP images are accepted&#x27;</span>
+            }), 400
+
+        <span class="c"># Reject oversized uploads before reading them into memory.</span>
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)
+        <span class="k">if </span>size &gt; MAX_UPLOAD_BYTES:
+            <span class="k">return </span>jsonify({
+                <span class="s">&#x27;error&#x27;</span>: <span class="s">&#x27;Image is too large&#x27;</span>
+            }), 413
+
+        <span class="c"># secure_filename strips path separators and traversal sequences.</span></code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Edge / CDN" id="F-13">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-13</span>
+      <h3 class="f-title">Origin published on all interfaces</h3>
+      <span class="f-cwe">CWE-668</span>
+      <span class="f-file">docker-compose.yml</span>
+    </header>
+    <p class="f-desc">Publishing <code>5000:5000</code> on <code>0.0.0.0</code> let anyone who learned the origin IP bypass the CDN, its WAF and every edge rule.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">docker-compose.yml:6</span></div>
+        <pre class="code"><span class="ln">6
+7
+8
+9
+10
+11
+12
+13
+14</span><code>    build: .
+    restart: unless-stopped
+    ports:
+      - <span class="s">"&quot;5000:5000&quot;"</span>
+      - <span class="s">"&quot;80:5000&quot;"</span>
+      <span class="c"># - <span class="s">"&quot;443:5000&quot;"</span> </span>
+
+    environment:
+      - DB_NAME=vulnerable_bank</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">docker-compose.yml:12</span></div>
+        <pre class="code"><span class="ln">12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28</span><code>services:
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      <span class="c"># The orig<span class="k">in </span>is bound to loopback only. Publishing to 0.0.0.0 would let</span>
+      <span class="c"># anyone who learns the orig<span class="k">in </span>IP bypass the CDN, its WAF and every</span>
+      <span class="c"># edge rule (CWE-668).</span>
+      <span class="c">#</span>
+      <span class="c"># IMP<span class="k">OR</span>TANT: this is <span class="k">not </span>a drop-<span class="k">in </span>swap. With the orig<span class="k">in </span>on loopback the</span>
+      <span class="c"># host needs a reverse proxy (nginx/Caddy) to terminate TLS and proxy</span>
+      <span class="c"># to 127.0.0.1:5000, <span class="k">with </span>the firewall allowing only the CDN&#x27;s IP</span>
+      <span class="c"># ranges. The container-side bind must stay 0.0.0.0 while the</span>
+      <span class="c"># host-side publish stays on 127.0.0.1.</span>
+      - <span class="s">"&quot;127.0.0.1:5000:5000&quot;"</span>
+
+    environment:</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Supply Chain" id="F-14">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-14</span>
+      <h3 class="f-title">CI actions pinned to mutable tags</h3>
+      <span class="f-cwe">CWE-494</span>
+      <span class="f-file">.github/workflows/deploy.yml</span>
+    </header>
+    <p class="f-desc">Third-party actions were referenced by tag. A tag can be silently repointed by the action owner, turning the build into a supply-chain vector.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">.github/workflows/deploy.yml:20</span></div>
+        <pre class="code"><span class="ln">20
+21
+22
+23
+24</span><code>    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH agent</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">.github/workflows/deploy.yml:29</span></div>
+        <pre class="code"><span class="ln">29
+30
+31
+32
+33
+34
+35
+36
+37</span><code>
+    steps:
+      - name: Checkout code
+        <span class="c"># Pinned to a full 40-character commit SHA. A mutable tag can be</span>
+        <span class="c"># silently repointed by the action owner, enabling a supply-chain</span>
+        <span class="c"># attack (CWE-494).</span>
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Setup SSH agent</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Transport" id="F-15">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-15</span>
+      <h3 class="f-title">Session cookie without Secure or SameSite</h3>
+      <span class="f-cwe">CWE-614</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">The auth cookie carried no <code>Secure</code> or <code>SameSite</code> attribute, so it travelled over cleartext and rode along on cross-site requests.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:430</span></div>
+        <pre class="code"><span class="ln">430
+431
+432
+433
+434</span><code>                }))
+                <span class="c"># Vulnerability: Cookie without secure flag</span>
+                response.set_cookie(<span class="s">&#x27;token&#x27;</span>, token, httponly=<span class="k">True</span>)
+                <span class="k">return </span>response
+            </code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:560</span></div>
+        <pre class="code"><span class="ln">560
+561
+562
+563
+564
+565
+566
+567
+568
+569
+570
+571
+572
+573
+574
+575</span><code>                }))
+                <span class="c"># The session cookie is marked Secure, HttpOnly and SameSite so</span>
+                <span class="c"># it is <span class="k">not </span>sent over cleartext, is <span class="k">not </span>readable by scripts,</span>
+                <span class="c"># and is <span class="k">not </span>attached to cross-site requests (CWE-614).</span>
+                response.set_cookie(
+                    <span class="s">&#x27;token&#x27;</span>,
+                    token,
+                    httponly=<span class="k">True</span>,
+                    secure=<span class="k">True</span>,
+                    samesite=<span class="s">&#x27;Lax&#x27;</span>,
+                    max_age=3600,
+                )
+                <span class="k">return </span>response
+            
+            <span class="c"># The failure response is identical whether the account exists</span>
+            <span class="c"># or not, so it does <span class="k">not </span>reveal which usernames are registered</span></code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="CORS" id="F-16">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-16</span>
+      <h3 class="f-title">Wildcard Access-Control-Allow-Origin</h3>
+      <span class="f-cwe">CWE-942</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc"><code>CORS(app)</code> with no arguments sends <code>Access-Control-Allow-Origin: *</code> on every response, letting any site read the API.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:35</span></div>
+        <pre class="code"><span class="ln">35
+36
+37
+38</span><code><span class="c"># Initialize Flask app</span>
+app = Flask(__name__)
+C<span class="k">OR</span>S(app)
+</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:45</span></div>
+        <pre class="code"><span class="ln">45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60</span><code><span class="c"># C<span class="k">OR</span>S is restricted to an explicit orig<span class="k">in </span>allowlist. C<span class="k">OR</span>S(app) <span class="k">with </span>no</span>
+<span class="c"># arguments sends <span class="s">"&quot;Access-Control-Allow-Origin: *&quot;"</span> on every response,</span>
+<span class="c"># including authenticated ones, which lets any site read API responses</span>
+<span class="c"># (CWE-942).</span>
+C<span class="k">OR</span>S_ALLOWED_<span class="k">OR</span>IGINS = [
+    origin.strip()
+    <span class="k">for </span>orig<span class="k">in </span><span class="k">in </span>os.environ.get(
+        <span class="s">&#x27;C<span class="k">OR</span>S_ALLOWED_<span class="k">OR</span>IGINS&#x27;</span>,
+        <span class="s">&#x27;https://vulnbank.org,https://www.vulnbank.org&#x27;</span>,
+    ).split(<span class="s">&#x27;,&#x27;</span>)
+    <span class="k">if </span>origin.strip()
+]
+C<span class="k">OR</span>S(
+    app,
+    resources={r<span class="s">"&quot;/api/*&quot;"</span>: {<span class="s">"&quot;origins&quot;"</span>: C<span class="k">OR</span>S_ALLOWED_<span class="k">OR</span>IGINS}},
+    supports_credentials=<span class="k">True</span>,</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Container" id="F-17">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-17</span>
+      <h3 class="f-title">Container running as root</h3>
+      <span class="f-cwe">CWE-250</span>
+      <span class="f-file">Dockerfile</span>
+    </header>
+    <p class="f-desc">No <code>USER</code> instruction meant the application ran as uid 0, so a container escape started from full privilege.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">Dockerfile:21</span></div>
+        <pre class="code"><span class="ln">21
+22
+23
+24
+25
+26
+27
+28
+29
+30</span><code>
+COPY . .
+
+<span class="c"># Ensure uploads directory exists and h<span class="k">as </span>proper permissions</span>
+RUN chmod 777 static/uploads
+RUN chmod +x /app/start.sh
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">Dockerfile:27</span></div>
+        <pre class="code"><span class="ln">27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41</span><code>COPY . .
+
+<span class="c"># Run <span class="k">as </span>a non-root user (CWE-250).</span>
+RUN useradd --create-home --shell /usr/sbin/nolog<span class="k">in </span>--uid 10001 appuser \
+    &amp;&amp; chown -R appuser:appuser /app \
+    &amp;&amp; chmod 755 /app/static/uploads \
+    &amp;&amp; chmod +x /app/start.sh
+
+USER appuser
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD python -c <span class="s">"&quot;<span class="k">import </span>sys, urllib.request; sys.exit(0) <span class="k">if </span>urllib.request.urlopen(<span class="s">&#x27;http://127.0.0.1:5000/healthz&#x27;</span>, timeout=5).getcode() == 200 <span class="k">else</span> sys.exit(1)&quot;"</span>
+</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Secrets" id="F-18">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-18</span>
+      <h3 class="f-title">Secrets exposed to the Docker image</h3>
+      <span class="f-cwe">CWE-538</span>
+      <span class="f-file">.gitignore</span>
+    </header>
+    <p class="f-desc">Only <code>.env</code> was ignored, so <code>.env.local</code> and <code>.env.production</code> were still committable, and the whole build context was copied into the image.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">.gitignore:1</span></div>
+        <pre class="code"><span class="ln">1
+2
+3
+4
+5</span><code>.env
+*.pyc
+__pycache__/
+.venv/
+</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">.gitignore:1</span></div>
+        <pre class="code"><span class="ln">1
+2
+3
+4
+5
+6
+7
+8</span><code><span class="c"># Environment files. The bare `.env` pattern does <span class="k">NOT</span> cover `.env.local`,</span>
+<span class="c"># `.env.production` and friends (CWE-538).</span>
+.env
+.env.*
+!.env.example
+
+*.pyc
+__pycache__/</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Race Condition" id="F-19">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-19</span>
+      <h3 class="f-title">Transfer balance race</h3>
+      <span class="f-cwe">CWE-362</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">Balance was read and then written in two separate statements, so two concurrent transfers could both pass the same check.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:369</span></div>
+        <pre class="code"><span class="ln">369
+370
+371
+372
+373
+374
+375
+376
+377
+378
+379
+380
+381
+382
+383
+384
+385
+386
+387
+388
+389
+390</span><code>            response = jsonify(sensitive_data)
+            response.headers[<span class="s">&#x27;X-Debug-Info&#x27;</span>] = str(sensitive_data[<span class="s">&#x27;debug_data&#x27;</span>])
+            response.headers[<span class="s">&#x27;X-User-Info&#x27;</span>] = f<span class="s">"&quot;id={user[0]};admin={user[4]};balance={user[3]}&quot;"</span>
+            
+            <span class="k">return </span>response
+                
+        <span class="k">except</span> Exception <span class="k">as </span>e:
+            print(f<span class="s">"&quot;Registration error: {str(e)}&quot;"</span>)
+            <span class="k">return </span>jsonify({
+                <span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>,
+                <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;Registration failed&#x27;</span>,
+                <span class="s">&#x27;error&#x27;</span>: str(e)
+            }), 500
+        
+    <span class="k">return </span>render_template(<span class="s">&#x27;register.html&#x27;</span>)
+
+@app.route(<span class="s">&#x27;/login&#x27;</span>, methods=[<span class="s">&#x27;GET&#x27;</span>, <span class="s">&#x27;POST&#x27;</span>])
+<span class="k">def </span>login():
+    <span class="k">if </span>request.method == <span class="s">&#x27;POST&#x27;</span>:
+        <span class="k">try:</span>
+            data = request.get_json()
+            username = data.get(<span class="s">&#x27;username&#x27;</span>)</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:700</span></div>
+        <pre class="code"><span class="ln">700
+701
+702
+703
+704
+705
+706
+707
+708
+709
+710
+711
+712
+713
+714
+715
+716
+717
+718
+719
+720
+721
+722
+723
+724
+725</span><code>        
+        from_account = sender_data[0]
+        balance = float(sender_data[1])
+        
+        <span class="k">if </span>balance &gt;= abs(amount):  <span class="c"># Check against absolute value of amount</span>
+            <span class="k">try:</span>
+                <span class="c"># Vulnerability: Negative transfers possible</span>
+                <span class="c"># Vulnerability: No transaction atomicity</span>
+                queries = [
+                    (
+                        <span class="s">"&quot;<span class="k">UPDATE</span> users <span class="k">SET</span> balance = balance - %s <span class="k">WHERE</span> id = %s&quot;"</span>,
+                        (amount, current_user[<span class="s">&#x27;user_id&#x27;</span>])
+                    ),
+                    (
+                        <span class="s">"&quot;<span class="k">UPDATE</span> users <span class="k">SET</span> balance = balance + %s <span class="k">WHERE</span> account_number = %s&quot;"</span>,
+                        (amount, to_account)
+                    ),
+                    (
+                        <span class="s">"&quot;&quot;"</span>&quot;<span class="k">INSERT</span> INTO transactions 
+                           (from_account, to_account, amount, transaction_type, description)
+                           <span class="k">VALUES</span> (%s, %s, %s, %s, %s)<span class="s">"&quot;&quot;"</span>&quot;,
+                        (from_account, to_account, amount, <span class="s">&#x27;transfer&#x27;</span>, 
+                         data.get(<span class="s">&#x27;description&#x27;</span>, <span class="s">&#x27;Transfer&#x27;</span>))
+                    )
+                ]
+                execute_transaction(queries)</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Information Disclosure" id="F-20">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-20</span>
+      <h3 class="f-title">Exception text returned to the client</h3>
+      <span class="f-cwe">CWE-209</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">Handlers returned <code>str(e)</code> directly, which leaked SQL fragments, table names and filesystem paths.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:524</span></div>
+        <pre class="code"><span class="ln">524
+525
+526
+527
+528
+529
+530
+531</span><code>        }), 404
+    <span class="k">except</span> Exception <span class="k">as </span>e:
+        <span class="k">return </span>jsonify({
+            <span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>,
+            <span class="s">&#x27;message&#x27;</span>: str(e)
+        }), 500
+
+<span class="c"># Transfer endpoint</span></code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:581</span></div>
+        <pre class="code"><span class="ln">581
+582
+583
+584
+585
+586
+587
+588
+589
+590</span><code>            <span class="c"># The <span class="k">except</span>ion is logged server-side only. Returning str(e) to</span>
+            <span class="c"># the client leaked SQL fragments and schema details (CWE-209).</span>
+            logger.<span class="k">except</span>ion(<span class="s">&#x27;Log<span class="k">in </span>failed&#x27;</span>)
+            <span class="k">return </span>jsonify({
+                <span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>,
+                <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;Log<span class="k">in </span>failed&#x27;</span>
+            }), 500
+
+    <span class="k">return </span>render_template(<span class="s">&#x27;login.html&#x27;</span>)
+</code></pre>
+      </div>
+    </div>
+  </article>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>Verification</h2></div>
+  <p class="sec-sub">Static analysis alone cannot prove a fix. Each fix was executed against a live instance with a real PostgreSQL 13 container and the new dependency stack (Flask 3.1.3, gunicorn 22.0.0, Python 3.12).</p>
+  <div class="vgrid">
+    <div class="vcard">
+      <h4><span class="tick">&#10003;</span>Exploit suite &mdash; 13 / 13 rejected</h4>
+      <div class="vrow"><span class="k">SQLi tautology on <code>/login</code></span><span class="v">401, no token</span></div>
+      <div class="vrow"><span class="k">SQLi UNION probe on <code>/login</code></span><span class="v">401</span></div>
+      <div class="vrow"><span class="k">SQLi on <code>/api/check_balance</code></span><span class="v">500, no data</span></div>
+      <div class="vrow"><span class="k">JWT <code>alg=none</code> forgery</span><span class="v">401</span></div>
+      <div class="vrow"><span class="k">JWT signed with old weak key</span><span class="v">401</span></div>
+      <div class="vrow"><span class="k">Token via query string</span><span class="v">401</span></div>
+      <div class="vrow"><span class="k">Token via cookie</span><span class="v">401</span></div>
+      <div class="vrow"><span class="k">Mass assignment <code>is_admin</code></span><span class="v">stored False</span></div>
+      <div class="vrow"><span class="k">Mass assignment <code>balance</code></span><span class="v">stored 1000.00</span></div>
+      <div class="vrow"><span class="k"><code>/debug/users</code> unauthenticated</span><span class="v">401</span></div>
+    </div>
+    <div class="vcard">
+      <h4><span class="tick">&#10003;</span>Upload validation &mdash; 14 / 14 rejected</h4>
+      <div class="vrow"><span class="k">.html upload (stored XSS)</span><span class="v">400, nothing written</span></div>
+      <div class="vrow"><span class="k">.svg upload (stored XSS)</span><span class="v">400, nothing written</span></div>
+      <div class="vrow"><span class="k">.php upload</span><span class="v">400, nothing written</span></div>
+      <div class="vrow"><span class="k">.png extension, HTML body</span><span class="v">400, nothing written</span></div>
+      <div class="vrow"><span class="k">Oversized upload</span><span class="v">413</span></div>
+      <div class="vrow"><span class="k">Path traversal filename</span><span class="v">400, no escape</span></div>
+      <div class="vrow"><span class="k">Real PNG / JPEG / GIF</span><span class="v">200, accepted</span></div>
+    </div>
+    <div class="vcard">
+      <h4><span class="tick">&#10003;</span>Regression &amp; runtime</h4>
+      <div class="vrow"><span class="k">pytest suite</span><span class="v">13 passed</span></div>
+      <div class="vrow"><span class="k">Baseline test count</span><span class="v">13 (none deleted)</span></div>
+      <div class="vrow"><span class="k">Clean-clone clone + test</span><span class="v">13 passed</span></div>
+      <div class="vrow"><span class="k">Import without secrets</span><span class="v">fails closed</span></div>
+      <div class="vrow"><span class="k">Import with weak key</span><span class="v">fails closed</span></div>
+      <div class="vrow"><span class="k">Security headers</span><span class="v">5 present</span></div>
+      <div class="vrow"><span class="k">CORS wildcard</span><span class="v">removed</span></div>
+      <div class="vrow"><span class="k">Semgrep whole repo</span><span class="v">82 &rarr; 4</span></div>
+      <div class="vrow"><span class="k">pip-audit</span><span class="v">37 &rarr; 0</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>Accepted residual risk</h2></div>
+  <p class="sec-sub">Not everything was fixed, and these items are deliberately left open. Each is a decision with a reason, not an oversight.</p>
+  <div class="rem">
+    <div class="rem-item"><div class="rid">R-02 &middot; CWE-922</div><h5>JWT still in localStorage</h5><p>Requires migrating the whole client to HttpOnly cookies. Architectural change, deferred rather than half-done.</p></div>
+    <div class="rem-item"><div class="rid">R-03 &middot; CWE-256</div><h5>Passwords and PINs still plaintext</h5><p>Comparisons are now constant-time, but real hashing needs a data migration plan for existing rows.</p></div>
+    <div class="rem-item"><div class="rid">R-04 &middot; CWE-209</div><h5>AI agent error text to client</h5><p>Exception payload from the DeepSeek integration is still serialised to the HTTP response.</p></div>
+    <div class="rem-item"><div class="rid">R-05 &middot; CWE-352</div><h5>No CSRF protection</h5><p>State-changing forms still lack anti-CSRF tokens.</p></div>
+    <div class="rem-item"><div class="rid">R-06 &middot; edge</div><h5>Cloudflare dashboard unknown</h5><p>No API access. WAF, rate limiting and TLS mode are unverified, not confirmed absent.</p></div>
+    <div class="rem-item"><div class="rid">R-07 &middot; CWE-668</div><h5>Origin lock-down needs host access</h5><p>The compose bind is loopback-only; the firewall allowlist depends on infrastructure access.</p></div>
+  </div>
+</section>
+
+<footer>
+  <span>VulnBank security remediation &middot; branch <code>security/remediation-2026-11</code></span>
+  <span>Generated from git <code>ec973f5</code> &rarr; <code>b2af587</code> &middot; full detail in <code>AUDIT_REPORT.md</code></span>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.finding'));
+  var sevChips = Array.prototype.slice.call(document.querySelectorAll('.chip.sev'));
+  var catChips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-cat]'));
+  var activeSev = null, activeCat = null;
+
+  function apply() {
+    cards.forEach(function (c) {
+      var okSev = !activeSev || c.dataset.sev === activeSev;
+      var okCat = !activeCat || c.dataset.cat === activeCat;
+      c.hidden = !(okSev && okCat);
+    });
+  }
+
+  function wire(chips, kind) {
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        var value = chip.dataset[kind];
+        var wasActive = chip.classList.contains('active');
+        chips.forEach(function (c) { c.classList.remove('active'); });
+        if (wasActive) {
+          if (kind === 'sev') { activeSev = null; } else { activeCat = null; }
+        } else {
+          chip.classList.add('active');
+          if (kind === 'sev') { activeSev = value; } else { activeCat = value; }
+        }
+        apply();
+      });
+    });
+  }
+
+  wire(sevChips, 'sev');
+  wire(catChips, 'cat');
+
+  document.getElementById('reset').addEventListener('click', function () {
+    sevChips.concat(catChips).forEach(function (c) { c.classList.remove('active'); });
+    activeSev = null; activeCat = null;
+    apply();
+  });
+})();
+</script>
+</body>
+</html>
