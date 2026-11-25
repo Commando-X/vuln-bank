@@ -24,6 +24,8 @@ import time
 from functools import wraps
 from collections import defaultdict
 import requests
+import secrets
+from urllib3.connectionpool import HTTPSConnectionPool
 from urllib.parse import urlparse
 import ipaddress
 import socket
@@ -181,14 +183,38 @@ def cleanup_rate_limit_storage():
         if not rate_limit_storage[key]:
             del rate_limit_storage[key]
 
+# Proxies whose forwarded headers are trusted. Anything not listed here is
+# ignored, so a caller cannot spoof its own address and get a fresh
+# rate-limit bucket on every request (CWE-348, CWE-441).
+TRUSTED_PROXY_IPS = {
+    ip.strip()
+    for ip in os.environ.get('TRUSTED_PROXY_IPS', '127.0.0.1,::1').split(',')
+    if ip.strip()
+}
+
+
 def get_client_ip():
-    """Get client IP address, considering proxy headers"""
-    if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
-    elif request.headers.get('X-Real-IP'):
-        return request.headers.get('X-Real-IP')
-    else:
-        return request.remote_addr
+    """
+    Get the client IP address.
+
+    The forwarded headers are only honoured when the immediate peer is a
+    known proxy. Trusting them unconditionally let any caller choose its
+    own rate-limit key.
+    """
+    peer = request.remote_addr or ''
+
+    if peer not in TRUSTED_PROXY_IPS:
+        return peer
+
+    forwarded = request.headers.get('X-Forwarded-For')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+
+    real_ip = request.headers.get('X-Real-IP')
+    if real_ip:
+        return real_ip.strip()
+
+    return peer
 
 def check_rate_limit(key, limit):
     """Check if the request should be rate limited"""
@@ -343,14 +369,20 @@ def generate_account_number():
     return ''.join(random.choices(string.digits, k=10))
 
 def generate_card_number():
-    """Generate a 16-digit card number"""
-    # Vulnerability: Predictable card number generation
-    return ''.join(random.choices(string.digits, k=16))
+    """
+    Generate a 16-digit card number.
+
+    The secrets module is used instead of random: the Mersenne Twister
+    state can be recovered from a few observed outputs, which would let an
+    attacker who saw one card number predict the CVVs issued after it
+    (CWE-330).
+    """
+    return ''.join(secrets.choice(string.digits) for _ in range(16))
+
 
 def generate_cvv():
-    """Generate a 3-digit CVV"""
-    # Vulnerability: Predictable CVV generation
-    return ''.join(random.choices(string.digits, k=3))
+    """Generate a 3-digit CVV from a cryptographically secure source."""
+    return ''.join(secrets.choice(string.digits) for _ in range(3))
 
 @app.route('/healthz', methods=['GET'])
 def health_check():
@@ -498,19 +530,24 @@ def register():
                     'is_admin': user[4],
                     'registration_time': str(datetime.now()),
                     'server_info': request.headers.get('User-Agent'),
-                    'raw_data': user_data,  # Exposing raw input data
+                    # The raw registration body is not returned: it carries
+                    # the password in clear text, and this response was also
+                    # being copied into a response header, which means the
+                    # CDN and the proxy access logs captured it
+                    # (CWE-200, CWE-532).
                     'fields_registered': fields  # Show what fields were registered
                 }
             }
-            
+
             response = jsonify(sensitive_data)
-            response.headers['X-Debug-Info'] = str(sensitive_data['debug_data'])
-            response.headers['X-User-Info'] = f"id={user[0]};admin={user[4]};balance={user[3]}"
+            # No debug payload in a response header. Headers are recorded by
+            # intermediaries; only non-sensitive identifiers belong here.
+            response.headers['X-User-Info'] = f"id={user[0]};admin={user[4]}"
             
             return response
                 
         except Exception as e:
-            print(f"Registration error: {str(e)}")
+            logger.exception('Registration failed')
             return jsonify({
                 'status': 'error',
                 'message': 'Registration failed',
@@ -860,6 +897,103 @@ def upload_profile_picture(current_user):
             'message': 'Profile picture upload failed'
         }), 500
 
+# ---------------------------------------------------------------------------
+# SSRF: connect to the IP that was validated.
+#
+# Resolving the hostname and then letting the HTTP client resolve it again
+# leaves a window in which an attacker-controlled DNS server can answer with
+# a public address first and an internal one second (CWE-367, DNS
+# rebinding). The address that was checked would then not be the address
+# that gets connected to.
+#
+# The connection is therefore opened directly to a validated IP, while the
+# original hostname is kept for TLS SNI, certificate verification and the
+# Host header.
+# ---------------------------------------------------------------------------
+def _resolve_public_addresses(hostname, port):
+    """
+    Resolve the hostname and return the addresses that passed the
+    internal-address check.
+
+    Returns None when the name cannot be resolved or when ANY of its
+    addresses is internal, so a partially-internal DNS answer is rejected
+    outright rather than partially accepted.
+    """
+    try:
+        resolved = socket.getaddrinfo(
+            hostname, port, proto=socket.IPPROTO_TCP,
+        )
+    except socket.gaierror:
+        return None
+
+    addresses = []
+    for _family, _type, _proto, _canon, sockaddr in resolved:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return None
+        addresses.append(sockaddr[0])
+
+    return addresses or None
+
+
+def _pinned_fetch(image_url, parsed, addresses, timeout=10):
+    """
+    Fetch the URL over a connection that is pinned to a validated IP.
+
+    The pool is opened against the IP address, so the socket cannot end up
+    somewhere else, while assert_hostname and server_hostname keep the TLS
+    certificate check and the SNI name bound to the original hostname.
+    """
+    path = parsed.path or '/'
+    if parsed.query:
+        path = f'{path}?{parsed.query}'
+
+    headers = {'Host': parsed.netloc}
+
+    pool = HTTPSConnectionPool(
+        addresses[0],
+        port=parsed.port or 443,
+        assert_hostname=parsed.hostname,
+        server_hostname=parsed.hostname,
+        timeout=timeout,
+        retries=0,
+    )
+
+    try:
+        response = pool.request('GET', path, headers=headers, preload_content=False)
+        return response
+    finally:
+        pool.close()
+
+
+def _resolve_public_addresses(hostname, port):
+    """
+    Resolve the hostname and return the addresses that passed the
+    internal-address check.
+
+    Returns None when the name cannot be resolved or when ANY of its
+    addresses is internal, so a partially-internal DNS answer is rejected
+    outright rather than partially accepted.
+    """
+    try:
+        resolved = socket.getaddrinfo(
+            hostname, port, proto=socket.IPPROTO_TCP,
+        )
+    except socket.gaierror:
+        return None
+
+    addresses = []
+    for _family, _type, _proto, _canon, sockaddr in resolved:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return None
+        addresses.append(sockaddr[0])
+
+    return addresses or None
+
+
 # Upload profile picture by URL (Intentionally Vulnerable to SSRF)
 @app.route('/upload_profile_picture_url', methods=['POST'])
 @token_required
@@ -881,50 +1015,43 @@ def upload_profile_picture_url(current_user):
         # - the response must be an image and within a size limit
         parsed = urlparse(image_url)
 
-        if parsed.scheme not in ('http', 'https'):
+        # HTTPS only. Fetching over plain HTTP would let an on-path attacker
+        # substitute the response (CWE-319).
+        if parsed.scheme != 'https':
             return jsonify({
                 'status': 'error',
-                'message': 'image_url must use the http or https scheme'
+                'message': 'image_url must use the https scheme'
             }), 400
 
         if not parsed.hostname:
             return jsonify({'status': 'error', 'message': 'image_url has no host'}), 400
 
-        try:
-            resolved = socket.getaddrinfo(
-                parsed.hostname, parsed.port or (443 if parsed.scheme == 'https' else 80),
-                proto=socket.IPPROTO_TCP,
-            )
-        except socket.gaierror:
-            return jsonify({'status': 'error', 'message': 'image_url host could not be resolved'}), 400
+        port = parsed.port or (443 if parsed.scheme == 'https' else 80)
 
-        for family, _type, _proto, _canon, sockaddr in resolved:
-            ip = ipaddress.ip_address(sockaddr[0])
-            if (ip.is_private or ip.is_loopback or ip.is_link_local
-                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
-                return jsonify({
-                    'status': 'error',
-                    'message': 'image_url must not point to a private or internal address'
-                }), 400
+        # Resolve once and validate. The connection is then pinned to the
+        # validated address, so a DNS answer that changes between this check
+        # and the connection cannot redirect the fetch to an internal host
+        # (CWE-367, DNS rebinding).
+        addresses = _resolve_public_addresses(parsed.hostname, port)
+        if addresses is None:
+            return jsonify({
+                'status': 'error',
+                'message': 'image_url must not point to a private or internal address'
+            }), 400
 
-        resp = requests.get(
-            image_url,
-            timeout=10,
-            allow_redirects=False,
-            verify=True,
-            stream=True,
-        )
-        if resp.status_code >= 400:
-            return jsonify({'status': 'error', 'message': f'Failed to fetch URL: HTTP {resp.status_code}'}), 400
+        resp = _pinned_fetch(image_url, parsed, addresses, timeout=10)
+        if resp.status >= 400:
+            resp.release_conn()
+            return jsonify({'status': 'error', 'message': f'Failed to fetch URL: HTTP {resp.status}'}), 400
 
         content_type = resp.headers.get('Content-Type', '')
         if not content_type.startswith('image/'):
-            resp.close()
+            resp.release_conn()
             return jsonify({'status': 'error', 'message': 'URL did not return an image'}), 400
 
         content_length = resp.headers.get('Content-Length')
         if content_length and int(content_length) > MAX_PROFILE_IMAGE_BYTES:
-            resp.close()
+            resp.release_conn()
             return jsonify({'status': 'error', 'message': 'Image is too large'}), 400
 
         # Derive filename from URL path (user-controlled)
@@ -938,8 +1065,8 @@ def upload_profile_picture_url(current_user):
         # uploads directory is served as static content, so an HTML or SVG
         # body would become stored script on the application's own origin
         # (CWE-434).
-        body = resp.content
-        resp.close()
+        body = resp.read()
+        resp.release_conn()
 
         if len(body) > MAX_PROFILE_IMAGE_BYTES:
             return jsonify({'status': 'error', 'message': 'Image is too large'}), 400

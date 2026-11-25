@@ -63,6 +63,9 @@ false positive (`auth.py:78`), and two Subresource Integrity advisories on
   exceeded the context-compression threshold and is still running.
 - **The 19 security comments from the final OCR run are not all closed.** After fixing
   F-29 to F-36, the remaining open items are recorded as R-09 and R-10.
+- **The `app.py` OCR run completed separately** (`status: success`, 18 comments in 9m51s,
+  7 of them security) after the earlier one had exceeded the context-compression threshold.
+  It found F-37 to F-41, all now fixed and verified.
 
 ## 3. Edge / CDN Posture — `vulnbank.org`
 
@@ -142,6 +145,11 @@ Not applied (no API access). Each item states the observed gap and the control t
 | F-34 | Dockerfile pinned `gunicorn==21.2.0` while `requirements.txt` pinned `22.0.0` — the build shipped the request-smuggling-vulnerable release while the audit reported it fixed | CWE-1104 | The Dockerfile installs from `requirements.txt` only; the duplicate pin is removed. |
 | F-35 | Base and service images referenced by mutable tag | CWE-494 | `python:3.12-slim`, `postgres:16.16` and `autoheal:1.2.0` are all pinned by digest. |
 | F-36 | Gunicorn did not trust the reverse proxy's forwarded headers, and its access log recorded the full request line including the query string | CWE-345/532 | `--proxy-headers` with an explicit `forwarded-allow-ips`; the access log format drops the query string. |
+| F-37 | `X-Forwarded-For` was trusted unconditionally, so any caller could choose its own rate-limit key and get a fresh bucket on every request | CWE-348/441 | Forwarded headers are honoured only when the peer is in `TRUSTED_PROXY_IPS`; otherwise `request.remote_addr` is used. |
+| F-38 | Card numbers and CVVs were generated with the `random` module, whose Mersenne Twister state is recoverable from a few observed outputs | CWE-330 | `secrets.choice` for both. |
+| F-39 | The registration response copied the raw request body - including the plaintext password - into the `X-Debug-Info` response header, which is captured by CDN and proxy access logs | CWE-200/532 | The raw body is no longer returned, and no debug payload is placed in a response header. |
+| F-40 | The SSRF guard validated a resolved address and then let the HTTP client resolve the hostname again, so a DNS rebind could redirect the fetch to an internal host | CWE-367 | The connection is opened directly to the validated IP while the hostname is kept for TLS SNI, certificate verification and the Host header. Verified: 1 DNS resolution, connected to the validated address. |
+| F-41 | The remote image fetch was allowed over plain HTTP, letting an on-path attacker substitute the response | CWE-319 | The endpoint now requires HTTPS. |
 
 ## 5. Dependency Remediation — CVE Comparison
 
@@ -277,6 +285,7 @@ Accepted or deferred, with reasons:
 | R-08 | `requirements.txt` pins are exact — no automated update workflow | — | Suggested follow-up |
 | R-09 | Login has no brute-force protection on the `auth.py` route | CWE-307 | Open — rate limiting exists elsewhere in the app but is not applied to this route |
 | R-10 | GraphQL resolver exceptions propagate to `/graphql` | CWE-209 | Open |
+| R-11 | Rate-limit counters live in a process-local dict, so under gunicorn's 4 workers the effective limit is 4x the configured value | CWE-400 | Open — needs a shared store such as Redis or the database |
 
 ## 8. Recommended Deployment Order
 
