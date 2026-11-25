@@ -261,13 +261,13 @@
     <span>VULNBANK &middot; SECURITY REMEDIATION</span>
     <span class="sha">before ec973f5</span>
     <span>&#8594;</span>
-    <span class="sha">after 9a492af</span>
+    <span class="sha">after 3ba3871</span>
   </div>
   <h1><span class="vul">Vulnerable</span> &nbsp;&#8594;&nbsp; <span class="fix">Remediated</span></h1>
   <p class="lede">
     Every code excerpt below is extracted from real git history &mdash;
     <strong>ec973f5</strong> before remediation against
-    <strong>9a492af</strong> after. Nothing on this page is
+    <strong>3ba3871</strong> after. Nothing on this page is
     hand-written illustration. Findings were located by Semgrep SAST, an
     Alibaba OpenCodeReview source audit, a Cloudflare edge review and a
     pip-audit dependency scan, then fixed and re-verified against a live
@@ -581,7 +581,7 @@
     <span class="flabel">Severity</span>
     <button class="chip sev" data-sev="critical" style="--c:#e5484d">CRITICAL</button><button class="chip sev" data-sev="high" style="--c:#f76b15">HIGH</button><button class="chip sev" data-sev="medium" style="--c:#f5d90a">MEDIUM</button>
     <span class="flabel" style="margin-left:18px">Category</span>
-    <button class="chip" data-cat="SQL Injection">SQL Injection</button><button class="chip" data-cat="Authentication">Authentication</button><button class="chip" data-cat="Secrets">Secrets</button><button class="chip" data-cat="Mass Assignment">Mass Assignment</button><button class="chip" data-cat="IDOR">IDOR</button><button class="chip" data-cat="PCI-DSS">PCI-DSS</button><button class="chip" data-cat="SSRF">SSRF</button><button class="chip" data-cat="Debug Exposure">Debug Exposure</button><button class="chip" data-cat="Information Disclosure">Information Disclosure</button><button class="chip" data-cat="XSS">XSS</button><button class="chip" data-cat="Upload">Upload</button><button class="chip" data-cat="Edge / CDN">Edge / CDN</button><button class="chip" data-cat="Supply Chain">Supply Chain</button><button class="chip" data-cat="Transport">Transport</button><button class="chip" data-cat="CORS">CORS</button><button class="chip" data-cat="Container">Container</button><button class="chip" data-cat="Race Condition">Race Condition</button><button class="chip" data-cat="Hardcoded Credentials">Hardcoded Credentials</button><button class="chip" data-cat="Rate Limiting">Rate Limiting</button>
+    <button class="chip" data-cat="SQL Injection">SQL Injection</button><button class="chip" data-cat="Authentication">Authentication</button><button class="chip" data-cat="Secrets">Secrets</button><button class="chip" data-cat="Mass Assignment">Mass Assignment</button><button class="chip" data-cat="IDOR">IDOR</button><button class="chip" data-cat="PCI-DSS">PCI-DSS</button><button class="chip" data-cat="SSRF">SSRF</button><button class="chip" data-cat="Debug Exposure">Debug Exposure</button><button class="chip" data-cat="Information Disclosure">Information Disclosure</button><button class="chip" data-cat="XSS">XSS</button><button class="chip" data-cat="Upload">Upload</button><button class="chip" data-cat="Edge / CDN">Edge / CDN</button><button class="chip" data-cat="Supply Chain">Supply Chain</button><button class="chip" data-cat="Transport">Transport</button><button class="chip" data-cat="CORS">CORS</button><button class="chip" data-cat="Container">Container</button><button class="chip" data-cat="Race Condition">Race Condition</button><button class="chip" data-cat="Hardcoded Credentials">Hardcoded Credentials</button><button class="chip" data-cat="Rate Limiting">Rate Limiting</button><button class="chip" data-cat="Resource Exhaustion">Resource Exhaustion</button><button class="chip" data-cat="Weak Randomness">Weak Randomness</button><button class="chip" data-cat="Input Validation">Input Validation</button>
     <button class="chip" id="reset" style="margin-left:12px">reset</button>
   </div>
 
@@ -1083,36 +1083,36 @@ logger = logging.getLogger(__name__)
         parsed = urlparse(image_url)</code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:940</span></div>
-        <pre class="code"><span class="ln">940
-941
-942
-943
-944
-945
-946
-947
-948
-949
-950
-951
-952
-953
-954
-955
-956
-957
-958
-959
-960
-961</span><code>    <span class="k">for </span>_family, _type, _proto, _canon, sockaddr <span class="k">in </span>resolved:
-        ip = ipaddress.ip_address(sockaddr[0])
-        <span class="k">if </span>(ip.is_private or ip.is_loopback or ip.is_link_local
-                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:960</span></div>
+        <pre class="code"><span class="ln">960
+961
+962
+963
+964
+965
+966
+967
+968
+969
+970
+971
+972
+973
+974
+975
+976
+977
+978
+979
+980
+981</span><code>    chunks = []
+    total = 0
+    <span class="k">for </span>chunk <span class="k">in </span>response.stream(64 * 1024):
+        total += len(chunk)
+        <span class="k">if </span>total &gt; limit:
             <span class="k">return </span><span class="k">None</span>
-        addresses.append(sockaddr[0])
-
-    <span class="k">return </span>addresses or <span class="k">None</span>
+        chunks.append(chunk)
+    <span class="k">return </span>b<span class="s">&#x27;&#x27;</span>.join(chunks)
 
 
 <span class="k">def </span>_pinned_fetch(image_url, parsed, addresses, timeout=10):
@@ -1155,19 +1155,19 @@ logger = logging.getLogger(__name__)
 </code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:2861</span></div>
-        <pre class="code"><span class="ln">2861
-2862
-2863
-2864
-2865
-2866
-2867
-2868
-2869
-2870
-2871
-2872</span><code><span class="k">if </span>__name__ == <span class="s">&#x27;__main__&#x27;</span>:
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:2899</span></div>
+        <pre class="code"><span class="ln">2899
+2900
+2901
+2902
+2903
+2904
+2905
+2906
+2907
+2908
+2909
+2910</span><code><span class="k">if </span>__name__ == <span class="s">&#x27;__main__&#x27;</span>:
     init_db()
     <span class="c"># The Werkzeug debugger is only started when explicitly requested and is</span>
     <span class="c"># never enabled by default. Running it on a public bind exposed an</span>
@@ -2725,29 +2725,29 @@ TRUSTED_PROXY_IPS = {
         parsed = urlparse(image_url)</code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:1008</span></div>
-        <pre class="code"><span class="ln">1008
-1009
-1010
-1011
-1012
-1013
-1014
-1015
-1016
-1017
-1018
-1019
-1020
-1021
-1022
-1023
-1024
-1025
-1026
-1027
-1028
-1029</span><code>
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:1028</span></div>
+        <pre class="code"><span class="ln">1028
+1029
+1030
+1031
+1032
+1033
+1034
+1035
+1036
+1037
+1038
+1039
+1040
+1041
+1042
+1043
+1044
+1045
+1046
+1047
+1048
+1049</span><code>
         <span class="k">if </span><span class="k">not </span>parsed.hostname:
             <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url h<span class="k">as </span>no host&#x27;</span>}), 400
 
@@ -2813,19 +2813,19 @@ TRUSTED_PROXY_IPS = {
         parsed = urlparse(image_url)</code></pre>
       </div>
       <div class="diff-col">
-        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:993</span></div>
-        <pre class="code"><span class="ln">993
-994
-995
-996
-997
-998
-999
-1000
-1001
-1002
-1003
-1004</span><code>        parsed = urlparse(image_url)
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:1013</span></div>
+        <pre class="code"><span class="ln">1013
+1014
+1015
+1016
+1017
+1018
+1019
+1020
+1021
+1022
+1023
+1024</span><code>        parsed = urlparse(image_url)
 
         <span class="c"># HTTPS only. Fetching over pla<span class="k">in </span>HTTP would <span class="k">let </span>an on-path attacker</span>
         <span class="c"># substitute the response (CWE-319).</span>
@@ -2837,6 +2837,302 @@ TRUSTED_PROXY_IPS = {
 
         <span class="k">if </span><span class="k">not </span>parsed.hostname:
             <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url h<span class="k">as </span>no host&#x27;</span>}), 400</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Resource Exhaustion" id="F-34">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-34</span>
+      <h3 class="f-title">The remote body was read in one call</h3>
+      <span class="f-cwe">CWE-400</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">A chunked response carries no <code>Content-Length</code>, so a remote host could stream an unbounded body into the process memory. The body is now read in bounded chunks.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:707</span></div>
+        <pre class="code"><span class="ln">707
+708
+709
+710
+711
+712
+713
+714
+715
+716
+717
+718
+719
+720</span><code>        <span class="k">if </span><span class="k">not </span>image_url:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;image_url is required&#x27;</span>}), 400
+
+        <span class="c"># Vulnerabilities:</span>
+        <span class="c"># - No URL scheme/host allowlist (SSRF)</span>
+        <span class="c"># - SSL verification disabled</span>
+        <span class="c"># - Follows redirects</span>
+        <span class="c"># - No content-type or size validation</span>
+        resp = requests.get(image_url, timeout=10, allow_redirects=<span class="k">True</span>, verify=<span class="k">False</span>)
+        <span class="k">if </span>resp.status_code &gt;= 400:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: f<span class="s">&#x27;Failed to fetch URL: HTTP {resp.status_code}&#x27;</span>}), 400
+
+        <span class="c"># Derive filename <span class="k">from </span>URL path (user-controlled)</span>
+        parsed = urlparse(image_url)</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:1065</span></div>
+        <pre class="code"><span class="ln">1065
+1066
+1067
+1068
+1069
+1070
+1071
+1072
+1073
+1074
+1075
+1076
+1077
+1078
+1079
+1080
+1081
+1082
+1083
+1084
+1085
+1086</span><code>            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;Invalid filename&#x27;</span>}), 400
+
+        <span class="c"># The remote content is validated exactly like an uploaded file: the</span>
+        <span class="c"># uploads directory is served <span class="k">as </span>static content, so an HTML or SVG</span>
+        <span class="c"># body would become stored script on the application&#x27;s own origin</span>
+        <span class="c"># (CWE-434).</span>
+        <span class="c">#</span>
+        <span class="c"># The body is read <span class="k">in </span>bounded chunks rather than <span class="k">in </span>one go. A</span>
+        <span class="c"># chunked response carries no Content-Length, so reading it whole</span>
+        <span class="c"># would <span class="k">let </span>a remote host exhaust the process memory (CWE-400).</span>
+        body = _read_bounded(resp, MAX_PROFILE_IMAGE_BYTES)
+        resp.release_conn()
+
+        <span class="k">if </span>body is <span class="k">None</span>:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>, <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;Image is too large&#x27;</span>}), 400
+
+        extension = _validate_image_upload(filename, body[:16])
+        <span class="k">if </span>extension is <span class="k">None</span>:
+            <span class="k">return </span>jsonify({
+                <span class="s">&#x27;status&#x27;</span>: <span class="s">&#x27;error&#x27;</span>,
+                <span class="s">&#x27;message&#x27;</span>: <span class="s">&#x27;The URL did <span class="k">not </span><span class="k">return </span>a supported image&#x27;</span>
+            }), 400</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="high" data-cat="Weak Randomness" id="F-35">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f76b15">HIGH</span>
+      <span class="f-id">F-35</span>
+      <h3 class="f-title">Upload filenames were drawn from a guessable range</h3>
+      <span class="f-cwe">CWE-330</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">A prefix of <code>random.randint(1, 1000000)</code> can be enumerated, so one user could overwrite another user&#x27;s upload by guessing the name.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:662</span></div>
+        <pre class="code"><span class="ln">662
+663
+664
+665
+666
+667
+668
+669</span><code>        <span class="c"># Vulnerability: No content-type validation</span>
+        filename = secure_filename(file.filename)
+        
+        <span class="c"># Add random prefix to prevent filename collisions</span>
+        filename = f<span class="s">"&quot;{random.randint(1, 1000000)}_{filename}&quot;"</span>
+        
+        <span class="c"># Vulnerability: Path traversal possible <span class="k">if </span>filename contains ../</span>
+        file_path = os.path.join(UPLOAD_FOLDER, filename)</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:874</span></div>
+        <pre class="code"><span class="ln">874
+875
+876
+877
+878
+879
+880
+881
+882
+883
+884
+885
+886
+887
+888
+889</span><code>
+        filename = secure_filename(raw_filename)
+        <span class="k">if </span><span class="k">not </span>filename:
+            <span class="k">return </span>jsonify({<span class="s">&#x27;error&#x27;</span>: <span class="s">&#x27;Invalid filename&#x27;</span>}), 400
+
+        <span class="c"># Add random prefix to prevent filename collisions</span>
+        <span class="c"># A random prefix stops one user <span class="k">from </span>overwriting another user&#x27;s</span>
+        <span class="c"># upload by guessing the name (CWE-330).</span>
+        filename = f<span class="s">"&quot;{secrets.token_hex(8)}_{filename}&quot;"</span>
+
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+
+        file.save(file_path)
+
+        <span class="c"># Update database <span class="k">with </span>just the filename</span>
+        execute_query(</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Weak Randomness" id="F-36">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-36</span>
+      <h3 class="f-title">Account numbers and reset PINs used a non-cryptographic generator</h3>
+      <span class="f-cwe">CWE-330</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">The Mersenne Twister state is recoverable from a few observed outputs, so the issued values were predictable.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:208</span></div>
+        <pre class="code"><span class="ln">208
+209
+210
+211
+212
+213
+214
+215</span><code><span class="k">if </span><span class="k">not </span>os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+<span class="k">def </span>generate_account_number():
+    <span class="k">return </span><span class="s">&#x27;&#x27;</span>.join(random.choices(string.digits, k=10))
+
+<span class="k">def </span>generate_card_number():
+    <span class="s">"&quot;&quot;"</span><span class="s">"&quot;Generate a 16-digit card number&quot;"</span><span class="s">"&quot;&quot;"</span></code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:369</span></div>
+        <pre class="code"><span class="ln">369
+370
+371
+372
+373
+374
+375
+376
+377
+378
+379
+380
+381
+382
+383
+384</span><code>            <span class="c"># the extension must agree <span class="k">with </span>the content.</span>
+            <span class="k">return </span>extension <span class="k">if </span>extension == sig_extension <span class="k">else</span> <span class="k">None</span>
+
+    <span class="k">return </span><span class="k">None</span>
+<span class="k">if </span><span class="k">not </span>os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+<span class="k">def </span>generate_account_number():
+    <span class="k">return </span><span class="s">&#x27;&#x27;</span>.join(secrets.choice(string.digits) <span class="k">for </span>_ <span class="k">in </span>range(10))
+
+<span class="k">def </span>generate_card_number():
+    <span class="s">"&quot;&quot;"</span>&quot;
+    Generate a 16-digit card number.
+
+    The secrets module is used instead of random: the Mersenne Twister
+    state can be recovered <span class="k">from </span>a few observed outputs, which would <span class="k">let </span>an</code></pre>
+      </div>
+    </div>
+  </article>
+  <article class="finding" data-sev="medium" data-cat="Input Validation" id="F-37">
+    <header class="f-head">
+      <span class="sev-chip" style="--c:#f5d90a">MEDIUM</span>
+      <span class="f-id">F-37</span>
+      <h3 class="f-title">The loopback check compared the address as a string</h3>
+      <span class="f-cwe">CWE-184</span>
+      <span class="f-file">app.py</span>
+    </header>
+    <p class="f-desc">It missed <code>::ffff:127.0.0.1</code>, and its <code>127.</code> prefix test would also have accepted a value such as <code>127.evil.example</code>.</p>
+    <div class="diff">
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot before"></span>VULNERABLE<span class="loc">app.py:776</span></div>
+        <pre class="code"><span class="ln">776
+777
+778
+779
+780
+781
+782
+783</span><code><span class="c"># INTERNAL-<span class="k">ON</span>LY ENDPOINTS F<span class="k">OR</span> SSRF DEMO (INTENTI<span class="k">ON</span>ALLY SENSITIVE)</span>
+<span class="k">def </span>_is_loopback_request():
+    <span class="k">try:</span>
+        ip = request.remote_addr or <span class="s">&#x27;&#x27;</span>
+        <span class="k">return </span>ip == <span class="s">&#x27;127.0.0.1&#x27;</span> or ip.startswith(<span class="s">&#x27;127.&#x27;</span>) or ip == <span class="s">&#x27;::1&#x27;</span>
+    <span class="k">except</span> Exception:
+        <span class="k">return </span><span class="k">False</span>
+</code></pre>
+      </div>
+      <div class="diff-col">
+        <div class="diff-label"><span class="dot after"></span>REMEDIATED<span class="loc">app.py:1150</span></div>
+        <pre class="code"><span class="ln">1150
+1151
+1152
+1153
+1154
+1155
+1156
+1157
+1158
+1159
+1160
+1161
+1162
+1163
+1164
+1165
+1166
+1167
+1168
+1169
+1170
+1171
+1172
+1173</span><code>
+    The address is parsed rather than compared <span class="k">as </span>a string, so the
+    IPv4-mapped IPv6 forms of 127.0.0.1 (::ffff:127.0.0.1) are recognised
+    too. A prefix match on <span class="s">&#x27;127.&#x27;</span> would also accept a malformed value
+    such <span class="k">as </span><span class="s">&#x27;127.evil.example&#x27;</span>.
+    <span class="s">"&quot;&quot;"</span>&quot;
+    <span class="k">try:</span>
+        raw = request.remote_addr or <span class="s">&#x27;&#x27;</span>
+        address = ipaddress.ip_address(raw)
+        <span class="k">if </span>address.is_loopback:
+            <span class="k">return </span><span class="k">True</span>
+        <span class="c"># ::ffff:127.0.0.1 is an IPv4 address inside an IPv6 wrapper.</span>
+        <span class="k">if </span>isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+            <span class="k">return </span>address.ipv4_mapped.is_loopback
+        <span class="k">return </span><span class="k">False</span>
+    <span class="k">except</span> ValueError:
+        <span class="k">return </span><span class="k">False</span>
+
+@app.route(<span class="s">&#x27;/internal/secret&#x27;</span>, methods=[<span class="s">&#x27;GET&#x27;</span>])
+<span class="k">def </span>internal_secret():
+    <span class="c"># Soft internal check: allow only loopback requests</span>
+    <span class="k">if </span><span class="k">not </span>_is_loopback_request():
+        <span class="k">return </span>jsonify({<span class="s">&#x27;error&#x27;</span>: <span class="s">&#x27;Internal resource. Loopback only.&#x27;</span>}), 403
+</code></pre>
       </div>
     </div>
   </article>
@@ -2883,6 +3179,7 @@ TRUSTED_PROXY_IPS = {
       <div class="vrow"><span class="k">Docker build with pinned digests</span><span class="v">succeeds</span></div>
       <div class="vrow"><span class="k">SSRF checks</span><span class="v">8 / 8 rejected</span></div>
       <div class="vrow"><span class="k">DNS rebinding test</span><span class="v">1 resolution, internal never reached</span></div>
+      <div class="vrow"><span class="k">Hardening suite</span><span class="v">21 / 21 passed</span></div>
     </div>
   </div>
 </section>
@@ -2905,7 +3202,7 @@ TRUSTED_PROXY_IPS = {
 
 <footer>
   <span>VulnBank security remediation &middot; branch <code>security/remediation-2026-11</code></span>
-  <span>Generated from git <code>ec973f5</code> &rarr; <code>9a492af</code> &middot; full detail in <code>AUDIT_REPORT.md</code></span>
+  <span>Generated from git <code>ec973f5</code> &rarr; <code>3ba3871</code> &middot; full detail in <code>AUDIT_REPORT.md</code></span>
 </footer>
 
 </div>
