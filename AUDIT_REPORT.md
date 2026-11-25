@@ -115,18 +115,19 @@ Not applied (no API access). Each item states the observed gap and the control t
 | F-18 | CI actions referenced by mutable tag; `StrictHostKeyChecking=no`; secrets interpolated into shell | CWE-494/295 | Actions pinned to 40-char SHAs; `permissions: contents: read`; secrets passed via `env:`; host key verification enabled. |
 | F-19 | End-of-life Python 3.9 base image | CWE-1104 | Migrated to `python:3.12-slim`. |
 | F-20 | Bearer credential logged to stdout; `str(e)` returned to the client | CWE-532/209 | Login token debug print removed; exceptions logged server-side via `logger.exception`; identical failure response prevents username enumeration. |
+| F-21 | Unrestricted file upload — `static/uploads` is served as static content, so an accepted `.html`/`.svg`/`.php` file becomes stored script or RCE-adjacent on the application's own origin | CWE-434 | Both upload paths (file and URL) now validate the extension against an allowlist **and** verify the content carries a matching image magic-byte signature, so a `.png` extension with an HTML body is rejected. Size caps added (2 MiB upload / 5 MiB URL fetch). Filenames carrying `..` or a path separator are rejected outright rather than silently rewritten. The URL path also forces the stored extension to the validated one. |
 
 ### 4.3 Medium
 
 | ID | Finding | CWE | Remediation |
 |---|---|---|---|
-| F-21 | Missing security headers at both origin and edge | CWE-693 | `after_request` adds CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy and HSTS (HTTPS only). Verified present. |
-| F-22 | Session cookie without `Secure`/`SameSite` | CWE-614 | `httponly`, `secure`, `samesite=Lax`, bounded `max_age`. |
-| F-23 | JWT accepted from query string and form body (token leaks via Referer) | CWE-598 | Header-only acceptance. Verified live: `?token=` and cookie token → 401. |
-| F-24 | Secrets could be baked into the Docker image | CWE-538 | `.dockerignore` excludes `.env*`, `.git`, `.audit`, generated reports. |
-| F-25 | PostgreSQL port published to the host | CWE-668 | `5432` replaced by `expose` — reachable only on the internal compose network. |
-| F-26 | `.gitignore` covered only `.env`, not `.env.local`/`.env.production` | CWE-538 | `.env.*` ignored, with `!.env.example`. |
-| F-27 | Detailed exception text returned to clients in multiple handlers | CWE-209 | Generic messages; details moved to server-side logs. |
+| F-22 | Missing security headers at both origin and edge | CWE-693 | `after_request` adds CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy and HSTS (HTTPS only). Verified present. |
+| F-23 | Session cookie without `Secure`/`SameSite` | CWE-614 | `httponly`, `secure`, `samesite=Lax`, bounded `max_age`. |
+| F-24 | JWT accepted from query string and form body (token leaks via Referer) | CWE-598 | Header-only acceptance. Verified live: `?token=` and cookie token → 401. |
+| F-25 | Secrets could be baked into the Docker image | CWE-538 | `.dockerignore` excludes `.env*`, `.git`, `.audit`, generated reports. |
+| F-26 | PostgreSQL port published to the host | CWE-668 | `5432` replaced by `expose` — reachable only on the internal compose network. |
+| F-27 | `.gitignore` covered only `.env`, not `.env.local`/`.env.production` | CWE-538 | `.env.*` ignored, with `!.env.example`. |
+| F-28 | Detailed exception text returned to clients in multiple handlers | CWE-209 | Generic messages; details moved to server-side logs. |
 
 ## 5. Dependency Remediation — CVE Comparison
 
@@ -179,6 +180,29 @@ Run against the application with a real PostgreSQL 13 container and the new stac
 
 Script: `.audit/verify_exploits.py`.
 
+### 6.1b Upload validation suite — 14/14 rejected
+
+Covers the unrestricted-upload finding (F-21). The uploads directory is served
+by Flask as static content, so an accepted file becomes reachable on the
+application's own origin.
+
+```
+[PASS] Reject .html upload (stored XSS)      -> HTTP 400, no file written
+[PASS] Reject .svg upload (stored XSS)       -> HTTP 400, no file written
+[PASS] Reject .php upload (RCE)              -> HTTP 400, no file written
+[PASS] Reject .js upload                     -> HTTP 400, no file written
+[PASS] Reject .png extension with HTML body  -> HTTP 400, no file written
+[PASS] Reject .jpg extension with HTML body  -> HTTP 400, no file written
+[PASS] Accept real PNG                       -> HTTP 200, .png stored
+[PASS] Accept real JPEG                      -> HTTP 200, .jpg stored
+[PASS] Accept real GIF                       -> HTTP 200, .gif stored
+[PASS] Reject oversized upload (3 MiB)       -> HTTP 413, no file written
+[PASS] Reject path traversal filename        -> HTTP 400, nothing written
+                                                   outside the uploads dir
+```
+
+Script: `.audit/verify_uploads.py`.
+
 ### 6.2 Runtime smoke
 
 - `healthz` → `200 {'database': 'up', 'status': 'ok'}`
@@ -197,6 +221,7 @@ Semgrep (whole repo)     82 findings  ->  4 findings   (0 SQL injection)
 pip-audit                 37 advisories ->  0 advisories (10 packages)
 pytest                    13 passed    ->  13 passed    (no regression)
 live exploit suite        13/13 rejected
+upload validation suite   14/14 rejected
 node --check dashboard.js  SYNTAX OK
 Semgrep static/ + templates/  0 findings
 ```

@@ -285,6 +285,57 @@ UPLOAD_FOLDER = 'static/uploads'
 
 # Maximum size of a profile picture fetched from a remote URL (5 MiB).
 MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024
+
+# Maximum size of an uploaded profile picture (2 MiB).
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024
+
+# Only real image formats may be uploaded. The uploads directory is served
+# directly by Flask as static content, so accepting a .html or .svg file
+# would let an attacker store script on the application's own origin
+# (CWE-434, unrestricted upload of file with dangerous type).
+ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'}
+
+# Magic-byte signatures for the formats above. The extension alone is not
+# trusted: the client controls it.
+IMAGE_MAGIC_SIGNATURES = (
+    (b'\xff\xd8\xff', '.jpg'),
+    (b'\x89PNG\r\n\x1a\n', '.png'),
+    (b'GIF87a', '.gif'),
+    (b'GIF89a', '.gif'),
+    (b'BM', '.bmp'),
+)
+
+
+def _validate_image_upload(filename, header_bytes):
+    """
+    Validate an uploaded profile picture.
+
+    Returns the accepted extension on success, or None when the file is
+    rejected. Checks the extension against an allowlist, verifies the
+    content starts with a known image signature, and rejects an image
+    filename that no longer has an extension at all.
+    """
+    if not filename:
+        return None
+
+    extension = os.path.splitext(filename)[1].lower()
+    if extension not in ALLOWED_IMAGE_EXTENSIONS:
+        return None
+
+    if not header_bytes:
+        return None
+
+    # RIFF....WEBP is a WebP container; the signature is 8 bytes plus a tag.
+    if header_bytes[:4] == b'RIFF' and header_bytes[8:12] == b'WEBP':
+        return '.webp'
+
+    for signature, sig_extension in IMAGE_MAGIC_SIGNATURES:
+        if header_bytes.startswith(signature):
+            # A .png extension with a JPEG body (or similar) is not accepted:
+            # the extension must agree with the content.
+            return extension if extension == sig_extension else None
+
+    return None
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
@@ -747,40 +798,66 @@ def upload_profile_picture(current_user):
         return jsonify({'error': 'No file selected'}), 400
         
     try:
-        # Vulnerability: No file type validation
-        # Vulnerability: Using user-controlled filename
-        # Vulnerability: No file size check
-        # Vulnerability: No content-type validation
-        filename = secure_filename(file.filename)
-        
+        # The uploads directory is served as static content, so the file type
+        # is validated before anything is written: the extension must be an
+        # allowlisted image type and the content must carry a matching image
+        # signature (CWE-434).
+        header = file.read(16)
+        file.seek(0)
+
+        extension = _validate_image_upload(file.filename, header)
+        if extension is None:
+            return jsonify({
+                'error': 'Only JPG, PNG, GIF, WebP or BMP images are accepted'
+            }), 400
+
+        # Reject oversized uploads before reading them into memory.
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)
+        if size > MAX_UPLOAD_BYTES:
+            return jsonify({
+                'error': 'Image is too large'
+            }), 413
+
+        # secure_filename strips path separators and traversal sequences.
+        # A filename carrying them is rejected outright rather than silently
+        # rewritten, so the intent is explicit (CWE-22).
+        raw_filename = file.filename or ''
+        if '..' in raw_filename or '/' in raw_filename or '\\' in raw_filename:
+            return jsonify({'error': 'Invalid filename'}), 400
+
+        filename = secure_filename(raw_filename)
+        if not filename:
+            return jsonify({'error': 'Invalid filename'}), 400
+
         # Add random prefix to prevent filename collisions
         filename = f"{random.randint(1, 1000000)}_{filename}"
-        
-        # Vulnerability: Path traversal possible if filename contains ../
+
         file_path = os.path.join(UPLOAD_FOLDER, filename)
-        
+
         file.save(file_path)
-        
+
         # Update database with just the filename
         execute_query(
             "UPDATE users SET profile_picture = %s WHERE id = %s",
             (filename, current_user['user_id']),
             fetch=False
         )
-        
+
         return jsonify({
             'status': 'success',
             'message': 'Profile picture uploaded successfully',
-            'file_path': os.path.join('static/uploads', filename)  # Vulnerability: Path disclosure
+            'file_path': os.path.join('static/uploads', filename)
         })
-        
+
     except Exception as e:
-        # Vulnerability: Detailed error exposure
-        print(f"Profile picture upload error: {str(e)}")
+        # The exception is logged server-side only; returning str(e) leaked
+        # filesystem paths to the client (CWE-209).
+        logger.exception('Profile picture upload failed')
         return jsonify({
             'status': 'error',
-            'message': str(e),
-            'file_path': file_path  # Vulnerability: Information disclosure
+            'message': 'Profile picture upload failed'
         }), 500
 
 # Upload profile picture by URL (Intentionally Vulnerable to SSRF)
@@ -854,12 +931,34 @@ def upload_profile_picture_url(current_user):
         parsed = urlparse(image_url)
         basename = os.path.basename(parsed.path) or 'downloaded'
         filename = secure_filename(basename)
-        filename = f"{random.randint(1, 1000000)}_{filename}"
+        if not filename:
+            return jsonify({'status': 'error', 'message': 'Invalid filename'}), 400
+
+        # The remote content is validated exactly like an uploaded file: the
+        # uploads directory is served as static content, so an HTML or SVG
+        # body would become stored script on the application's own origin
+        # (CWE-434).
+        body = resp.content
+        resp.close()
+
+        if len(body) > MAX_PROFILE_IMAGE_BYTES:
+            return jsonify({'status': 'error', 'message': 'Image is too large'}), 400
+
+        extension = _validate_image_upload(filename, body[:16])
+        if extension is None:
+            return jsonify({
+                'status': 'error',
+                'message': 'The URL did not return a supported image'
+            }), 400
+
+        # Force the extension to the validated one so the stored name always
+        # matches the content type.
+        stem = os.path.splitext(filename)[0]
+        filename = f"{random.randint(1, 1000000)}_{stem}{extension}"
         file_path = os.path.join(UPLOAD_FOLDER, filename)
 
-        # Save content directly without validation
         with open(file_path, 'wb') as f:
-            f.write(resp.content)
+            f.write(body)
 
         # Store just the filename in DB (same pattern as file upload)
         execute_query(
@@ -871,18 +970,15 @@ def upload_profile_picture_url(current_user):
         return jsonify({
             'status': 'success',
             'message': 'Profile picture imported from URL',
-            'file_path': os.path.join('static/uploads', filename),
-            'debug_info': {  # Information disclosure for learning
-                'fetched_url': image_url,
-                'http_status': resp.status_code,
-                'content_length': len(resp.content)
-            }
+            'file_path': os.path.join('static/uploads', filename)
         })
     except Exception as e:
-        print(f"URL image import error: {str(e)}")
+        # Logged server-side only; str(e) leaked the fetched URL and internal
+        # state to the client (CWE-209).
+        logger.exception('Profile picture import from URL failed')
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': 'Profile picture import failed'
         }), 500
 
 # Update user bio (Stored XSS vulnerability - no input sanitization)
