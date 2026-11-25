@@ -35,11 +35,12 @@ function showToast(type, title, message, duration = 5000) {
         warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
     };
 
+    const iconMarkup = Object.prototype.hasOwnProperty.call(icons, type) ? icons[type] : icons.success;
     toast.innerHTML = `
-        <div class="toast-icon">${icons[type] || icons.success}</div>
+        <div class="toast-icon">${iconMarkup}</div>
         <div class="toast-content">
-            <div class="toast-title">${title}</div>
-            <div class="toast-message">${message}</div>
+            <div class="toast-title">${escapeHtml(title)}</div>
+            <div class="toast-message">${escapeHtml(message)}</div>
         </div>
         <button class="toast-close" onclick="dismissToast(this.parentElement)" aria-label="Close notification">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -266,10 +267,17 @@ async function handleLoanRequest(event) {
             // Add new loan to the table
             const loansTableBody = loansSection.querySelector('tbody');
             const newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td>$${jsonData.amount}</td>
-                <td><span class="status-pending">pending</span></td>
-            `;
+            // Build the row with DOM APIs so the submitted amount is treated as
+            // text and never parsed as markup (CWE-79).
+            const amountCell = document.createElement('td');
+            amountCell.textContent = '$' + jsonData.amount;
+            const statusCell = document.createElement('td');
+            const statusBadge = document.createElement('span');
+            statusBadge.className = 'status-pending';
+            statusBadge.textContent = 'pending';
+            statusCell.appendChild(statusBadge);
+            newRow.appendChild(amountCell);
+            newRow.appendChild(statusCell);
             loansTableBody.appendChild(newRow);
             
             // Clear form
@@ -300,7 +308,8 @@ async function handleProfileUpload(event) {
         if (data.status === 'success') {
             // Vulnerability: No sanitization of file_path
             const img = document.getElementById('profile-picture');
-            img.src = '/' + data.file_path + '?v=' + new Date().getTime(); // Prevent caching
+            const safePath = safeUploadPath(data.file_path);
+            img.src = safePath ? '/' + safePath + '?v=' + new Date().getTime() : ''; // Prevent caching
             document.getElementById('upload-message').innerText = 'Upload successful!';
             document.getElementById('upload-message').style.color = 'green';
             event.target.reset();
@@ -332,7 +341,8 @@ async function handleProfileUrlImport() {
         const data = await response.json();
         if (data.status === 'success') {
             const img = document.getElementById('profile-picture');
-            img.src = '/' + data.file_path + '?v=' + new Date().getTime();
+            const safePath = safeUploadPath(data.file_path);
+            img.src = safePath ? '/' + safePath + '?v=' + new Date().getTime() : '';
             document.getElementById('upload-message').innerText = 'Imported from URL successfully!';
             document.getElementById('upload-message').style.color = 'green';
         } else {
@@ -364,10 +374,12 @@ async function handleBioUpdate(event) {
 
         const data = await response.json();
         if (data.status === 'success') {
-            // Update the bio display immediately with user input (XSS vulnerability)
+            // Update the bio display immediately with user input.
+            // textContent is used instead of innerHTML so the bio is rendered
+            // as text and never parsed as markup (CWE-79).
             const bioDisplay = document.getElementById('user-bio-display');
             if (bioDisplay) {
-                bioDisplay.innerHTML = bio; // Direct innerHTML assignment - XSS!
+                bioDisplay.textContent = bio;
             }
 
             document.getElementById('bio-message').innerText = 'Bio updated successfully!';
@@ -410,13 +422,13 @@ async function fetchTransactions() {
                     <div class="transaction-item ${transactionType}">
                         <div class="transaction-details">
                             <div class="transaction-account">
-                                ${isOutgoing ? 'To: ' + t.to_account : 'From: ' + t.from_account}
+                                ${isOutgoing ? 'To: ' + escapeHtml(t.to_account) : 'From: ' + escapeHtml(t.from_account)}
                             </div>
-                            <div class="transaction-date">${t.timestamp}</div>
-                            ${t.description ? `<div class="transaction-description">${t.description}</div>` : ''}
+                            <div class="transaction-date">${escapeHtml(t.timestamp)}</div>
+                            ${t.description ? `<div class="transaction-description">${escapeHtml(t.description)}</div>` : ''}
                         </div>
                         <div class="transaction-amount ${transactionType}">
-                            ${isOutgoing ? '-' : '+'}$${Math.abs(t.amount)}
+                            ${isOutgoing ? '-' : '+'}$${escapeHtml(Math.abs(t.amount))}
                         </div>
                     </div>
                 `;
@@ -505,26 +517,26 @@ function renderVirtualCards() {
     
     // Vulnerability: XSS possible in card rendering
     container.innerHTML = virtualCards.map(card => `
-        <div class="virtual-card ${String(card.card_type || '').toLowerCase()} ${card.is_frozen ? 'frozen' : ''}" id="card-${card.id}">
+        <div class="virtual-card ${escapeHtml(String(card.card_type || '').toLowerCase())} ${card.is_frozen ? 'frozen' : ''}" id="card-${Number(card.id)}">
             <div class="card-topline">
-                <div class="card-type">${card.card_type.toUpperCase()}</div>
-                <div class="card-currency-badge">${card.currency || 'USD'}</div>
+                <div class="card-type">${escapeHtml(String(card.card_type || '').toUpperCase())}</div>
+                <div class="card-currency-badge">${escapeHtml(card.currency || 'USD')}</div>
             </div>
-            <div class="card-number">${formatCardNumber(card.card_number)}</div>
+            <div class="card-number">${escapeHtml(formatCardNumber(card.card_number))}</div>
             <div class="card-details">
-                <div>Exp: ${card.expiry_date}</div>
-                <div>CVV: ${card.cvv}</div>
+                <div>Exp: ${escapeHtml(card.expiry_date)}</div>
+                <div>CVV: ${escapeHtml(card.cvv)}</div>
             </div>
             <div class="card-balance-lines">
-                <div><span>Limit</span>${formatCurrencyAmount(card.limit, card.currency)}</div>
-                <div><span>Balance</span>${formatCurrencyAmount(card.balance, card.currency)}</div>
+                <div><span>Limit</span>${escapeHtml(formatCurrencyAmount(card.limit, card.currency))}</div>
+                <div><span>Balance</span>${escapeHtml(formatCurrencyAmount(card.balance, card.currency))}</div>
             </div>
             <div class="card-actions">
-                <button onclick="showFundCardModal(${card.id})">Fund</button>
-                <button onclick="toggleCardFreeze(${card.id})">${card.is_frozen ? 'Unfreeze' : 'Freeze'}</button>
-                <button onclick="showCardDetails(${card.id})">Details</button>
-                <button onclick="showTransactionHistory(${card.id})">History</button>
-                <button onclick="showUpdateLimit(${card.id})">Update Limit</button>
+                <button onclick="showFundCardModal(${Number(card.id)})">Fund</button>
+                <button onclick="toggleCardFreeze(${Number(card.id)})">${card.is_frozen ? 'Unfreeze' : 'Freeze'}</button>
+                <button onclick="showCardDetails(${Number(card.id)})">Details</button>
+                <button onclick="showTransactionHistory(${Number(card.id)})">History</button>
+                <button onclick="showUpdateLimit(${Number(card.id)})">Update Limit</button>
             </div>
         </div>
     `).join('');
@@ -555,31 +567,31 @@ function showCardDetails(cardId) {
     content.innerHTML = `
         <div class="form-group">
             <label>Card Number</label>
-            <p>${formatCardNumber(card.card_number)}</p>
+            <p>${escapeHtml(formatCardNumber(card.card_number))}</p>
         </div>
         <div class="form-group">
             <label>CVV</label>
-            <p>${card.cvv}</p>
+            <p>${escapeHtml(card.cvv)}</p>
         </div>
         <div class="form-group">
             <label>Expiry Date</label>
-            <p>${card.expiry_date}</p>
+            <p>${escapeHtml(card.expiry_date)}</p>
         </div>
         <div class="form-group">
             <label>Card Type</label>
-            <p>${card.card_type}</p>
+            <p>${escapeHtml(card.card_type)}</p>
         </div>
         <div class="form-group">
             <label>Currency</label>
-            <p>${card.currency || 'USD'}</p>
+            <p>${escapeHtml(card.currency || 'USD')}</p>
         </div>
         <div class="form-group">
             <label>Current Limit</label>
-            <p>${formatCurrencyAmount(card.limit, card.currency)}</p>
+            <p>${escapeHtml(formatCurrencyAmount(card.limit, card.currency))}</p>
         </div>
         <div class="form-group">
             <label>Current Balance</label>
-            <p>${formatCurrencyAmount(card.balance, card.currency)}</p>
+            <p>${escapeHtml(formatCurrencyAmount(card.balance, card.currency))}</p>
         </div>
         <div class="form-group">
             <label>Status</label>
@@ -587,7 +599,7 @@ function showCardDetails(cardId) {
         </div>
         <div class="form-group">
             <label>Created</label>
-            <p>${new Date(card.created_at).toLocaleDateString()}</p>
+            <p>${escapeHtml(new Date(card.created_at).toLocaleDateString())}</p>
         </div>
     `;
     
@@ -756,10 +768,10 @@ async function showTransactionHistory(cardId) {
                     ${data.transactions.map(t => `
                         <div class="transaction-item">
                             <div class="transaction-details">
-                                <div class="transaction-account">${t.merchant}</div>
-                                <div class="transaction-date">${new Date(t.timestamp).toLocaleString()}</div>
+                                <div class="transaction-account">${escapeHtml(t.merchant)}</div>
+                                <div class="transaction-date">${escapeHtml(new Date(t.timestamp).toLocaleString())}</div>
                             </div>
-                            <div class="transaction-amount">${formatCurrencyAmount(t.amount, t.currency)}</div>
+                            <div class="transaction-amount">${escapeHtml(formatCurrencyAmount(t.amount, t.currency))}</div>
                         </div>
                     `).join('')}
                 </div>
@@ -784,10 +796,10 @@ async function showUpdateLimit(cardId) {
     // Vulnerability: Exposing form that allows updating any field
     content.innerHTML = `
         <h4>Update Card Limit</h4>
-        <form id="updateCardForm" onsubmit="return handleCardUpdate(event, ${cardId})">
+        <form id="updateCardForm" onsubmit="return handleCardUpdate(event, ${Number(cardId)})">
             <div class="form-group">
-                <label for="card_limit_update">Card Limit (${card.currency || 'USD'})</label>
-                <input type="number" id="card_limit_update" name="card_limit" value="${card.limit}" step="${getCardInputStep(card.currency)}" required>
+                <label for="card_limit_update">Card Limit (${escapeHtml(card.currency || 'USD')})</label>
+                <input type="number" id="card_limit_update" name="card_limit" value="${escapeHtml(card.limit)}" step="${escapeHtml(getCardInputStep(card.currency))}" required>
             </div>
             <div class="modal-footer">
                 <button type="submit">Update Limit</button>
@@ -859,7 +871,7 @@ async function loadBillCategories() {
             select.innerHTML = `
                 <option value="">Select Category</option>
                 ${data.categories.map(cat => `
-                    <option value="${cat.id}">${cat.name}</option>
+                    <option value="${escapeHtml(cat.id)}">${escapeHtml(cat.name)}</option>
                 `).join('')}
             `;
         }
@@ -902,10 +914,10 @@ async function loadBillers(categoryId) {
             select.innerHTML = `
                 <option value="">Select Biller</option>
                 ${uniqueBillers.map(biller => `
-                    <option value="${biller.id}" 
-                            data-min="${biller.minimum_amount}"
-                            data-max="${biller.maximum_amount || ''}"
-                    >${biller.name}</option>
+                    <option value="${escapeHtml(biller.id)}" 
+                            data-min="${escapeHtml(biller.minimum_amount)}"
+                            data-max="${escapeHtml(biller.maximum_amount || '')}"
+                    >${escapeHtml(biller.name)}</option>
                 `).join('')}
             `;
             select.disabled = false;
@@ -948,9 +960,9 @@ async function loadVirtualCardsForPayment() {
             select.innerHTML = `
                 <option value="">Select Card</option>
                 ${data.cards.filter(card => !card.is_frozen).map(card => `
-                    <option value="${card.id}">
-                        Card ending in ${card.card_number.slice(-4)} 
-                        (${card.currency}: ${formatCurrencyAmount(card.balance, card.currency)})
+                    <option value="${escapeHtml(card.id)}">
+                        Card ending in ${escapeHtml(card.card_number.slice(-4))} 
+                        (${escapeHtml(card.currency)}: ${escapeHtml(formatCurrencyAmount(card.balance, card.currency))})
                     </option>
                 `).join('')}
             `;
@@ -1028,18 +1040,18 @@ async function loadPaymentHistory() {
             container.innerHTML = data.payments.map(payment => `
                 <div class="payment-item">
                     <div class="payment-header">
-                        <div class="payment-amount">$${payment.amount}</div>
-                        <div class="payment-status">${payment.status}</div>
+                        <div class="payment-amount">$${escapeHtml(payment.amount)}</div>
+                        <div class="payment-status">${escapeHtml(payment.status)}</div>
                     </div>
                     <div class="payment-details">
-                        <div>Biller: ${payment.biller_name}</div>
-                        <div>Category: ${payment.category_name}</div>
-                        <div>Payment Method: ${payment.payment_method}
-                            ${payment.card_number ? ` (Card ending in ${payment.card_number.slice(-4)})` : ''}
+                        <div>Biller: ${escapeHtml(payment.biller_name)}</div>
+                        <div>Category: ${escapeHtml(payment.category_name)}</div>
+                        <div>Payment Method: ${escapeHtml(payment.payment_method)}
+                            ${payment.card_number ? ` (Card ending in ${escapeHtml(payment.card_number.slice(-4))})` : ''}
                         </div>
-                        <div>Reference: ${payment.reference}</div>
-                        <div>Date: ${new Date(payment.created_at).toLocaleString()}</div>
-                        ${payment.description ? `<div>Description: ${payment.description}</div>` : ''}
+                        <div>Reference: ${escapeHtml(payment.reference)}</div>
+                        <div>Date: ${escapeHtml(new Date(payment.created_at).toLocaleString())}</div>
+                        ${payment.description ? `<div>Description: ${escapeHtml(payment.description)}</div>` : ''}
                     </div>
                 </div>
             `).join('');
@@ -1196,7 +1208,7 @@ function addMessageToChat(message, isUser = false, timestamp = null) {
         </div>
         <div class="message-content">
             <div class="message-text">${escapeHtml(message)}</div>
-            <div class="message-time">${messageTime}</div>
+            <div class="message-time">${escapeHtml(messageTime)}</div>
         </div>
     `;
     
@@ -1327,6 +1339,20 @@ async function sendToAI(message) {
     }
 }
 
+// Restrict profile-picture paths to simple relative paths under static/uploads/.
+// Rejects URL schemes (javascript:, data:, http:), absolute paths and traversal.
+function safeUploadPath(filePath) {
+    const raw = String(filePath === null || filePath === undefined ? '' : filePath).trim();
+    if (!raw) return null;
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw)) return null;
+    const normalized = raw.replace(/\\/g, '/');
+    if (!normalized.startsWith('static/uploads/')) return null;
+    for (const segment of normalized.split('/')) {
+        if (segment === '' || segment === '.' || segment === '..') return null;
+    }
+    return normalized;
+}
+
 function escapeHtml(text) {
     const map = {
         '&': '&amp;',
@@ -1335,7 +1361,8 @@ function escapeHtml(text) {
         '"': '&quot;',
         "'": '&#039;'
     };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    if (text === null || text === undefined) return '';
+    return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 
 // Function to check current rate limit status

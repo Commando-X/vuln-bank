@@ -25,14 +25,71 @@ from functools import wraps
 from collections import defaultdict
 import requests
 from urllib.parse import urlparse
+import ipaddress
+import socket
 import platform
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)
+
+# CORS is restricted to an explicit origin allowlist. CORS(app) with no
+# arguments sends "Access-Control-Allow-Origin: *" on every response,
+# including authenticated ones, which lets any site read API responses
+# (CWE-942).
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        'CORS_ALLOWED_ORIGINS',
+        'https://vulnbank.org,https://www.vulnbank.org',
+    ).split(',')
+    if origin.strip()
+]
+CORS(
+    app,
+    resources={r"/api/*": {"origins": CORS_ALLOWED_ORIGINS}},
+    supports_credentials=True,
+)
+
+
+@app.after_request
+def set_security_headers(response):
+    """
+    Apply baseline security headers to every response.
+
+    The CDN sets a uniform set of these too, but an origin-only header set
+    makes the application depend on the CDN for a control it can enforce
+    itself. Both layers are configured deliberately.
+    """
+    response.headers.setdefault(
+        'Content-Security-Policy',
+        "default-src 'self'; "
+        "img-src 'self' data: https:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'",
+    )
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault(
+        'Permissions-Policy',
+        'geolocation=(), microphone=(), camera=(), payment=()',
+    )
+    if request.is_secure:
+        # HSTS is only meaningful over HTTPS; browsers ignore it otherwise.
+        response.headers.setdefault(
+            'Strict-Transport-Security',
+            'max-age=63072000; includeSubDomains',
+        )
+    return response
 
 # Initialize database connection pool
 init_connection_pool()
@@ -54,7 +111,31 @@ init_auth_routes(app)
 init_merchant_payment_routes(app)
 
 # Hardcoded secret key (CWE-798)
-app.secret_key = "secret123"
+app.secret_key = os.environ.get('SECRET_KEY')
+if not app.secret_key or len(app.secret_key) < 32:
+    raise RuntimeError(
+        'SECRET_KEY environment variable is required and must be at least 32 '
+        'characters long. Generate one with: '
+        "python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+    )
+
+# Columns a self-registering client is allowed to write. Anything outside this
+# list is ignored, so a request body cannot inject a column such as
+# is_admin, balance or reset_pin (CWE-915, mass assignment).
+REGISTERABLE_FIELDS = (
+    'profile_picture',
+    'bio',
+)
+
+# Columns a client may update on a virtual card. The column names are taken
+# from this allowlist, never from raw request keys (CWE-89 / CWE-915).
+ALLOWED_CARD_UPDATE_FIELDS = {
+    'card_limit': 'card_limit = %s',
+    'is_frozen': 'is_frozen = %s',
+    'is_active': 'is_active = %s',
+    'card_type': 'card_type = %s',
+    'currency': 'currency = %s',
+}
 
 # Rate limiting configuration
 RATE_LIMIT_WINDOW = 3 * 60 * 60  # 3 hours in seconds
@@ -201,6 +282,9 @@ def ai_rate_limit(f):
     return decorated_function
 
 UPLOAD_FOLDER = 'static/uploads'
+
+# Maximum size of a profile picture fetched from a remote URL (5 MiB).
+MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
@@ -322,18 +406,22 @@ def register():
                     'tried_at': str(datetime.now())  # Information disclosure
                 }), 400
             
-            # Build dynamic query based on user input fields
-            # Vulnerability: Mass Assignment possible here
+            # Build dynamic query based on user input fields.
+            # Only explicitly permitted columns may be written. Previously any
+            # extra key in the request body became a column, so a client could
+            # POST {"is_admin": true} and grant themselves admin rights
+            # (CWE-915, mass assignment).
             fields = ['username', 'password', 'account_number']
             values = [user_data.get('username'), user_data.get('password'), account_number]
-            
-            # Include any additional parameters from user input
-            for key, value in user_data.items():
-                if key not in ['username', 'password']:
+
+            for key in REGISTERABLE_FIELDS:
+                if key in user_data and key not in fields:
                     fields.append(key)
-                    values.append(value)
-            
-            # Build the SQL query dynamically
+                    values.append(user_data[key])
+
+            # Build the SQL query dynamically. The column names come from the
+            # fixed lists above, never from raw request keys, and every value
+            # is bound as a parameter (CWE-89).
             query = f"""
                 INSERT INTO users ({', '.join(fields)})
                 VALUES ({', '.join(['%s'] * len(fields))})
@@ -389,18 +477,14 @@ def login():
             password = data.get('password')
             suspension_message = 'Your account has been suspended, contact support or walk in to any of our branch to resolve the issue'
             
-            print(f"Login attempt - Username: {username}")  # Debug print
             
-            # SQL Injection vulnerability (intentionally vulnerable)
-            query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
-            print(f"Debug - Login query: {query}")  # Debug print
+            # Parameterized query: the username and password are bound, never
+            query = "SELECT * FROM users WHERE username=%s AND password=%s"
             
-            user = execute_query(query)
-            print(f"Debug - Query result: {user}")  # Debug print
+            user = execute_query(query, (username, password))
             
             if user and len(user) > 0:
                 user = user[0]  # Get first row
-                print(f"Debug - Found user: {user}")  # Debug print
 
                 if len(user) > 9 and user[9]:
                     return jsonify({
@@ -410,7 +494,7 @@ def login():
                 
                 # Generate JWT token instead of using session
                 token = generate_token(user[0], user[1], user[5])
-                print(f"Debug - Generated token: {token}")  # Debug print
+                # The token is never logged: it is a bearer credential (CWE-532).
                 
                 response = make_response(jsonify({
                     'status': 'success',
@@ -418,48 +502,58 @@ def login():
                     'token': token,
                     'accountNumber': user[3],
                     'isAdmin':       user[5],
-                    'debug_info': {  # Vulnerability: Information disclosure
-                        'user_id': user[0],
-                        'username': user[1],
-                        'account_number': user[3],
-                        'is_admin': user[5],
-                        'login_time': str(datetime.now())
-                    }
                 }))
-                # Vulnerability: Cookie without secure flag
-                response.set_cookie('token', token, httponly=True)
+                # The session cookie is marked Secure, HttpOnly and SameSite so
+                # it is not sent over cleartext, is not readable by scripts,
+                # and is not attached to cross-site requests (CWE-614).
+                response.set_cookie(
+                    'token',
+                    token,
+                    httponly=True,
+                    secure=True,
+                    samesite='Lax',
+                    max_age=3600,
+                )
                 return response
             
-            # Vulnerability: Username enumeration
+            # The failure response is identical whether the account exists
+            # or not, so it does not reveal which usernames are registered
+            # (CWE-204).
             return jsonify({
                 'status': 'error',
-                'message': 'Invalid credentials',
-                'debug_info': {  # Vulnerability: Information disclosure
-                    'attempted_username': username,
-                    'time': str(datetime.now())
-                }
+                'message': 'Invalid credentials'
             }), 401
-            
+
         except Exception as e:
-            print(f"Login error: {str(e)}")
+            # The exception is logged server-side only. Returning str(e) to
+            # the client leaked SQL fragments and schema details (CWE-209).
+            logger.exception('Login failed')
             return jsonify({
                 'status': 'error',
-                'message': 'Login failed',
-                'error': str(e)
+                'message': 'Login failed'
             }), 500
-        
+
     return render_template('login.html')
 
 @app.route('/debug/users')
-def debug_users():
-    users = execute_query("SELECT id, username, password, account_number, is_admin FROM users")
+@token_required
+def debug_users(current_user):
+    # This endpoint returned every user's plaintext password to any caller.
+    # It now requires an admin token and never returns password material
+    # (CWE-200 / CWE-256).
+    if not current_user.get('is_admin'):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    users = execute_query(
+        "SELECT id, username, account_number, is_admin FROM users "
+        "ORDER BY id"
+    )
     return jsonify({'users': [
         {
             'id': u[0],
             'username': u[1],
-            'password': u[2],
-            'account_number': u[3],
-            'is_admin': u[4]
+            'account_number': u[2],
+            'is_admin': u[3]
         } for u in users
     ]})
 
@@ -503,7 +597,8 @@ def check_balance(account_number):
     try:
         # Vulnerability: SQL Injection possible
         user = execute_query(
-            f"SELECT username, balance FROM users WHERE account_number='{account_number}'"
+            "SELECT username, balance FROM users WHERE account_number=%s",
+            (account_number,)
         )
         
         if user:
@@ -597,7 +692,7 @@ def get_transaction_history(account_number):
     # Vulnerability: No authentication required (BOLA)
     # Vulnerability: SQL Injection possible
     try:
-        query = f"""
+        query = """
             SELECT 
                 id,
                 from_account,
@@ -607,11 +702,11 @@ def get_transaction_history(account_number):
                 transaction_type,
                 description
             FROM transactions 
-            WHERE from_account='{account_number}' OR to_account='{account_number}'
+            WHERE from_account=%s OR to_account=%s
             ORDER BY timestamp DESC
         """
         
-        transactions = execute_query(query)
+        transactions = execute_query(query, (account_number, account_number))
         
         # Vulnerability: Information disclosure
         transaction_list = [{
@@ -699,14 +794,61 @@ def upload_profile_picture_url(current_user):
         if not image_url:
             return jsonify({'status': 'error', 'message': 'image_url is required'}), 400
 
-        # Vulnerabilities:
-        # - No URL scheme/host allowlist (SSRF)
-        # - SSL verification disabled
-        # - Follows redirects
-        # - No content-type or size validation
-        resp = requests.get(image_url, timeout=10, allow_redirects=True, verify=False)
+        # SSRF protections (CWE-918):
+        # - only http/https schemes
+        # - the resolved host must not be a private, loopback or link-local
+        #   address (this is what actually stops an internal fetch, since
+        #   the hostname itself can be attacker controlled)
+        # - redirects are not followed
+        # - TLS verification stays ON
+        # - the response must be an image and within a size limit
+        parsed = urlparse(image_url)
+
+        if parsed.scheme not in ('http', 'https'):
+            return jsonify({
+                'status': 'error',
+                'message': 'image_url must use the http or https scheme'
+            }), 400
+
+        if not parsed.hostname:
+            return jsonify({'status': 'error', 'message': 'image_url has no host'}), 400
+
+        try:
+            resolved = socket.getaddrinfo(
+                parsed.hostname, parsed.port or (443 if parsed.scheme == 'https' else 80),
+                proto=socket.IPPROTO_TCP,
+            )
+        except socket.gaierror:
+            return jsonify({'status': 'error', 'message': 'image_url host could not be resolved'}), 400
+
+        for family, _type, _proto, _canon, sockaddr in resolved:
+            ip = ipaddress.ip_address(sockaddr[0])
+            if (ip.is_private or ip.is_loopback or ip.is_link_local
+                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+                return jsonify({
+                    'status': 'error',
+                    'message': 'image_url must not point to a private or internal address'
+                }), 400
+
+        resp = requests.get(
+            image_url,
+            timeout=10,
+            allow_redirects=False,
+            verify=True,
+            stream=True,
+        )
         if resp.status_code >= 400:
             return jsonify({'status': 'error', 'message': f'Failed to fetch URL: HTTP {resp.status_code}'}), 400
+
+        content_type = resp.headers.get('Content-Type', '')
+        if not content_type.startswith('image/'):
+            resp.close()
+            return jsonify({'status': 'error', 'message': 'URL did not return an image'}), 400
+
+        content_length = resp.headers.get('Content-Length')
+        if content_length and int(content_length) > MAX_PROFILE_IMAGE_BYTES:
+            resp.close()
+            return jsonify({'status': 'error', 'message': 'Image is too large'}), 400
 
         # Derive filename from URL path (user-controlled)
         parsed = urlparse(image_url)
@@ -1144,7 +1286,8 @@ def create_admin(current_user):
         # Vulnerability: No password complexity requirements
         # Vulnerability: No account number uniqueness check
         execute_query(
-            f"INSERT INTO users (username, password, account_number, is_admin) VALUES ('{username}', '{password}', '{account_number}', true)",
+            "INSERT INTO users (username, password, account_number, is_admin) VALUES (%s, %s, %s, true)",
+            (username, password, account_number),
             fetch=False
         )
         
@@ -1171,7 +1314,8 @@ def forgot_password():
             
             # Vulnerability: SQL Injection possible
             user = execute_query(
-                f"SELECT id FROM users WHERE username='{username}'"
+                "SELECT id FROM users WHERE username=%s",
+                (username,)
             )
             
             if user:
@@ -1270,7 +1414,8 @@ def api_v1_forgot_password():
         
         # Vulnerability: SQL Injection possible
         user = execute_query(
-            f"SELECT id FROM users WHERE username='{username}'"
+            "SELECT id FROM users WHERE username=%s",
+            (username,)
         )
         
         if user:
@@ -1320,7 +1465,8 @@ def api_v2_forgot_password():
         
         # Vulnerability: SQL Injection still possible
         user = execute_query(
-            f"SELECT id FROM users WHERE username='{username}'"
+            "SELECT id FROM users WHERE username=%s",
+            (username,)
         )
         
         if user:
@@ -1368,7 +1514,8 @@ def api_v3_forgot_password():
         
         # Vulnerability: SQL Injection still possible
         user = execute_query(
-            f"SELECT id FROM users WHERE username='{username}'"
+            "SELECT id FROM users WHERE username=%s",
+            (username,)
         )
         
         if user:
@@ -1598,14 +1745,14 @@ def api_transactions(current_user):
         return jsonify({'error': 'Account number required'}), 400
         
     # Vulnerability: SQL Injection
-    query = f"""
+    query = """
         SELECT * FROM transactions 
-        WHERE from_account='{account_number}' OR to_account='{account_number}'
+        WHERE from_account=%s OR to_account=%s
         ORDER BY timestamp DESC
     """
     
     try:
-        transactions = execute_query(query)
+        transactions = execute_query(query, (account_number, account_number))
         
         # Convert Decimal objects to float for JSON serialization
         transaction_list = []
@@ -1648,15 +1795,23 @@ def create_virtual_card(current_user):
         card_currency = normalize_card_currency(data.get('currency'))
         
         # Create virtual card
-        query = f"""
+        query = """
             INSERT INTO virtual_cards 
             (user_id, card_number, cvv, expiry_date, card_limit, card_type, currency)
             VALUES 
-            ({current_user['user_id']}, '{card_number}', '{cvv}', '{expiry_date}', {card_limit}, '{card_type}', '{card_currency}')
+            (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """
         
-        result = execute_query(query)
+        result = execute_query(query, (
+            current_user['user_id'],
+            card_number,
+            cvv,
+            expiry_date,
+            card_limit,
+            card_type,
+            card_currency
+        ))
         
         if result:
             # Vulnerability: Sensitive data exposure
@@ -1693,7 +1848,7 @@ def create_virtual_card(current_user):
 def get_virtual_cards(current_user):
     try:
         # Vulnerability: No pagination
-        query = f"""
+        query = """
             SELECT
                 id,
                 card_number,
@@ -1708,10 +1863,10 @@ def get_virtual_cards(current_user):
                 card_type,
                 currency
             FROM virtual_cards 
-            WHERE user_id = {current_user['user_id']}
+            WHERE user_id = %s
         """
         
-        cards = execute_query(query)
+        cards = execute_query(query, (current_user['user_id'],))
         
         # Vulnerability: Sensitive data exposure
         return jsonify({
@@ -1745,14 +1900,14 @@ def toggle_card_freeze(current_user, card_id):
     try:
         # Vulnerability: No CSRF protection
         # Vulnerability: BOLA - no verification if card belongs to user
-        query = f"""
+        query = """
             UPDATE virtual_cards 
             SET is_frozen = NOT is_frozen 
-            WHERE id = {card_id}
+            WHERE id = %s
             RETURNING is_frozen
         """
         
-        result = execute_query(query)
+        result = execute_query(query, (card_id,))
         
         if result:
             return jsonify({
@@ -1777,15 +1932,15 @@ def get_card_transactions(current_user, card_id):
     try:
         # Vulnerability: BOLA - no verification if card belongs to user
         # Vulnerability: SQL Injection possible
-        query = f"""
+        query = """
             SELECT ct.*, vc.card_number, vc.currency
             FROM card_transactions ct
             JOIN virtual_cards vc ON ct.card_id = vc.id
-            WHERE ct.card_id = {card_id}
+            WHERE ct.card_id = %s
             ORDER BY ct.timestamp DESC
         """
         
-        transactions = execute_query(query)
+        transactions = execute_query(query, (card_id,))
         
         # Vulnerability: Information disclosure
         return jsonify({
@@ -1815,23 +1970,30 @@ def update_card_limit(current_user, card_id):
     try:
         data = request.get_json()
         
-        # Mass Assignment Vulnerability - Build dynamic query based on all input fields
+        # Build dynamic query based on the explicitly permitted input fields
         update_fields = []
         update_values = []
         updated_fields_list = []  # Store field names in a regular list
         
+        # Strict allowlist: the only columns a client may update on a virtual card.
+        # Any other key (current_balance, card_number, cvv, user_id, ...) is rejected,
+        # which prevents both column-name injection and mass assignment.
+        allowed_update_fields = ALLOWED_CARD_UPDATE_FIELDS
+        
         # Iterate through all fields sent in request
-        # Vulnerability: No whitelist of allowed fields
-        # This allows updating any column including balance
         for key, value in data.items():
+            # Reject any key that is not a permitted column name
+            if key not in allowed_update_fields:
+                continue
+            
             # Convert value to float if it's numeric
             try:
                 value = float(value)
             except (ValueError, TypeError):
                 value = str(value)
             
-            # Vulnerability: Direct field name injection
-            update_fields.append(f"{key} = %s")
+            # Column name comes from the allowlist, the value is bound as a parameter
+            update_fields.append(allowed_update_fields[key])
             update_values.append(value)
             updated_fields_list.append(key)  # Add to list instead of dict_keys
             
@@ -1839,11 +2001,11 @@ def update_card_limit(current_user, card_id):
         query = f"""
             UPDATE virtual_cards 
             SET {', '.join(update_fields)}
-            WHERE id = {card_id}
+            WHERE id = %s
             RETURNING id, card_limit, current_balance, is_frozen, is_active, card_type, currency
         """
         
-        result = execute_query(query, tuple(update_values))
+        result = execute_query(query, tuple(update_values) + (card_id,))
         
         if result:
             # Vulnerability: Information disclosure - returning all updated fields
@@ -2038,12 +2200,12 @@ def get_bill_categories():
 def get_billers_by_category(category_id):
     try:
         # Vulnerability: SQL injection possible
-        query = f"""
+        query = """
             SELECT * FROM billers 
-            WHERE category_id = {category_id} 
+            WHERE category_id = %s 
             AND is_active = TRUE
         """
-        billers = execute_query(query)
+        billers = execute_query(query, (category_id,))
         
         # Vulnerability: Information disclosure
         return jsonify({
@@ -2075,23 +2237,23 @@ def create_bill_payment(current_user):
         payment_method = data.get('payment_method')
         card_id = data.get('card_id') if payment_method == 'virtual_card' else None
 
-        payer_query = f"""
+        payer_query = """
             SELECT id, username, account_number, balance
             FROM users
-            WHERE id = {current_user['user_id']}
+            WHERE id = %s
         """
-        payer = execute_query(payer_query)
+        payer = execute_query(payer_query, (current_user['user_id'],))
 
-        biller_query = f"""
+        biller_query = """
             SELECT
                 b.account_number,
                 b.name,
                 bc.name
             FROM billers b
             JOIN bill_categories bc ON b.category_id = bc.id
-            WHERE b.id = {biller_id}
+            WHERE b.id = %s
         """
-        biller = execute_query(biller_query)
+        biller = execute_query(biller_query, (biller_id,))
 
         if not payer or not biller:
             return jsonify({
@@ -2114,12 +2276,12 @@ def create_bill_payment(current_user):
         if payment_method == 'virtual_card' and card_id:
             # Vulnerability: BOLA - no verification if card belongs to user
             # Vulnerability: SQL injection possible
-            card_query = f"""
+            card_query = """
                 SELECT current_balance, card_limit, is_frozen 
                 FROM virtual_cards 
-                WHERE id = {card_id}
+                WHERE id = %s
             """
-            card = execute_query(card_query)[0]
+            card = execute_query(card_query, (card_id,))[0]
             
             if card[2]:  # is_frozen
                 return jsonify({
@@ -2228,7 +2390,7 @@ def get_payment_history(current_user):
     try:
         # Vulnerability: No pagination
         # Vulnerability: SQL injection possible
-        query = f"""
+        query = """
             SELECT 
                 bp.*,
                 b.name as biller_name,
@@ -2238,11 +2400,11 @@ def get_payment_history(current_user):
             JOIN billers b ON bp.biller_id = b.id
             JOIN bill_categories bc ON b.category_id = bc.id
             LEFT JOIN virtual_cards vc ON bp.card_id = vc.id
-            WHERE bp.user_id = {current_user['user_id']}
+            WHERE bp.user_id = %s
             ORDER BY bp.created_at DESC
         """
         
-        payments = execute_query(query)
+        payments = execute_query(query, (current_user['user_id'],))
         
         # Vulnerability: Excessive data exposure
         return jsonify({
@@ -2492,5 +2654,12 @@ def ai_rate_limit_status():
 
 if __name__ == '__main__':
     init_db()
-    # Vulnerability: Debug mode enabled in production
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # The Werkzeug debugger is only started when explicitly requested and is
+    # never enabled by default. Running it on a public bind exposed an
+    # interactive console with a PIN (CWE-489).
+    #
+    # In production the app is served by gunicorn (see start.sh), so this
+    # block is only for local development.
+    debug = os.environ.get('FLASK_DEBUG', 'false').lower() in ('1', 'true', 'yes')
+    host = os.environ.get('FLASK_HOST', '127.0.0.1')
+    app.run(host=host, port=int(os.environ.get('FLASK_PORT', '5000')), debug=debug)

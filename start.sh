@@ -11,5 +11,17 @@ until pg_isready -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}"
   sleep 2
 done
 
-echo "Starting Flask dev server (debug mode)..."
-exec python app.py
+echo "Starting gunicorn (production WSGI server)..."
+# The Flask development server with debug=True exposed the Werkzeug debugger
+# on a public bind (CWE-489). gunicorn serves the app without a debugger.
+#
+# Bind to 0.0.0.0 INSIDE the container so the host-side publish can stay on
+# 127.0.0.1 and the reverse proxy can reach it. The two layers bind
+# differently and only the host side should be restricted.
+exec gunicorn \
+    --bind 0.0.0.0:5000 \
+    --workers "${GUNICORN_WORKERS:-4}" \
+    --timeout "${GUNICORN_TIMEOUT:-60}" \
+    --access-logfile - \
+    --error-logfile - \
+    "app:app"

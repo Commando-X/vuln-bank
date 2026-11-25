@@ -1,25 +1,35 @@
-FROM python:3.9-slim
+# Python 3.9 reached end of life and no longer receives security fixes.
+# 3.12 is the current stable release and is what the dependency set below
+# is pinned against.
+FROM python:3.12-slim
 
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 # Install PostgreSQL client
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn==21.2.0
 
 # Create necessary directories
 RUN mkdir -p static/uploads templates
 
+# Copy the application. A .dockerignore keeps .env, .git and local
+# artifacts out of the image (CWE-538).
 COPY . .
 
-# Ensure uploads directory exists and has proper permissions
-RUN chmod 777 static/uploads
-RUN chmod +x /app/start.sh
+# Run as a non-root user (CWE-250).
+RUN useradd --create-home --shell /usr/sbin/nologin --uid 10001 appuser \
+    && chown -R appuser:appuser /app \
+    && chmod 755 /app/static/uploads \
+    && chmod +x /app/start.sh
+
+USER appuser
 
 EXPOSE 5000
 

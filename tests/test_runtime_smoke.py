@@ -95,7 +95,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(response.get_json(), {"status": "error", "database": "down"})
 
 class StartScriptTests(unittest.TestCase):
-    def test_start_script_waits_for_db_and_execs_flask_dev_server(self):
+    def test_start_script_waits_for_db_and_execs_gunicorn(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             bin_dir = tmp_path / "bin"
@@ -126,10 +126,10 @@ class StartScriptTests(unittest.TestCase):
                 """,
             )
             self._write_fake_executable(
-                bin_dir / "python",
+                bin_dir / "gunicorn",
                 """
                 #!/bin/sh
-                printf '%s\n' "$@" > "${TEST_TMPDIR}/python.args"
+                printf '%s\n' "$@" > "${TEST_TMPDIR}/gunicorn.args"
                 exit 0
                 """,
             )
@@ -157,8 +157,18 @@ class StartScriptTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             self.assertEqual((tmp_path / "pg_isready.count").read_text(), "3")
 
-            python_args = (tmp_path / "python.args").read_text().splitlines()
-            self.assertEqual(python_args, ["app.py"])
+            # The production entrypoint is gunicorn, not the Flask development
+            # server. Running the dev server exposed the Werkzeug debugger with
+            # a PIN on a public bind (CWE-489).
+            gunicorn_args = (tmp_path / "gunicorn.args").read_text().splitlines()
+            self.assertIn("--bind", gunicorn_args)
+            self.assertIn("0.0.0.0:5000", gunicorn_args)
+            self.assertIn("app:app", gunicorn_args)
+
+            # The dev server must never be started by the entrypoint.
+            self.assertFalse((tmp_path / "python.args").exists())
+            self.assertNotIn("--reload", gunicorn_args)
+            self.assertNotIn("--debug", gunicorn_args)
 
     def _write_fake_executable(self, path, script):
         path.write_text(textwrap.dedent(script).lstrip())

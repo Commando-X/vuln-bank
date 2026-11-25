@@ -1,6 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 import hashlib
+import hmac
+import logging
 import random
 import string
 import time
@@ -11,6 +13,22 @@ import jwt
 import auth
 from auth import verify_token
 from database import execute_query
+
+logger = logging.getLogger(__name__)
+
+
+def mask_card_number(card_number):
+    """
+    Mask a card number, keeping only the last four digits.
+
+    Full PAN and CVV must never leave the server (PCI-DSS 3.4 / CWE-359).
+    """
+    if not card_number:
+        return None
+    card_number = str(card_number)
+    if len(card_number) <= 4:
+        return '*' * len(card_number)
+    return '*' * (len(card_number) - 4) + card_number[-4:]
 
 
 def generate_merchant_api_key():
@@ -36,7 +54,9 @@ def generate_merchant_token(merchant):
         'merchant_name': merchant[1],
         'merchant_email': merchant[2],
         'is_merchant': True,
-        'iat': datetime.utcnow()
+        'iat': datetime.now(timezone.utc),
+        # Tokens must expire (CWE-613). verify_token() requires this claim.
+        'exp': datetime.now(timezone.utc) + auth.TOKEN_TTL,
     }
     return jwt.encode(payload, auth.JWT_SECRET, algorithm='HS256')
 
@@ -58,12 +78,13 @@ def get_merchant_from_request():
     """
     api_key = request.headers.get('X-Merchant-Api-Key')
     if api_key:
-        query = f"""
+        # Parameterized query: the API key is bound, never interpolated (CWE-89).
+        query = """
             SELECT id, name, email, api_key, is_active, created_at
             FROM merchants
-            WHERE api_key = '{api_key}'
+            WHERE api_key = %s
         """
-        merchants = execute_query(query)
+        merchants = execute_query(query, (api_key,))
         if merchants:
             return merchant_tuple_to_dict(merchants[0]), 'api_key'
 
@@ -73,12 +94,12 @@ def get_merchant_from_request():
         payload = verify_token(token)
         if payload and payload.get('is_merchant'):
             merchant_id = payload.get('merchant_id')
-            query = f"""
+            query = """
                 SELECT id, name, email, api_key, is_active, created_at
                 FROM merchants
-                WHERE id = {merchant_id}
+                WHERE id = %s
             """
-            merchants = execute_query(query)
+            merchants = execute_query(query, (merchant_id,))
             if merchants:
                 return merchant_tuple_to_dict(merchants[0]), 'jwt'
 
@@ -156,13 +177,13 @@ def init_merchant_payment_routes(app):
             password = data.get('password')
             api_key = generate_merchant_api_key()
 
-            # Vulnerability: SQL injection possible and plaintext password/API key storage
-            query = f"""
+            # Parameterized query: no user input is interpolated (CWE-89).
+            query = """
                 INSERT INTO merchants (name, email, password, api_key)
-                VALUES ('{name}', '{email}', '{password}', '{api_key}')
+                VALUES (%s, %s, %s, %s)
                 RETURNING id, name, email, api_key, is_active, created_at
             """
-            result = execute_query(query)
+            result = execute_query(query, (name, email, password, api_key))
 
             if not result:
                 return jsonify({
@@ -173,29 +194,21 @@ def init_merchant_payment_routes(app):
             merchant = merchant_tuple_to_dict(result[0])
             token = generate_merchant_token(result[0])
 
+            # The password is never echoed back, and the raw request is not
+            # returned to the client (CWE-200, CWE-532).
             return jsonify({
                 'status': 'success',
                 'message': 'Merchant registered successfully',
                 'merchant': merchant,
                 'api_key': api_key,
                 'token': token,
-                'debug_info': {
-                    'raw_request': data,
-                    'password': password,
-                    'api_key': api_key,
-                    'auth_methods': ['X-Merchant-Api-Key', 'Authorization Bearer JWT'],
-                    'created_at': str(datetime.now())
-                }
             })
 
         except Exception as e:
+            logger.exception('Merchant registration failed')
             return jsonify({
                 'status': 'error',
-                'message': str(e),
-                'debug_info': {
-                    'raw_request': request.get_json(silent=True),
-                    'endpoint': '/api/v1/merchants/register'
-                }
+                'message': 'Failed to register merchant'
             }), 500
 
     @app.route('/api/v1/merchants/login', methods=['POST'])
@@ -205,13 +218,15 @@ def init_merchant_payment_routes(app):
             email = data.get('email')
             password = data.get('password')
 
-            # Vulnerability: SQL injection and plaintext password comparison
-            query = f"""
-                SELECT id, name, email, api_key, is_active, created_at
+            # Parameterized query: no user input is interpolated (CWE-89).
+            # The stored password is selected so it can be compared in constant
+            # time; it is never interpolated into the statement.
+            query = """
+                SELECT id, name, email, password, api_key, is_active, created_at
                 FROM merchants
-                WHERE email = '{email}' AND password = '{password}'
+                WHERE email = %s
             """
-            result = execute_query(query)
+            result = execute_query(query, (email,))
 
             if not result:
                 return jsonify({
@@ -219,8 +234,18 @@ def init_merchant_payment_routes(app):
                     'message': 'Invalid merchant credentials'
                 }), 401
 
-            merchant = merchant_tuple_to_dict(result[0])
-            token = generate_merchant_token(result[0])
+            # Passwords are stored in plaintext in this schema; compare them in
+            # constant time so timing does not leak the value (CWE-256).
+            if not hmac.compare_digest(str(result[0][3]), str(password)):
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Invalid merchant credentials'
+                }), 401
+
+            # Drop the password column before the row is turned into a response.
+            row = result[0]
+            merchant = merchant_tuple_to_dict(row[:3] + row[4:])
+            token = generate_merchant_token(row)
 
             return jsonify({
                 'status': 'success',
@@ -231,9 +256,10 @@ def init_merchant_payment_routes(app):
             })
 
         except Exception as e:
+            logger.exception('Merchant login failed')
             return jsonify({
                 'status': 'error',
-                'message': str(e)
+                'message': 'Merchant login failed'
             }), 500
 
     @app.route('/api/v1/merchants/me', methods=['GET'])
@@ -262,8 +288,9 @@ def init_merchant_payment_routes(app):
             merchant_order_id = data.get('merchant_order_id')
             description = data.get('description', 'Merchant payment')
 
-            # Vulnerability: Raw card details are queried directly and SQL injection is possible
-            card_query = f"""
+            # Parameterized query: the card number is bound, never interpolated
+            # (CWE-89). CVV is selected for the authorization check only.
+            card_query = """
                 SELECT
                     vc.id,
                     vc.user_id,
@@ -280,9 +307,9 @@ def init_merchant_payment_routes(app):
                     u.username
                 FROM virtual_cards vc
                 JOIN users u ON vc.user_id = u.id
-                WHERE vc.card_number = '{card_number}'
+                WHERE vc.card_number = %s
             """
-            card_result = execute_query(card_query)
+            card_result = execute_query(card_query, (card_number,))
 
             if not card_result:
                 payment_id = record_merchant_payment(
@@ -400,8 +427,10 @@ def init_merchant_payment_routes(app):
                     'user_id': card[1],
                     'account_number': card[11],
                     'username': card[12],
-                    'card_number': card[2],
-                    'cvv': stored_cvv,
+                    # Masked: the full PAN and the CVV must never be returned
+                    # to a client (PCI-DSS / CWE-359).
+                    'card_number': mask_card_number(card[2]),
+                    'card_last4': str(card[2])[-4:],
                     'expiry_date': stored_expiry,
                     'card_currency': card_currency,
                     'requested_currency': currency,
@@ -433,7 +462,7 @@ def init_merchant_payment_routes(app):
     @merchant_required
     def get_merchant_payment(current_merchant, payment_id):
         try:
-            query = f"""
+            query = """
                 SELECT
                     mp.id,
                     mp.merchant_id,
@@ -452,10 +481,10 @@ def init_merchant_payment_routes(app):
                 FROM merchant_payments mp
                 JOIN merchants m ON mp.merchant_id = m.id
                 LEFT JOIN virtual_cards vc ON mp.card_id = vc.id
-                WHERE mp.id = {payment_id}
-                AND mp.merchant_id = {current_merchant['id']}
+                WHERE mp.id = %s
+                AND mp.merchant_id = %s
             """
-            result = execute_query(query)
+            result = execute_query(query, (payment_id, current_merchant['id']))
 
             if not result:
                 return jsonify({
@@ -473,8 +502,10 @@ def init_merchant_payment_routes(app):
                     'merchant_name': payment[2],
                     'merchant_email': payment[3],
                     'card_id': payment[4],
-                    'card_number': payment[5],
-                    'cvv': payment[6],
+                    # Masked: the full PAN must never be returned (PCI-DSS / CWE-359).
+                    'card_number': mask_card_number(payment[5]),
+                    'card_last4': str(payment[5])[-4:],
+                    # The CVV is never returned by the API (PCI-DSS / CWE-359).
                     'amount': float(payment[7]),
                     'currency': payment[8],
                     'payment_status': payment[9],
@@ -498,7 +529,7 @@ def init_merchant_payment_routes(app):
     @merchant_required
     def list_merchant_payments(current_merchant):
         try:
-            query = f"""
+            query = """
                 SELECT
                     mp.id,
                     mp.merchant_id,
@@ -515,10 +546,10 @@ def init_merchant_payment_routes(app):
                 FROM merchant_payments mp
                 JOIN merchants m ON mp.merchant_id = m.id
                 LEFT JOIN virtual_cards vc ON mp.card_id = vc.id
-                WHERE mp.merchant_id = {current_merchant['id']}
+                WHERE mp.merchant_id = %s
                 ORDER BY mp.created_at DESC
             """
-            payments = execute_query(query)
+            payments = execute_query(query, (current_merchant['id'],))
 
             return jsonify({
                 'status': 'success',
@@ -527,7 +558,9 @@ def init_merchant_payment_routes(app):
                     'merchant_id': payment[1],
                     'merchant_name': payment[2],
                     'card_id': payment[3],
-                    'card_number': payment[4],
+                    # Masked: the full PAN must never be returned (PCI-DSS / CWE-359).
+                    'card_number': mask_card_number(payment[4]),
+                    'card_last4': str(payment[4])[-4:],
                     'amount': float(payment[5]),
                     'currency': payment[6],
                     'payment_status': payment[7],
@@ -551,7 +584,16 @@ def init_merchant_payment_routes(app):
     @merchant_required
     def list_payments_by_merchant_id(current_merchant, merchant_id):
         try:
-            query = f"""
+            # Object-level authorization: a merchant may only list its own
+            # payments. Previously any authenticated merchant could read any
+            # other merchant's transactions (CWE-639).
+            if merchant_id != current_merchant.get('id'):
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Forbidden'
+                }), 403
+
+            query = """
                 SELECT
                     mp.id,
                     mp.merchant_id,
@@ -568,10 +610,10 @@ def init_merchant_payment_routes(app):
                 FROM merchant_payments mp
                 JOIN merchants m ON mp.merchant_id = m.id
                 LEFT JOIN virtual_cards vc ON mp.card_id = vc.id
-                WHERE mp.merchant_id = {merchant_id}
+                WHERE mp.merchant_id = %s
                 ORDER BY mp.created_at DESC
             """
-            payments = execute_query(query)
+            payments = execute_query(query, (merchant_id,))
 
             return jsonify({
                 'status': 'success',
@@ -581,7 +623,9 @@ def init_merchant_payment_routes(app):
                     'merchant_id': payment[1],
                     'merchant_name': payment[2],
                     'card_id': payment[3],
-                    'card_number': payment[4],
+                    # Masked: the full PAN must never be returned (PCI-DSS / CWE-359).
+                    'card_number': mask_card_number(payment[4]),
+                    'card_last4': str(payment[4])[-4:],
                     'amount': float(payment[5]),
                     'currency': payment[6],
                     'payment_status': payment[7],

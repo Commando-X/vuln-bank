@@ -11,38 +11,62 @@ jobs:
     runs-on: ubuntu-latest
     name: Deploy to Server
 
+    # Least privilege: the deploy only needs to read the repository and load
+    # an SSH key onto the runner. Without this block the job inherits the
+    # repository's default token scope (CWE-250).
+    permissions:
+      contents: read
+
     environment:
       name: production
       url: https://vulnbank.org
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        # Pinned to a full 40-character commit SHA. A mutable tag can be
+        # silently repointed by the action owner, enabling a supply-chain
+        # attack (CWE-494).
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.8.0
+        # webfactory/ssh-agent v0.8.0 pinned to its commit SHA.
+        uses: webfactory/ssh-agent@e39d7332239d42e573ca23d0efc0dca7c4e6e6cc
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Sync code to server
+        env:
+          DEPLOY_USER: ${{ secrets.USERNAME }}
+          DEPLOY_HOST: ${{ secrets.HOST }}
         run: |
+          set -euo pipefail
           rsync -avz --delete \
             --exclude '.env' \
-            -e "ssh -o StrictHostKeyChecking=no" \
+            --exclude '.git' \
+            --exclude '.audit' \
+            -e "ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/root/.ssh/known_hosts" \
             ./ \
-            ${{ secrets.USERNAME }}@${{ secrets.HOST }}:/home/${{ secrets.USERNAME }}/vuln-bank/
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/home/${DEPLOY_USER}/vuln-bank/"
 
       - name: Deploy on server
+        env:
+          DEPLOY_USER: ${{ secrets.USERNAME }}
+          DEPLOY_HOST: ${{ secrets.HOST }}
         run: |
-          ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.USERNAME }}@${{ secrets.HOST }} << 'EOF'
+          set -euo pipefail
+          ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/root/.ssh/known_hosts \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" << 'EOF'
             set -e
 
             cd /home/${USER}/vuln-bank
 
-            # ensure .env exists (bootstrap on first deploy)
+            # The .env file must already exist on the server. Bootstrapping it
+            # from .env.example would install default credentials into
+            # production (CWE-798).
             if [ ! -f .env ]; then
-              cp .env.example .env
+              echo "ERROR: /home/${USER}/vuln-bank/.env is missing." >&2
+              echo "Create it on the server with DB_PASSWORD, JWT_SECRET and SECRET_KEY set." >&2
+              exit 1
             fi
 
             # stop any running containers

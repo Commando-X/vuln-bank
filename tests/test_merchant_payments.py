@@ -77,8 +77,10 @@ class MerchantPaymentApiTests(unittest.TestCase):
         self.assertEqual(body["status"], "success")
         self.assertEqual(body["api_key"], "vk_03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4")
         self.assertEqual(body["merchant"]["api_key"], "vk_03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4")
-        self.assertEqual(body["debug_info"]["password"], "password123")
-        self.assertNotIn("plaintext_password", body["debug_info"])
+        # The plaintext password must never be echoed back to the client
+        # (CWE-200 / CWE-532). This assertion previously locked the leak in.
+        self.assertNotIn("debug_info", body)
+        self.assertNotIn("password123", response.get_data(as_text=True))
 
     def test_merchant_ui_pages_render(self):
         login_response = self.client.get("/merchant/login")
@@ -218,8 +220,13 @@ class MerchantPaymentApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual({payment["merchant_id"] for payment in body["payments"]}, {1})
         self.assertNotIn("bola_note", body["debug_info"])
+        # The full PAN must never be returned (PCI-DSS / CWE-359).
+        for payment in body["payments"]:
+            self.assertNotEqual(payment["card_number"], "4111111111111111")
+            self.assertTrue(payment["card_number"].endswith("1111"))
+            self.assertNotIn("cvv", payment)
 
-    def test_payment_merchant_id_lookup_can_return_another_merchants_payments(self):
+    def test_payment_merchant_id_lookup_cannot_return_another_merchants_payments(self):
         self._create_successful_payment()
         self.store.payments[2] = {
             "id": 2,
@@ -241,9 +248,11 @@ class MerchantPaymentApiTests(unittest.TestCase):
         )
 
         body = response.get_json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual({payment["merchant_id"] for payment in body["payments"]}, {2})
-        self.assertNotIn("bola_note", body["debug_info"])
+        # Object-level authorization: a merchant must not read another
+        # merchant's payments (CWE-639). This returned 200 with the other
+        # merchant's data before the fix.
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn("payments", body)
 
     def _create_successful_payment(self):
         response = self.client.post(
@@ -293,24 +302,38 @@ class FakeMerchantStore:
         self.next_payment_id = 1
 
     def execute_query(self, query, params=None, fetch=True):
+        """
+        Mock database layer.
+
+        Values are read from the bound parameters, never from the SQL text:
+        the production queries are parameterized, so a mock that parsed the
+        statement would only work while the SQL injection was present.
+        """
         normalized_query = " ".join(query.split())
+        params = tuple(params or ())
 
         if "INSERT INTO merchants" in normalized_query:
             return [self._merchant_tuple()]
 
         if "FROM merchants" in normalized_query and "WHERE api_key" in normalized_query:
-            return [self._merchant_tuple()]
-
-        if "FROM merchants" in normalized_query and "WHERE email" in normalized_query:
-            if "shop@example.com" in normalized_query and "password123" in normalized_query:
+            if params and params[0] == self.merchant["api_key"]:
                 return [self._merchant_tuple()]
             return []
 
+        if "FROM merchants" in normalized_query and "WHERE email" in normalized_query:
+            if params and params[0] == self.merchant["email"]:
+                # The password column is selected so the caller can compare it
+                # in constant time.
+                return [self._merchant_login_tuple()]
+            return []
+
         if "FROM merchants" in normalized_query and "WHERE id" in normalized_query:
-            return [self._merchant_tuple()]
+            if params and params[0] == self.merchant["id"]:
+                return [self._merchant_tuple()]
+            return []
 
         if "FROM virtual_cards vc JOIN users u" in normalized_query:
-            if self.card["card_number"] in normalized_query:
+            if params and params[0] == self.card["card_number"]:
                 return [self._card_tuple()]
             return []
 
@@ -352,18 +375,18 @@ class FakeMerchantStore:
             return [(payment_id,)]
 
         if "FROM merchant_payments mp JOIN merchants m" in normalized_query and "WHERE mp.id" in normalized_query:
-            payment_id = int(normalized_query.split("WHERE mp.id = ")[1].split()[0])
+            payment_id = int(params[0])
             payment = self.payments.get(payment_id)
             if not payment:
                 return []
             if "AND mp.merchant_id =" in normalized_query:
-                merchant_id = int(normalized_query.split("AND mp.merchant_id = ")[1].split()[0])
+                merchant_id = int(params[1])
                 if payment["merchant_id"] != merchant_id:
                     return []
             return [self._payment_detail_tuple(payment)]
 
         if "FROM merchant_payments mp JOIN merchants m" in normalized_query and "WHERE mp.merchant_id" in normalized_query:
-            merchant_id = int(normalized_query.split("WHERE mp.merchant_id = ")[1].split()[0])
+            merchant_id = int(params[0])
             return [
                 self._payment_list_tuple(payment)
                 for payment in self.payments.values()
@@ -380,6 +403,18 @@ class FakeMerchantStore:
             self.merchant["id"],
             self.merchant["name"],
             self.merchant["email"],
+            self.merchant["api_key"],
+            self.merchant["is_active"],
+            self.merchant["created_at"],
+        )
+
+    def _merchant_login_tuple(self):
+        """Merchant row including the stored password column."""
+        return (
+            self.merchant["id"],
+            self.merchant["name"],
+            self.merchant["email"],
+            self.merchant["password"],
             self.merchant["api_key"],
             self.merchant["is_active"],
             self.merchant["created_at"],

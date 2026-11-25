@@ -78,7 +78,7 @@
     <!-- Topbar -->
     <header class="topbar">
         <div class="topbar-left">
-            <span class="topbar-greeting">Welcome back, {{ username | safe }}</span>
+            <span class="topbar-greeting">Welcome back, {{ username }}</span>
             <span class="topbar-date" id="current-date"></span>
         </div>
         <div class="topbar-right">
@@ -163,7 +163,7 @@
                 {% if user_bio %}
                 <div style="background:var(--surface-1);padding:1rem;border-radius:var(--r-sm);margin-bottom:1rem;">
                     <div style="font-size:0.875rem;color:var(--text-3);margin-bottom:0.5rem;">Current bio:</div>
-                    <div id="user-bio-display">{{ user_bio|safe }}</div>
+                    <div id="user-bio-display">{{ user_bio }}</div>
                 </div>
                 {% endif %}
                 <form id="bioForm" style="margin-top:1rem;">

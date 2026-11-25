@@ -42,8 +42,10 @@ class TransactionSummaryType(graphene.ObjectType):
 
 
 def _load_user_actor(user_id):
+    # Parameterized query: the user id is bound, never interpolated (CWE-89).
     rows = execute_query(
-        f"SELECT id, username, account_number, is_admin FROM users WHERE id = {user_id}"
+        "SELECT id, username, account_number, is_admin FROM users WHERE id = %s",
+        (user_id,)
     )
 
     if not rows:
@@ -74,8 +76,11 @@ def _resolve_scope(actor, requested_account_number):
 
 
 def _load_actor_by_account_number(account_number):
+    # Parameterized query: the account number comes straight from a GraphQL
+    # argument and is bound, never interpolated (CWE-89).
     rows = execute_query(
-        f"SELECT id, username, account_number, is_admin FROM users WHERE account_number = '{account_number}'"
+        "SELECT id, username, account_number, is_admin FROM users WHERE account_number = %s",
+        (account_number,)
     )
     if not rows:
         return None
@@ -102,11 +107,15 @@ def _load_transactions(scoped_account_number):
         FROM transactions
     """
 
+    params = ()
     if scoped_account_number:
-        query += f" WHERE from_account = '{scoped_account_number}' OR to_account = '{scoped_account_number}'"
+        # The account number is derived from a GraphQL argument and is bound
+        # as a parameter, never interpolated (CWE-89).
+        query += " WHERE from_account = %s OR to_account = %s"
+        params = (scoped_account_number, scoped_account_number)
 
     query += " ORDER BY timestamp DESC"
-    return execute_query(query)
+    return execute_query(query, params)
 
 
 def _load_account_name_map():
@@ -152,11 +161,15 @@ def _load_lending_and_bill_metrics(scoped_user_id):
     """
 
     if scoped_user_id is not None:
-        loan_query += f" WHERE user_id = {scoped_user_id}"
-        bill_query += f" AND bp.user_id = {scoped_user_id}"
+        # The user id is bound as a parameter, never interpolated (CWE-89).
+        loan_query += " WHERE user_id = %s"
+        bill_query += " AND bp.user_id = %s"
+        params = (scoped_user_id,)
+    else:
+        params = ()
 
-    loan_metrics = execute_query(loan_query)[0]
-    bill_metrics = execute_query(bill_query)[0]
+    loan_metrics = execute_query(loan_query, params)[0]
+    bill_metrics = execute_query(bill_query, params)[0]
 
     return {
         'total_loans_given': round(_coerce_finite_float(loan_metrics[0]), 2),

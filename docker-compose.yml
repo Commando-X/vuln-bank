@@ -3,16 +3,28 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "5000:5000"
-      - "80:5000"
-      # - "443:5000" 
+      # The origin is bound to loopback only. Publishing to 0.0.0.0 would let
+      # anyone who learns the origin IP bypass the CDN, its WAF and every
+      # edge rule (CWE-668).
+      #
+      # IMPORTANT: this is not a drop-in swap. With the origin on loopback the
+      # host needs a reverse proxy (nginx/Caddy) to terminate TLS and proxy
+      # to 127.0.0.1:5000, with the firewall allowing only the CDN's IP
+      # ranges. The container-side bind must stay 0.0.0.0 while the
+      # host-side publish stays on 127.0.0.1.
+      - "127.0.0.1:5000:5000"
 
     environment:
-      - DB_NAME=vulnerable_bank
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
+      - DB_NAME=${DB_NAME:-vulnerable_bank}
+      - DB_USER=${DB_USER:-vulnbank_app}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
       - DB_HOST=db 
       - DB_PORT=5432
+      # The JWT signing key must be supplied at runtime; the application
+      # fails closed when it is missing (CWE-798).
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - FLASK_DEBUG=${FLASK_DEBUG:-false}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set}
     depends_on:
       db:
         condition: service_healthy
@@ -28,17 +40,19 @@ services:
     image: postgres:13
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=vulnerable_bank
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    ports:
-      - "5432:5432"
+      - POSTGRES_DB=${DB_NAME:-vulnerable_bank}
+      - POSTGRES_USER=${DB_USER:-vulnbank_app}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
+    # The database is not published to the host. It is reachable only from
+    # the internal compose network (CWE-668).
+    expose:
+      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - vuln_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d vulnerable_bank"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-vulnbank_app} -d ${DB_NAME:-vulnerable_bank}"]
       interval: 10s
       timeout: 5s
       retries: 5

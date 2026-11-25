@@ -1,4 +1,13 @@
+# Environment files. The bare `.env` pattern does NOT cover `.env.local`,
+# `.env.production` and friends (CWE-538).
 .env
+.env.*
+!.env.example
+
 *.pyc
 __pycache__/
 .venv/
+
+# Local audit artifacts
+.audit/
+bank.db

@@ -15,6 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Reset to fresh state
 
+    # Least privilege. Without this block the job inherits the repository's
+    # default token scope (CWE-250).
+    permissions:
+      contents: read
+
     environment:
       name: production
       url: https://vulnbank.org
@@ -33,15 +38,23 @@ jobs:
 
       - name: Setup SSH agent
         if: env.SKIP != 'true'
-        uses: webfactory/ssh-agent@v0.8.0
+        # webfactory/ssh-agent v0.8.0 pinned to its commit SHA (CWE-494).
+        uses: webfactory/ssh-agent@e39d7332239d42e573ca23d0efc0dca7c4e6e6cc
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Reset on server
         if: env.SKIP != 'true'
+        env:
+          DEPLOY_USER: ${{ secrets.USERNAME }}
+          DEPLOY_HOST: ${{ secrets.HOST }}
         run: |
-          ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.USERNAME }}@${{ secrets.HOST }} << 'EOF'
+          set -euo pipefail
+          # Host key verification stays ENABLED. This step irreversibly wipes
+          # the production database, so an unverified host key would let a
+          # MITM redirect the destructive command to an attacker host.
+          ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/root/.ssh/known_hosts \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" << 'EOF'
             set -e
 
             cd /home/${USER}/vuln-bank

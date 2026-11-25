@@ -1,0 +1,29 @@
+# Secrets and environment - never bake these into the image (CWE-538).
+.env
+.env.*
+!.env.example
+
+# Version control and local tooling
+.git
+.gitignore
+.github
+.hermes
+.audit
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Reports and generated artifacts
+*.sarif
+*.pdf
+*.odt
+results.html
+OCR_FINDINGS*
+SECURITY_REPORT*
+SEMGREP_REPORT*
+GGSHIELD_REPORT*
