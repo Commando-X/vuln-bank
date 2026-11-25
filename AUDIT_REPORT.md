@@ -66,6 +66,9 @@ false positive (`auth.py:78`), and two Subresource Integrity advisories on
 - **The `app.py` OCR run completed separately** (`status: success`, 18 comments in 9m51s,
   7 of them security) after the earlier one had exceeded the context-compression threshold.
   It found F-37 to F-41, all now fixed and verified.
+- **Re-reading that run against the patched code surfaced four further issues** that the
+  run had flagged but that had not been acted on: F-42 to F-45, all fixed and covered by a
+  dedicated 21-check suite.
 
 ## 3. Edge / CDN Posture — `vulnbank.org`
 
@@ -150,6 +153,10 @@ Not applied (no API access). Each item states the observed gap and the control t
 | F-39 | The registration response copied the raw request body - including the plaintext password - into the `X-Debug-Info` response header, which is captured by CDN and proxy access logs | CWE-200/532 | The raw body is no longer returned, and no debug payload is placed in a response header. |
 | F-40 | The SSRF guard validated a resolved address and then let the HTTP client resolve the hostname again, so a DNS rebind could redirect the fetch to an internal host | CWE-367 | The connection is opened directly to the validated IP while the hostname is kept for TLS SNI, certificate verification and the Host header. Verified: 1 DNS resolution, connected to the validated address. |
 | F-41 | The remote image fetch was allowed over plain HTTP, letting an on-path attacker substitute the response | CWE-319 | The endpoint now requires HTTPS. |
+| F-42 | The remote body was read in one call, so a chunked response with no `Content-Length` could exhaust the process memory | CWE-400 | The body is read in bounded 64 KB chunks and abandoned once the limit is passed. |
+| F-43 | Uploaded files were named `random.randint(1, 1000000)_<name>`, a range small enough to guess, letting one user overwrite another user's upload | CWE-330 | The prefix is now `secrets.token_hex(8)`. |
+| F-44 | Account numbers and reset PINs came from the `random` module | CWE-330 | Both now use `secrets`. |
+| F-45 | The loopback check compared `request.remote_addr` as a string, so `::ffff:127.0.0.1` was not recognised and a value like `127.evil.example` would have matched the `127.` prefix | CWE-184 | The address is parsed with `ipaddress`; IPv4-mapped IPv6 loopback is handled and a non-IP value no longer matches. |
 
 ## 5. Dependency Remediation — CVE Comparison
 

@@ -366,7 +366,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 def generate_account_number():
-    return ''.join(random.choices(string.digits, k=10))
+    return ''.join(secrets.choice(string.digits) for _ in range(10))
 
 def generate_card_number():
     """
@@ -869,7 +869,9 @@ def upload_profile_picture(current_user):
             return jsonify({'error': 'Invalid filename'}), 400
 
         # Add random prefix to prevent filename collisions
-        filename = f"{random.randint(1, 1000000)}_{filename}"
+        # A random prefix stops one user from overwriting another user's
+        # upload by guessing the name (CWE-330).
+        filename = f"{secrets.token_hex(8)}_{filename}"
 
         file_path = os.path.join(UPLOAD_FOLDER, filename)
 
@@ -935,6 +937,24 @@ def _resolve_public_addresses(hostname, port):
         addresses.append(sockaddr[0])
 
     return addresses or None
+
+
+def _read_bounded(response, limit):
+    """
+    Read at most `limit` bytes from the response.
+
+    Returns the bytes, or None when the body is larger than the limit. The
+    read is bounded chunk by chunk, so a response without a Content-Length
+    cannot exhaust memory.
+    """
+    chunks = []
+    total = 0
+    for chunk in response.stream(64 * 1024):
+        total += len(chunk)
+        if total > limit:
+            return None
+        chunks.append(chunk)
+    return b''.join(chunks)
 
 
 def _pinned_fetch(image_url, parsed, addresses, timeout=10):
@@ -1038,10 +1058,14 @@ def upload_profile_picture_url(current_user):
         # uploads directory is served as static content, so an HTML or SVG
         # body would become stored script on the application's own origin
         # (CWE-434).
-        body = resp.read()
+        #
+        # The body is read in bounded chunks rather than in one go. A
+        # chunked response carries no Content-Length, so reading it whole
+        # would let a remote host exhaust the process memory (CWE-400).
+        body = _read_bounded(resp, MAX_PROFILE_IMAGE_BYTES)
         resp.release_conn()
 
-        if len(body) > MAX_PROFILE_IMAGE_BYTES:
+        if body is None:
             return jsonify({'status': 'error', 'message': 'Image is too large'}), 400
 
         extension = _validate_image_upload(filename, body[:16])
@@ -1054,7 +1078,7 @@ def upload_profile_picture_url(current_user):
         # Force the extension to the validated one so the stored name always
         # matches the content type.
         stem = os.path.splitext(filename)[0]
-        filename = f"{random.randint(1, 1000000)}_{stem}{extension}"
+        filename = f"{secrets.token_hex(8)}_{stem}{extension}"
         file_path = os.path.join(UPLOAD_FOLDER, filename)
 
         with open(file_path, 'wb') as f:
@@ -1109,10 +1133,24 @@ def update_bio(current_user):
 
 # INTERNAL-ONLY ENDPOINTS FOR SSRF DEMO (INTENTIONALLY SENSITIVE)
 def _is_loopback_request():
+    """
+    Whether the request came from the loopback interface.
+
+    The address is parsed rather than compared as a string, so the
+    IPv4-mapped IPv6 forms of 127.0.0.1 (::ffff:127.0.0.1) are recognised
+    too. A prefix match on '127.' would also accept a malformed value
+    such as '127.evil.example'.
+    """
     try:
-        ip = request.remote_addr or ''
-        return ip == '127.0.0.1' or ip.startswith('127.') or ip == '::1'
-    except Exception:
+        raw = request.remote_addr or ''
+        address = ipaddress.ip_address(raw)
+        if address.is_loopback:
+            return True
+        # ::ffff:127.0.0.1 is an IPv4 address inside an IPv6 wrapper.
+        if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+            return address.ipv4_mapped.is_loopback
+        return False
+    except ValueError:
         return False
 
 @app.route('/internal/secret', methods=['GET'])
@@ -1517,7 +1555,7 @@ def forgot_password():
             if user:
                 # Weak reset pin logic (CWE-330)
                 # Using only 3 digits makes it easily guessable
-                reset_pin = str(random.randint(100, 999))
+                reset_pin = ''.join(secrets.choice(string.digits) for _ in range(3))
                 
                 # Store the reset PIN in database (in plaintext - CWE-319)
                 execute_query(
@@ -1617,7 +1655,7 @@ def api_v1_forgot_password():
         if user:
             # Weak reset pin logic (CWE-330)
             # Using only 3 digits makes it easily guessable
-            reset_pin = str(random.randint(100, 999))
+            reset_pin = ''.join(secrets.choice(string.digits) for _ in range(3))
             
             # Store the reset PIN in database (in plaintext - CWE-319)
             execute_query(
@@ -1667,7 +1705,7 @@ def api_v2_forgot_password():
         
         if user:
             # Weak reset pin logic (CWE-330) - still using 3 digits
-            reset_pin = str(random.randint(100, 999))
+            reset_pin = ''.join(secrets.choice(string.digits) for _ in range(3))
             
             # Store the reset PIN in database (in plaintext - CWE-319)
             execute_query(
@@ -1716,7 +1754,7 @@ def api_v3_forgot_password():
         
         if user:
             # Weak reset pin logic (CWE-330) - now 4 digits but still guessable
-            reset_pin = str(random.randint(1000, 9999))
+            reset_pin = ''.join(secrets.choice(string.digits) for _ in range(4))
             
             # Store the reset PIN in database (in plaintext - CWE-319)
             execute_query(
