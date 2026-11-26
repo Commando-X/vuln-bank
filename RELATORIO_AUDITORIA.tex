@@ -245,28 +245,35 @@ de severidade \textsc{WARNING}, sem nenhum erro de severidade
 
 \begin{table}[H]
 \centering
-\caption{Evolução por classe de regra do Semgrep.}
+\caption{Evolução por classe de regra do Semgrep. Os valores foram extraídos
+dos arquivos JSON das duas execuções, agrupados pela família da regra.}
 \begin{tabularx}{\textwidth}{@{}XrrX@{}}
 \toprule
 \textbf{Classe de regra} & \textbf{Antes} & \textbf{Depois} & \textbf{Situação} \\
 \midrule
 SQL Injection (SQLi)          & 66 & 0 & Eliminada \\
-Authentication / JWT          & 8  & 0 & Eliminada \\
-Secrets / Hardcoded           & 11 & 0 & Eliminada \\
-SSRF                          & 4  & 1 & Mitigada (CWE-367 resolvido) \\
-XSS / Output encoding         & 7  & 1 & Mitigada \\
-Path traversal / Upload       & 5  & 0 & Eliminada \\
-Debug exposure                & 4  & 0 & Eliminada \\
-Mass assignment / IDOR        & 5  & 0 & Eliminada \\
-CORS / Transport              & 4  & 0 & Eliminada \\
-Container / Supply chain      & 6  & 0 & Eliminada \\
-Rate limiting / Resources     & 4  & 1 & Parcial (R-11) \\
-Outros                        & 12 & 1 & --- \\
+JWT / Autenticação            & 2  & 0 & Eliminada \\
+XSS / Integridade             & 6  & 3 & Mitigada \\
+Configuração / Transporte     & 3  & 0 & Eliminada \\
+Supply chain / Container      & 4  & 0 & Eliminada \\
+Exposição de segredos         & 0  & 1 & Falso positivo (ver nota) \\
+Outros                        & 1  & 0 & Eliminada \\
 \midrule
 \textbf{Total}                & \textbf{82} & \textbf{4} & $-95\,\%$ \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+\noindent Os quatro avisos residuais estão detalhados na seção de riscos
+residuais. Três são benignos: dois avisos de \emph{integridade} em
+\texttt{results.html} referem-se a dois \texttt{<script src>} locais sem
+atributo \texttt{integrity}, e o aviso de \emph{make-response-with-unknown-content}
+em \texttt{app.py} refere-se à resposta que devolve a imagem importada, cujo
+tipo já foi validado por \emph{magic bytes} no servidor. O quarto, em
+\texttt{auth.py}, é um falso positivo: \texttt{logger.exception} registra o
+\emph{traceback} da exceção, e um \emph{traceback} do Python exibe as linhas
+do código-fonte, nunca o valor de variáveis locais, portanto não expõe o
+token.
 
 \begin{figure}[H]
 \centering
